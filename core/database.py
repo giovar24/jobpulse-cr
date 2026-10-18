@@ -68,6 +68,17 @@ class JobDatabase:
             logger.info(f"Cleared {deleted} rows (jobs + jobs_raw) from DB")
             return deleted
 
+    async def clear_curated(self) -> int:
+        """Vacia SOLO la tabla curada (jobs); jobs_raw queda intacta.
+
+        Se usa en --refiltrar: la tabla jobs es derivable de jobs_raw + los
+        criterios actuales del gate, asi que se reconstruye desde cero."""
+        async with aiosqlite.connect(self.db_path) as db:
+            c = await db.execute("DELETE FROM jobs")
+            await db.commit()
+            logger.info(f"Cleared {c.rowcount} rows (solo tabla jobs; jobs_raw intacta)")
+            return c.rowcount
+
     async def save_jobs(self, jobs: List[JobOffer], tabla: str = "jobs") -> List[JobOffer]:
         """Upsert jobs en `tabla` (jobs o jobs_raw); return only newly inserted."""
         new_jobs = []

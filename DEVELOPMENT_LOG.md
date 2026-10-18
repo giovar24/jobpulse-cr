@@ -390,3 +390,25 @@ Crear un sistema eficiente de scraping de empleos para Costa Rica que consolide 
 - Reset de datos: `jobs.db`/backups/caches/reportes borrados (arranque desde cero); `data/` queda solo con plantilla ejemplo + demo + CVs locales (gitignored).
 
 **Pendiente**: corrida e2e completa con el nuevo pipeline (barrido ANE + gate) para calibrar `min_score` con datos reales; el threshold 0.30 ensayado con frases sinteticas mostro poca discriminacion como puerta binaria (posible senal combinada con titulos/temas).
+
+### 30. Calibracion con datos reales: veto lexico de dominio + refiltrar que reconstruye + fix ANE
+
+**Corrida e2e con perfil real (CV ES)**: 145 crudas (LinkedIn 61 + Indeed 84) -> 71 curadas. ANE aporto 0 por un bug; tras arreglarlo, segunda corrida: 266 crudas -> barrido ANE 120 vacantes (login programatico + 15 paginas en ~2 min). ANE queda como el proveedor #1 del sistema.
+
+**Bugs corregidos**:
+- ANE: 6 llamadas usaban `self._limpiar` pero la funcion es de modulo -> `AttributeError` justo despues del login correcto; el barrido aportaba 0 silenciosamente. Fix verificado en real.
+- `--refiltrar` solo hacia upsert en `jobs`: lo aprobado con criterios viejos quedaba atrapado en la tabla curada (199 filas de las cuales 128 eran basura). Fix: `clear_curated()` (vacía SOLO `jobs`; `jobs_raw` intacta) y refiltrar reconstruye la curada desde jobs_raw + criterios actuales. Verificado: 199 -> 71.
+
+**Calibracion del gate con datos reales**: la distribution real es sana (masa en 0.4-0.5, solo 5 descartes por score), PERO el barrido por fecha trae oficios cuyas descripciones puntuan 0.30-0.44 (`AYUDANTE DE BODEGA` 0.419, `Ayudante de Cocina` 0.421, `Lavadores de vehiculos` 0.416) y el umbral 0.30 las deja pasar. Experimento con la senal del TITULO por embeddings: peor que la descripcion (`Mecanico Automotriz` title-score 0.371 > su desc-score 0.304; mpnet comprime frases cortas en 0.31-0.46 sin discriminar). La senal que SI separa es lexica -> **tercer criterio del gate: veto lexico de dominio**: el titulo debe contener un token del dominio (soporte|support|help desk|service desk|mesa de ayuda|customer|cliente|informatic|biling|asistencia tecnica|TI|IT|sistemas|redes). Tokens de ROL ("tecnico", "analista", "representante") no cuentan: "Tecnico de Aire Acondicionado" debe caer. Escape: score >= 0.45 pasa sin importar el titulo (protege titulos creativos). Verificado 26/26 en casos etiquetados; en datos reales veto 128 (`Agente de Ventas`, `Supervisor de Proyectos`, `Senior Consultant`, `Remote Recruiter`, `Auxiliar Contable`, `Content Moderator`...).
+
+**?Cambiar de modelo de embedding arreglaria la separacion? No (medido)**. Mini-benchmark replicando la formula exacta de search_profile sobre 85 vacantes reales etiquetadas (39 ruido / 46 valor):
+
+| configuracion | ruido max | valor min | margen |
+|---|---|---|---|
+| mpnet + prompts produccion | 0.440 | 0.300 | -0.140 (solapa) |
+| mpnet texto pelado | 0.371 | 0.296 | -0.075 (solapa) |
+| e5-small + prefijos nativos (query:/passage:) | 0.825 | 0.805 | -0.020 (solapa) |
+
+Ningun modelo separa: el problema es estructural (las descripciones de oficios comparten superficie semantica con los empleos de servicio). e5-small comprime todo en 0.79-0.84 (rango operativo ~0.02). EmbeddingGemma sigue sin ser evaluable (gated: licencia + HF_TOKEN). Decision de arquitectura: **hibrido** - los embeddings rankean dentro de lo aprobado (donde mpnet gano el benchmark 16/16 y el cruce ES-EN), el lexico fija el dominio de la puerta.
+
+**Estado final de la corrida**: jobs 71 (solo dominio soporte/atencion al cliente) / jobs_raw 241 con razon de descarte por fila (fecha / relevancia / dominio).

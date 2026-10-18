@@ -133,11 +133,16 @@ def _reportes(newly):
 
 
 async def refiltrar(db, profile, engine, dias, min_score):
-    """Re-aplica el gate sobre jobs_raw SIN re-scrapear (valor de la 2da tabla)."""
+    """Re-aplica el gate sobre jobs_raw SIN re-scrapear (valor de la 2da tabla).
+
+    La tabla curada `jobs` se RECONSTRUYE: lo que aprobo una corrida anterior
+    pero ya no pasa los criterios actuales sale de `jobs` (nunca de jobs_raw).
+    """
     raw = await db.get_raw_jobs()
     if not raw:
         logger.warning("jobs_raw vacia: corre una corrida normal primero.")
         return
+    await db.clear_curated()
     offers = [dict_a_offer(r) for r in raw]
     logger.info("Re-filtrando %d vacantes crudas (sin scraping)..." % len(offers))
     newly, _, _ = await _aplicar_gate(db, profile, engine, offers, dias, min_score)

@@ -3,9 +3,9 @@
 Filosofia (decision del usuario):
   1. El scraper junta TODO lo crudo de los 4 portales (Procomer, LinkedIn,
      Indeed, ANE) en la tabla `jobs_raw`.
-  2. El gate aplica "Fecha Y relevancia" con la IA local (embeddings) sobre el
-     perfil del candidato y deja lo que sirve en `jobs` (la tabla que leen
-     search.py y app.py).
+  2. El gate aplica "Fecha Y relevancia Y dominio" con la IA local
+     (embeddings) sobre el perfil del candidato y deja lo que sirve en
+     `jobs` (la tabla que leen search.py y app.py).
   3. Lo descartado NO se borra: queda en `jobs_raw` con su `gate_razon`, y es
      re-filtrable sin re-scrapear (cambiar umbral, ventana o perfil y
      re-ejecutar el modo --refiltrar).
@@ -13,15 +13,24 @@ Filosofia (decision del usuario):
 El buscador de ANE esta roto (devuelve 0 incluso a mano), por eso su provider
 barre por fecha; aqui es donde, por fin, se filtra por contenido de verdad.
 
-Criterio Fecha Y relevancia:
+Criterio Fecha Y relevancia Y dominio:
   - Fecha dura: date_published dentro de la ventana (dias).
   - Relevancia: score semantico perfil<->vacante >= min_score.
+  - Dominio del titulo (veto lexico): el titulo debe contener un token del
+    dominio (soporte / atencion al cliente / TI...). Medido con datos reales,
+    el embedding del TITULO no separa oficios de soporte ("Mecanico
+    Automotriz" obtiene title-score 0.37, mas alto que su propio
+    desc-score 0.30): la senal util es lexica, no semantica. Escape: score
+    >= ESCAPE_SCORE pasa sin importar el titulo (protege titulos creativos
+    con descripcion muy relevante).
 
 Un perfil ausente degrada con seguridad a "solo fecha" (no hay criterio de
 relevancia sin perfil). Una fecha no parseable no descarta por fecha: deja que
 la IA decida (beneficio de la duda).
 """
 import logging
+import re
+import unicodedata
 from datetime import date, timedelta
 from typing import List, Optional, Tuple
 
@@ -34,6 +43,28 @@ logger = logging.getLogger("jobpulse.gate")
 # reales rondan 0.35-0.5; la basura (operarios, bodegas...) cae por debajo.
 DEFAULT_MIN_SCORE = 0.30
 DEFAULT_DIAS = 30
+
+# Score al que una vacante pasa aunque su titulo no tenga tokens del dominio.
+ESCAPE_SCORE = 0.45
+
+# Tokens del dominio soporte / atencion al cliente (ES+EN). Se aplica sobre el
+# titulo sin acentos y en minuscula. Tokens de ROL ("tecnico", "analista",
+# "representante"...) NO cuentan: "Tecnico de Aire Acondicionado" debe caer.
+_TITLE_TOKENS = re.compile(
+    r"(soporte|support|help\s*desk|service\s*desk|helpdesk|"
+    r"mesa\s+de\s+(ayuda|asistencia)|customer|cliente|informatic|"
+    r"biling|asistencia\s+tecnica|\bti\b|\bit\b|sistemas|redes)",
+    re.IGNORECASE)
+
+
+def _deacc(s: str) -> str:
+    s = unicodedata.normalize("NFD", s or "")
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+
+def titulo_en_dominio(title: Optional[str]) -> bool:
+    """True si el titulo contiene un token del dominio (veto lexico)."""
+    return bool(_TITLE_TOKENS.search(_deacc(title).lower()))
 
 
 def es_reciente(date_published: Optional[str], dias: int) -> bool:
@@ -103,11 +134,14 @@ def gate_jobs(offers: List[JobOffer], profile, engine,
         s = score_por_id.get(d["job_id"])
         sc = float(s["score"]) if s and s.get("score") is not None else 0.0
         o.gate_score = round(sc, 4)
-        if sc >= min_score:
-            aprobados.append(o)
-        else:
+        if sc < min_score:
             o.gate_razon = f"baja relevancia ({sc:.2f} < {min_score})"
             descartados.append(o)
+        elif not titulo_en_dominio(o.title) and sc < ESCAPE_SCORE:
+            o.gate_razon = f"titulo fuera de dominio (score {sc:.2f} < {ESCAPE_SCORE})"
+            descartados.append(o)
+        else:
+            aprobados.append(o)
 
     logger.info(
         "Gate: %d crudas -> %d en ventana (%d dias) -> %d aprobadas "

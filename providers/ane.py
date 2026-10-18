@@ -224,12 +224,12 @@ class AneProvider(BaseProvider):
             if not (m and titulo):
                 continue
             url = href if href.startswith("http") else BASE + href.split("&")[0]
-            ubic = [self._limpiar(li.get_text()) for li in box.select("ul > li")]
+            ubic = [_limpiar(li.get_text()) for li in box.select("ul > li")]
             cards.append({
                 "pid": m.group(1),
-                "titulo": self._limpiar(titulo.get_text()),
-                "empresa": self._limpiar(empresa.get_text()) if empresa else "",
-                "fecha_raw": self._limpiar(small.get_text()) if small else "",
+                "titulo": _limpiar(titulo.get_text()),
+                "empresa": _limpiar(empresa.get_text()) if empresa else "",
+                "fecha_raw": _limpiar(small.get_text()) if small else "",
                 "ubicacion": "; ".join(dict.fromkeys(x for x in ubic if x)),
                 "url": url,
             })
@@ -279,8 +279,8 @@ class AneProvider(BaseProvider):
         desc = self._campo(der, "Funciones principales del empleo") \
             or self._campo(der, "Detalle del horario")
         return {
-            "titulo": self._limpiar(h2.get_text()) if h2 else card["titulo"],
-            "empresa": self._limpiar(sm.get_text()) if sm else card["empresa"],
+            "titulo": _limpiar(h2.get_text()) if h2 else card["titulo"],
+            "empresa": _limpiar(sm.get_text()) if sm else card["empresa"],
             "ubicacion": "; ".join(self._lista_tras(izq, "Ubicaciones del empleo"))
             or card["ubicacion"],
             "descripcion": desc,
