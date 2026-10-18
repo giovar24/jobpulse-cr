@@ -468,17 +468,23 @@ class CVAnalyzer:
         es_titles, en_titles = titulos["es"], titulos["en"]
 
         # --- temas: pares ES/EN elegidos por similitud cruzada de embeddings
-        # (no por mero orden, que emparejaba mal: "Ciberseguridad / Web Developer") ---
+        # contra TODO el vocabulario EN (no solo en_titles[:6]: con el pool
+        # recortado, "Desarrollador Full Stack" no veia "Full Stack Developer"
+        # y le tocaba "Cloud Support Engineer") ---
+        from core.search_engine import SemanticSearchEngine
         temas = []
-        pool_en = list(en_titles)
+        usados_en = set()
         for es_title in es_titles[:3]:
             pick = es_title
-            if pool_en:
-                cands = [t for t in pool_en if t != es_title] or pool_en
-                ranked = self.engine.rank_terms(es_title, cands, top_k=1)
-                if ranked:
-                    pick = ranked[0]
-                    pool_en = [t for t in pool_en if t != pick]
+            cands = [v for v in SemanticSearchEngine.VOCABULARY_EN
+                     if v != es_title and v not in usados_en]
+            if not cands:
+                cands = [v for v in SemanticSearchEngine.VOCABULARY_EN
+                         if v != es_title]
+            ranked = self.engine.rank_terms(es_title, cands, top_k=1)
+            if ranked:
+                pick = ranked[0]
+                usados_en.add(pick)
             temas.append({
                 "puesto": es_title,
                 "puesto_en": pick if pick else es_title,
