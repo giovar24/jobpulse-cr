@@ -353,3 +353,19 @@ Crear un sistema eficiente de scraping de empleos para Costa Rica que consolide 
 **Correcciones tras validar el ciclo completo (cv2profile --save + review)**:
 - `_literal_idx` usaba boundaries `(?<![\w\-/])` que rechazaban `JavaScript` en `JavaScript/TypeScript` (sigue `/`) y `github` en `.../github.com/...` (viene `/`) -> falsos avisos de "sin presencia literal". Frontera ahora = no-adyacente a `\w`.
 - `_split_phrases` cortaba por `.` a secas: `Node.js` -> `Node` + `js...` y `github.com` -> `github` + `com...`, destruyendo el termino; ademas el min-len 12 descartaba frases cortas utiles (`y Redis.`, `GitHub`). Fix: el punto solo corta si viene seguido de espacio/final (`[.;:!?]+(?=\s|$)`) y min-len 6. Resultado: **19/19 skills con evidencia literal** en el CV ES (antes 16/19 con 3 falsos avisos: JavaScript, Redis, GitHub).
+
+
+### 28. Ciclo QA end-to-end completo (CV -> scraping -> ranking -> dashboard)
+
+**Objetivo**: validar el flujo entero tal como lo usaria una persona, con el CV ficticio ES como perfil real.
+
+**Flujo ejecutado y verificado**:
+1. `cv2profile.py <PDF> --save`: perfil guardado con backup automatico (`data/profile_backup_*.json`, gitignore). Ficha ATS: 8 anios, universitario, senior, Ingles Avanzado + Espanol Nativo, contacto completo.
+2. `main.py` (scraping con Brave/CDP): **27 vacantes nuevas** de tematica software (Indeed 141 / LinkedIn 81 / ANE 10 / Procomer 1 en total); reports `report_20261018.csv` y `report_24h_*`. Indeed presenta muro de login en algunas consultas (0 cards) pero obtiene 15/15 descripciones completas de las si visibles; ANE devolvio 0 `.job-listing` en todas las busquedas de esta corrida (posible cambio de layout del sitio - vigilar); Procomer 0 (temporada).
+3. `search.py --perfil`: ranking con vacantes de software (Software Engineer Expert AI, Forward Deployed Engineer, Senior .NET Engineer...), linea `ATS nn.n% [veredicto] | combinado nn.n%` + keywords faltantes reales (Teams, Testing, Terraform, C#, .NET).
+4. **Dashboard en navegador** (`streamlit run app.py`, puerto 8501): tabla con columnas `Total % / ATS % / Veredicto / Semantico % / ATS skills % / ATS titulo % / Faltan`, encabezado "Mejores opciones para: Juan Perez", sidebar con "Perfil: Juan Perez" + expander "Ficha ATS" + "Modelo". Verificado leyendo el DOM (grid role=gridcell/columnheader) porque el canvas del dataframe no entra en el snapshot de accesibilidad; screenshot bloqueado (ventana no visible).
+
+**Bugs corregidos durante el ciclo**:
+- Emparejamiento ES/EN de temas: `Desarrollador Full Stack / Cloud Support Engineer` -> el pool EN se recortaba a top6 y dejaba fuera `Full Stack Developer` (que SI era el mejor match, coseno 0.317 vs 0.245). Fix: rankear cada titulo ES contra TODO `VOCABULARY_EN` (38 terminos) con dedupe. Resultado: `Full Stack Developer`, `Software Engineer`, `Senior Software Engineer`.
+- Nota de operacion: el primer intento de `main.py` salio con exit 1 y sin salida (stderr suprimido con `2>$null`); el segundo (con `2>&1`) corrio completo - se desconoce la causa del primero; siempre correr scraping con stderr visible.
+- Nota: el dashboard arrancado antes de un cambio en `app.py` sirve codigo viejo hasta recargar/reiniciar; reiniciado limpio (verificado hora de start vs ultima modificacion del archivo).
