@@ -20,7 +20,7 @@ System). Sin APIs de pago, sin nube, sin LLMs.
   `skills 40% · título 30% · experiencia 15% · educación 7.5% · idiomas 7.5%`
   con **keywords faltantes** por vacante y umbrales
   (🟢 ≥85 fuerte · 🟡 70-84 ajustar · 🔴 <70 débil).
-- **Analizador de CV** (`cv2profile.py`): CV (PDF/DOCX/TXT) en **español o
+- **Analizador de CV** (`cv2profile.py`): CV (PDF/DOCX/TXT/MD) en **español o
   inglés** → perfil (`data/profile.json`): títulos semánticos, skills, idiomas
   con nivel, años de experiencia, educación, certificaciones y contacto.
   Inspección completa del proceso con `reporte_cv.py "MiCV.pdf"` (texto crudo,
@@ -72,6 +72,22 @@ python reporte_cv.py "MiCV.pdf"
 # 7. Benchmark de modelos de embeddings (compara candidatos locales)
 python bench_modelos.py
 ```
+
+### Formatos de CV soportados
+
+| Formato | Vía | Notas |
+|---|---|---|
+| `.pdf` ✅ **recomendado** | `pypdf` | Repara ligaduras tipográficas (`ﬁ` → `fi`) y palabras partidas por salto de línea (`usuario-`⏎`ficticio` → `usuario-ficticio`). |
+| `.docx` | `python-docx` | Extrae solo párrafos: el texto dentro de **tablas no se lee**. Si tu Word usa tablas, exporta a PDF y usa el PDF. |
+| `.txt` / `.md` | lectura directa UTF-8 | Tolerante a codificaciones raras. |
+
+**No soportados**: `.doc` (Word binario viejo), `.odt`, `.rtf` y **PDFs
+escaneados/imágenes** — sin OCR un CV escaneado sale vacío (todo corre en CPU
+local, sin servicios externos ni motores OCR).
+
+**Privacidad**: cualquier CV real que dejes en `data/` (pdf/doc/docx/txt/md)
+queda **local-only** — el `.gitignore` lo excluye; solo los demos sintéticos
+(`data/demo_cv.docx`, `data/demo_cv_en.txt`) viajan al repo.
 
 ## Estructura
 
