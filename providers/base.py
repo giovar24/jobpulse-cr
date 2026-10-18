@@ -1,0 +1,31 @@
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass
+
+@dataclass
+class JobOffer:
+    source: str
+    search_term: str
+    job_id: str
+    title: str
+    company: str
+    location: str
+    link: str
+    date_published: Optional[str] = None
+    description: Optional[str] = None
+    requirements: Optional[str] = None
+    salary: Optional[str] = None
+    raw_data: Optional[Dict[str, Any]] = None
+
+class BaseProvider(ABC):
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+
+    @abstractmethod
+    async def fetch(self, search_term: str, location: str, pages: int) -> List[JobOffer]:
+        """Fetch jobs from the provider"""
+        pass
+
+    def clean_text(self, text: Optional[str]) -> str:
+        if not text: return ""
+        return " ".join(text.split())

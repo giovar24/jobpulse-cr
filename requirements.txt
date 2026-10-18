@@ -1,0 +1,11 @@
+httpx[http2]
+beautifulsoup4
+playwright
+pandas
+aiosqlite
+python-dotenv
+sentence-transformers
+torchvision
+streamlit
+pypdf
+python-docx

@@ -1,0 +1,19 @@
+# --- Seguridad: nunca subir secretos ---
+.env
+
+# --- Python / dependencias ---
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# --- Datos generados (regenerables con main.py / cv2profile.py) ---
+data/jobs.db
+data/jobs.backup_*.db
+data/embeddings_cache.*
+data/report*.csv
+data/*_backup_*.json
+
+# --- Salidas ---
+*.log
+.streamlit/

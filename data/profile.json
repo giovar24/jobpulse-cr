@@ -1,0 +1,38 @@
+{
+  "_comentario": "Perfil del candidato. El analizador de CV (plan futuro) actualizara este archivo. Pesos: cuanto pesa cada seccion en el ranking de mejores opciones (suma libre).",
+  "nombre": "Candidato CR",
+  "titulos": [
+    "Soporte Tecnico",
+    "Mesa de Ayuda",
+    "Analista de Soporte",
+    "Technical Support Specialist",
+    "Help Desk"
+  ],
+  "skills": [
+    "Soporte Tecnico",
+    "Mesa de ayuda",
+    "Windows",
+    "Office 365",
+    "Google Workspace",
+    "Tickets y trazabilidad",
+    "Instalacion de software",
+    "Redes basicas",
+    "Ingles intermedio",
+    "Python basico",
+    "SQL basico"
+  ],
+  "temas": [
+    { "puesto": "Soporte", "puesto_en": "IT Support", "ubicacion": "Costa Rica" },
+    { "puesto": "Soporte Técnico", "puesto_en": "Technical Support", "ubicacion": "Costa Rica" },
+    { "puesto": "Mesa de Ayuda", "puesto_en": "Help Desk", "ubicacion": "Costa Rica" }
+  ],
+  "pesos": {
+    "titulo": 1.0,
+    "skills": 0.7,
+    "tema": 0.5
+  },
+  "filtros": {
+    "dias": null,
+    "fuentes": []
+  }
+}
