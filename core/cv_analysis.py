@@ -271,11 +271,15 @@ def _split_phrases(texto: str, max_len: int = 180) -> List[str]:
     Corta por salto de linea y puntuacion; los fragmentos largos se parten en
     ventanas de max_len por frontera de palabra. Devuelve lista sin vacios.
     """
-    base = re.split(r"[\n.;:!?]+|\s+\|\s+", texto)
+    # Corta por salto de linea, fin de oracion y " | ". El punto/punto y coma
+    # solo cortan si vienen seguidos de espacio o final de texto: si no,
+    # "Node.js" -> "Node" + "js..." y "github.com" -> "github" + "com..."
+    # destruyen el termino (luego la revision no lo encuentra literal).
+    base = re.split(r"\n+|[.;:!?]+(?=\s|$)|\s+\|\s+", texto)
     frases = []
     for b in base:
         b = re.sub(r"\s+", " ", b).strip()
-        if len(b) < 12:      # restos muy cortos no aportan contexto
+        if len(b) < 6:      # restos diminutos no aportan contexto ("y Redis." si cabe)
             continue
         while len(b) > max_len:
             corte = b.rfind(" ", 0, max_len)
@@ -382,9 +386,11 @@ class CVAnalyzer:
 
         def _literal_idx(campo: str):
             """Indices de frases que contienen el campo literalmente
-            (sin acentos, frontera de palabra) -> evidencia dura."""
+            (sin acentos, frontera de palabra) -> evidencia dura.
+            Frontera = no-adyacente a \\w: permite que "JavaScript" matchee
+            en "JavaScript/TypeScript" y "github" en ".../github.com/..." """
             cd = deacc(campo)
-            patron = re.compile(r"(?<![\w\-/])" + re.escape(cd) + r"(?![\w\-/])")
+            patron = re.compile(r"(?<!\w)" + re.escape(cd) + r"(?!\w)")
             return [k for k, fd in enumerate(f_deacc) if patron.search(fd)]
 
         titulos, skills = {}, {}
