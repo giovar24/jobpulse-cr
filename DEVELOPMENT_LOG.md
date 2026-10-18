@@ -295,3 +295,23 @@ Crear un sistema eficiente de scraping de empleos para Costa Rica que consolide 
 - Idiomas duplicados en la ficha: dedupe por nombre base.
 - `Exited with code 1` en pipelines PowerShell con `2>&1`: es el manejo de stderr de PS, no del script (exit real = 0).
 - mojibake previo en `app.py` por Get-Content/Set-Content de PowerShell: reescrito completo en UTF-8 con el tool write.
+
+
+### 26. Arranque automatico del workspace + datos 100% genericos (portabilidad)
+
+**Objetivo**: (a) que el sistema nunca contenga/exponga datos personales del candidato, (b) que cualquier equipo (o persona) pueda clonar el repo y ejecutar sin pasos manuales.
+
+**Privacidad**:
+- `data/profile.example.json` (nuevo, SI en git): plantilla generica 100% falsa (nombre "Juan Perez", email `juan.perez@example.com`, linkedin de ejemplo, 3 anios, universitario, Ingles Intermedio, ITIL) con todos los campos ATS.
+- `data/profile.json` (SALIO de git: `git rm --cached` + `.gitignore`): es la copia local que el usuario personaliza con `cv2profile.py --save`. Sus datos reales jamas viajan al repo publico.
+- Auditoria: grep de `giova|Giovar24|@gmail|C:\Users` sobre los archivos trackeados -> 0 coincidencias.
+- El `profile.json` local existente se re-escribio con los mismos datos genericos de la plantilla.
+
+**Portabilidad (`core/bootstrap.py`)**:
+- `ensure_workspace()`: idempotente; crea `data/` si falta, copia `profile.example.json -> profile.json` si falta, y `.env.example -> .env` si falta (solo placeholders).
+- Los 4 entrypoints lo llaman al inicio (antes de `load_dotenv()`): `main.py`, `search.py`, `app.py`, `cv2profile.py`.
+- `app.py` ahora ademas llama `load_dotenv()` (antes no lo hacia: el dashboard nunca veia `HF_TOKEN` de `.env`, bug corregido).
+- `jobs.db` ya se auto-crea via `CREATE TABLE IF NOT EXISTS` una vez existe `data/` (garantizado por bootstrap).
+- Flujo "equipo nuevo": `git clone` + `pip install -r requirements.txt` + arrancar. Cero copias manuales.
+
+**Validado**: py_compile de los 4 entrypoints; test real - `Remove-Item data/profile.json` + `ensure_workspace()` -> recreado desde la plantilla con "Juan Perez" y pesos_ats correctos.

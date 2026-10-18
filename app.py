@@ -12,10 +12,16 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from core.bootstrap import ensure_workspace
 from core.ats import rank_with_ats
 from core.database import JobDatabase
 from core.profile import CandidateProfile, DEFAULT_PROFILE_PATH
 from core.search_engine import SemanticSearchEngine
+
+from dotenv import load_dotenv
+
+ensure_workspace()   # data/, profile.json generico y .env si faltan (equipo nuevo)
+load_dotenv()        # HF_TOKEN y demas (el dashboard tambien decide el modelo)
 
 SOURCES = ["indeed", "linkedin", "ane", "procomer"]
 

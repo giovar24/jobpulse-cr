@@ -31,8 +31,20 @@ System). Sin APIs de pago, sin nube, sin LLMs.
 ```powershell
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
-copy .env.example .env   # opcional: pon tu HF_TOKEN para EmbeddingGemma
 ```
+
+**Eso es todo.** En el primer arranque, `core/bootstrap.py` crea lo que falte:
+
+- `data/` (directorio de trabajo)
+- `data/profile.json` ← copia del **ejemplo genérico** (`Juan Perez`, datos falsos)
+- `.env` ← copia de `.env.example` (placeholders; pon tu `HF_TOKEN` si quieres EmbeddingGemma)
+
+### Privacidad
+
+- `data/profile.json` y `.env` están en `.gitignore`: **tus datos personales nunca se suben a git**.
+- La plantilla `data/profile.example.json` solo contiene datos de ejemplo (`juan.perez@example.com`).
+- Para generar tu perfil real desde tu CV: `python cv2profile.py "MiCV.pdf" --save`
+  (queda solo en tu máquina).
 
 ## Uso
 
@@ -72,3 +84,5 @@ main.py · search.py · cv2profile.py · app.py
 - Todo corre en **CPU local**; nada de tu perfil o CV sale de tu máquina.
 - `.env` está en `.gitignore`: tus tokens nunca se suben al repo.
 - `data/jobs.db` y los caches de embeddings se regeneran con `python main.py`.
+- Cambio de equipo: clona + `pip install -r requirements.txt` y arranca; el
+  bootstrap crea los archivos faltantes automáticamente.

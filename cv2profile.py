@@ -19,6 +19,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from core.bootstrap import ensure_workspace
+
+ensure_workspace()   # crea data/ y profile.json (generico) si es equipo nuevo
 load_dotenv()
 
 from core.cv_analysis import CVAnalyzer, extract_text, merge_profile

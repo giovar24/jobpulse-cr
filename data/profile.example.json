@@ -1,6 +1,6 @@
 {
-  "_comentario": "Perfil del candidato. El analizador de CV (plan futuro) actualizara este archivo. Pesos: cuanto pesa cada seccion en el ranking de mejores opciones (suma libre).",
-  "nombre": "Candidato CR",
+  "_comentario": "PLANTILLA GENERICA DE EJEMPLO (datos 100% falsos). El sistema la copia a data/profile.json si este no existe. Tu profile.json real esta en .gitignore: nunca viaja a git. Genera el tuyo desde tu CV con: python cv2profile.py MiCV.pdf --save",
+  "nombre": "Juan Perez",
   "titulos": [
     "Soporte Tecnico",
     "Mesa de Ayuda",
@@ -26,10 +26,28 @@
     { "puesto": "Soporte Técnico", "puesto_en": "Technical Support", "ubicacion": "Costa Rica" },
     { "puesto": "Mesa de Ayuda", "puesto_en": "Help Desk", "ubicacion": "Costa Rica" }
   ],
+  "experiencia_anios": 3,
+  "educacion_nivel": "universitario",
+  "idiomas": [
+    { "idioma": "Ingles", "nivel": "Intermedio" }
+  ],
+  "certificaciones": ["ITIL"],
+  "contacto": {
+    "email": "juan.perez@example.com",
+    "ciudad": "San Jose, Costa Rica",
+    "linkedin": "https://linkedin.com/in/ejemplo-juan-perez"
+  },
   "pesos": {
     "titulo": 1.0,
     "skills": 0.7,
     "tema": 0.5
+  },
+  "pesos_ats": {
+    "skills": 0.40,
+    "titulo": 0.30,
+    "experiencia": 0.15,
+    "educacion": 0.075,
+    "idiomas": 0.075
   },
   "filtros": {
     "dias": null,

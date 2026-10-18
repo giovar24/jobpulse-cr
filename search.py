@@ -18,10 +18,12 @@ import sys
 
 from dotenv import load_dotenv
 
+from core.bootstrap import ensure_workspace
 from core.database import JobDatabase
 from core.profile import CandidateProfile, DEFAULT_PROFILE_PATH
 from core.search_engine import SemanticSearchEngine
 
+ensure_workspace()   # crea data/, profile.json (generico) y .env si faltan
 load_dotenv()
 
 if sys.stdout and sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
@@ -124,7 +126,8 @@ def interactive(args):
             if not profile:
                 profile = CandidateProfile.load(args.perfil or DEFAULT_PROFILE_PATH)
                 if not profile:
-                    print(f"No existe {DEFAULT_PROFILE_PATH}; copia data/profile.example.json.")
+                    print(f"No existe {DEFAULT_PROFILE_PATH}; el arranque automatico "
+                          f"deberia haberlo creado desde data/profile.example.json.")
                     continue
                 if profile.filtros.get("dias"):
                     filters["dias"] = profile.filtros["dias"]

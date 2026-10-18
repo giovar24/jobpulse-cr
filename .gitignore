@@ -1,5 +1,8 @@
-# --- Seguridad: nunca subir secretos ---
+# --- Seguridad: nunca subir secretos ni datos personales ---
 .env
+# Perfil personal del candidato (contacto, experiencia real...). La plantilla
+# generica SI se sube: data/profile.example.json
+data/profile.json
 
 # --- Python / dependencias ---
 .venv/

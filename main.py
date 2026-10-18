@@ -7,6 +7,8 @@ import socket
 import pandas as pd
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+
+from core.bootstrap import ensure_workspace
 from core.database import JobDatabase
 from core.browser_manager import BraveManager
 from providers.procomer import ProcomerProvider
@@ -14,6 +16,7 @@ from providers.linkedin import LinkedInProvider
 from providers.indeed import IndeedProvider
 from providers.ane import AneProvider
 
+ensure_workspace()   # crea data/, profile.json (generico) y .env si faltan
 load_dotenv()
 
 logging.basicConfig(
