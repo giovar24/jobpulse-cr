@@ -17,6 +17,16 @@ data/embeddings_cache.*
 data/report*.csv
 data/*_backup_*.json
 
+# --- CVs personales: el CV real del candidato nunca viaja a git ---
+# Patrones globales (cualquier carpeta del repo incluida la raiz). El demo
+# sintetico (data/demo_cv.docx) ya esta trackeado y no se ve afectado
+# por el ignore; cualquier otro PDF/DOC/DOCX quedara local-only.
+*.pdf
+*.doc
+*.docx
+!data/demo_cv.docx
+~$*
+
 # --- Salidas ---
 *.log
 .streamlit/

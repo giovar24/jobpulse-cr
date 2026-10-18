@@ -2,8 +2,8 @@
 
 Uso:
     python cv2profile.py MiCV.pdf              # analiza, muestra y sugiere cambios
-    python cv2profile.py MiCV.pdf --save       # fusiona y guarda data/profile.json (con backup)
-    python cv2profile.py MiCV.pdf --replace    # reemplaza titulos/skills/temas en vez de fusionar
+    python cv2profile.py MiCV.pdf --save       # limpia y guarda data/profile.json: el CV reemplaza titulos/skills/temas/nombre (con backup)
+    python cv2profile.py MiCV.pdf --save --merge   # suma al perfil sin limpiar lo anterior
     python cv2profile.py MiCV.pdf --out otropath.json
 
 Tras guardar, ejecutan de nuevo:  python search.py --perfil  /  streamlit run app.py
@@ -35,7 +35,7 @@ if sys.stdout and sys.stdout.encoding and sys.stdout.encoding.lower().replace("-
         pass
 
 
-def show(proposed, actual=None, revision=None):
+def show(proposed, actual=None, revision=None, limpiar=True):
     print("\n" + "=" * 60)
     print("ANALISIS DEL CV\n")
     print("Titulos sugeridos:")
@@ -80,11 +80,17 @@ def show(proposed, actual=None, revision=None):
     if actual:
         print("\nCambios respecto al perfil actual:")
         for key in ("titulos", "skills"):
-            nuevos = [t for t in proposed.get(key, []) if t and str(t).lower() not in
-                      {str(x).lower() for x in actual.get(key, [])}]
+            set_act = {str(x).lower() for x in actual.get(key, [])}
+            set_pro = {str(t).lower() for t in proposed.get(key, []) if t}
+            nuevos = [t for t in proposed.get(key, []) if t and str(t).lower() not in set_act]
             if nuevos:
                 print(f"  + {key}: {', '.join(nuevos)}"
                       f"{'' if len(nuevos) <= 8 else f' (+{len(nuevos)-8} mas)'}")
+            if limpiar:
+                caidos = [t for t in actual.get(key, []) if str(t).lower() not in set_pro]
+                if caidos:
+                    print(f"  - {key} (limpieza, no vienen del CV): {', '.join(caidos)}"
+                          f"{'' if len(caidos) <= 8 else f' (+{len(caidos)-8} mas)'}")
         if proposed.get("temas") and proposed["temas"] != actual.get("temas"):
             print("  ~ temas: se reemplazaran por los derivados del CV")
     print("=" * 60)
@@ -104,7 +110,8 @@ def main():
     p = argparse.ArgumentParser(description="CV -> perfil del candidato")
     p.add_argument("cv", help="Ruta del CV (pdf, docx, txt, md)")
     p.add_argument("--save", action="store_true", help="Guardar los cambios en el perfil")
-    p.add_argument("--replace", action="store_true", help="Reemplazar titulos/skills/temas (default: fusionar)")
+    p.add_argument("--merge", action="store_true",
+                   help="Sumar titulos/skills sin limpiar lo anterior (default: el CV reemplaza y limpia)")
     p.add_argument("--out", default=None, help="Ruta del perfil destino (default: data/profile.json)")
     args = p.parse_args()
 
@@ -119,6 +126,10 @@ def main():
 
     analyzer = CVAnalyzer()
     proposed = analyzer.analyze(texto)
+    # Nombre tomado del CV: con el reemplazo por defecto entra al perfil;
+    # con --merge se respeta el nombre actual.
+    proposed["nombre"] = (re.sub(r"\s+", " ", (texto.splitlines() or ["Candidato"])[0]).strip()[:40]
+                          or "Candidato")
     revision = analyzer.review(proposed, texto)   # IA local: coherencia por campo
 
     actual_data = None
@@ -130,7 +141,7 @@ def main():
     show(proposed, actual_data, revision)
 
     if actual_data:
-        final = merge_profile(actual_data, proposed, replace=args.replace)
+        final = merge_profile(actual_data, proposed, replace=not args.merge)
     else:
         final = {
             "nombre": re.sub(r"\s+", " ", (texto.splitlines() or ["Candidato"])[0]).strip()[:40] or "Candidato",
@@ -150,8 +161,11 @@ def main():
         }
 
     if not args.save:
-        print("\n(dry-run) Con --save se aplica al perfil" +
-              (f" {out_path}" if actual_data else f" {out_path} (nuevo)"))
+        if actual_data:
+            print(f"\n(dry-run) Con --save se aplica a {out_path}: "
+                  "limpia titulos/skills/temas/nombre y pone lo del CV (--merge suma sin limpiar)")
+        else:
+            print(f"\n(dry-run) Con --save se crea el perfil {out_path}")
         return
 
     bk = backup(out_path)

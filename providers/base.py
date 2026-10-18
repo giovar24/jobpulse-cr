@@ -16,6 +16,9 @@ class JobOffer:
     requirements: Optional[str] = None
     salary: Optional[str] = None
     raw_data: Optional[Dict[str, Any]] = None
+    # Trazabilidad del gate de relevancia (core/gate.py); None si no evaluado.
+    gate_score: Optional[float] = None
+    gate_razon: Optional[str] = None
 
 class BaseProvider(ABC):
     def __init__(self, config: Dict[str, Any]):

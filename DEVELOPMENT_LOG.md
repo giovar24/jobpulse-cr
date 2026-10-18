@@ -369,3 +369,24 @@ Crear un sistema eficiente de scraping de empleos para Costa Rica que consolide 
 - Emparejamiento ES/EN de temas: `Desarrollador Full Stack / Cloud Support Engineer` -> el pool EN se recortaba a top6 y dejaba fuera `Full Stack Developer` (que SI era el mejor match, coseno 0.317 vs 0.245). Fix: rankear cada titulo ES contra TODO `VOCABULARY_EN` (38 terminos) con dedupe. Resultado: `Full Stack Developer`, `Software Engineer`, `Senior Software Engineer`.
 - Nota de operacion: el primer intento de `main.py` salio con exit 1 y sin salida (stderr suprimido con `2>$null`); el segundo (con `2>&1`) corrio completo - se desconoce la causa del primero; siempre correr scraping con stderr visible.
 - Nota: el dashboard arrancado antes de un cambio en `app.py` sirve codigo viejo hasta recargar/reiniciar; reiniciado limpio (verificado hora de start vs ultima modificacion del archivo).
+
+### 29. Gate de relevancia + ANE por barrido de fecha + perfil con limpieza por defecto
+
+**Decision de diseno**: ANE-loader deja resultados en busquedas manuales pero 0 en las del buscador (incluso a mano), asi que el proveedor ANE se reescribe como **barrido por fecha**: recorre el listado publico `/Puesto?Pagina=N` (orden desc por fecha, 10/pagina) hasta la ventana temporal y descarga el detalle de cada puesto con login programatico (`ANE_USER`/`ANE_PASSWORD` en `.env`). Corre UNA vez por corrida (`search_term="barrido-fecha"`); paginas configurables con env `ANE_MAX_PAGES` (default 15).
+
+**Gate "Fecha Y relevancia"** (`core/gate.py`): filtro aplicado a TODOS los providers - una oferta entra a la tabla curada `jobs` solo si es reciente (ventana `--dias`, default 30) Y supera el umbral semantico (`--score-min`, default 0.30) contra el perfil. Los descartados NO se pierden: van a la tabla staging `jobs_raw` con su `gate_score`/`gate_razon` (re-filtrables con `--refiltrar` sin rescarpear). Migracion de la BD vieja verificada en real (PRAGMA + ALTER, filas preservadas).
+
+**Perfil con limpieza por defecto** (`core/cv_analysis.py` + `cv2profile.py`): `merge_profile` ahora funciona con `replace=True` por defecto - el CV es la fuente de verdad y LIMPIA titulos/skills/temas/nombre del perfil anterior (preserva pesos/pesos_ats/filtros; secciones ausentes del CV no dejan huerfanos). El flag optativo `--merge` mantiene el comportamiento historico (suma sin limpiar) para quien lo quiera. `cv2profile` muestra la evidencia de limpieza (`- titulos (limpieza, no vienen del CV)`) y saca el nombre de la primera linea del CV. Causa raiz del drift historico resuelta: un CV nuevo ya no arrastra temas del CV anterior.
+
+**Bugs corregidos**:
+- `detect_contact`: el fallback de telefono sin etiqueta (`+506 8888-8888`) era un regex SIN grupo de captura y `tel.group(1)` lanceaba `IndexError` con cualquier CV que usara ese formato (reproducido con `demo_cv.docx`). Fix: dos regex separados, `group(1)` etiquetado / `group(0)` fallback.
+- Emparejamiento ES/EN de temas con frases cortas: mpnet elegia vecinos absurdos (`Analista de Soporte` -> `Content Moderator` coseno 0.336 vs `Technical Support Analyst` 0.248; `Mesa de Ayuda` -> `QA Automation Tester`). Fix: `PARES_ES_EN` mapa curado determinista (gana por defecto), embeddings solo como fallback para titulos fuera del mapa.
+
+**Extraccion bilingue validada con CV real**: version ES y EN del mismo CV producen el mismo nucleo tematico (`Atencion al Cliente Bilingue / Bilingual Customer Service Representative`, `Soporte Tecnico Bilingue / Bilingual IT Support Technician`, `Mesa de Ayuda / Help Desk`) y la misma ficha ATS (experiencia, certificaciones, contacto).
+
+**Privacidad / portabilidad**:
+- `.gitignore` con patrones globales `*.pdf`/`*.doc`/`*.docx` (raiz incluida) + `~$*`: el CV real nunca viaja a git; el demo sintetico trackeado no se ve afectado.
+- `privacy_check.py`: auditoria pre-push sobre archivos TRACKED (emails reales excluyendo dominios demo, rutas `C:\Users\...`, lista negra opcional `data/privacy_blacklist.txt` gitignored). Exit 1 = no commitear.
+- Reset de datos: `jobs.db`/backups/caches/reportes borrados (arranque desde cero); `data/` queda solo con plantilla ejemplo + demo + CVs locales (gitignored).
+
+**Pendiente**: corrida e2e completa con el nuevo pipeline (barrido ANE + gate) para calibrar `min_score` con datos reales; el threshold 0.30 ensayado con frases sinteticas mostro poca discriminacion como puerta binaria (posible senal combinada con titulos/temas).

@@ -50,6 +50,31 @@ SKILL_LEXICON = [
     "CI/CD", "GitLab", "GitHub", "Jenkins", "Kubernetes", "Terraform",
 ]
 
+# Pares ES->EN curados para titulos de uso comun. El ranking por embeddings
+# con frases cortas engana (vecinos absurdos, ver analyze/temas), asi que aqui
+# va primero el par correcto y determinista; el fallback es embeddings.
+# Todos los valores existen en SemanticSearchEngine.VOCABULARY_EN.
+PARES_ES_EN = {
+    "soporte tecnico": "IT Support",
+    "soporte tecnico bilingue": "Bilingual IT Support Technician",
+    "analista de soporte": "Technical Support Analyst",
+    "analista de soporte tecnico": "Technical Support Analyst",
+    "mesa de ayuda": "Help Desk",
+    "atencion al cliente": "Customer Experience Associate",
+    "atencion al cliente bilingue": "Bilingual Customer Service Representative",
+    "agente de call center": "Call Center Agent",
+    "analista de sistemas": "Systems Administrator",
+    "administrador de sistemas": "Systems Administrator",
+    "soporte de redes": "Network Engineer",
+    "analista de ciberseguridad": "Cybersecurity Analyst",
+    "analista de datos": "Data Analyst",
+    "desarrollador full stack": "Full Stack Developer",
+    "desarrollador web": "Web Developer",
+    "programador junior": "Junior Software Engineer",
+    "ingeniero de software": "Software Engineer",
+    "ingeniero devops": "DevOps Engineer",
+}
+
 # Cabeceras tipicas del encabezado de un CV.
 _HEAD_PATTERNS = re.compile(
     r"^(perfil profesional|perfil|resumen ejecutivo|resumen|profesional profile|"
@@ -232,13 +257,17 @@ def detect_contact(texto: str) -> Dict:
     if email:
         contacto["email"] = email.group(0).strip(".,;)")
     # telefono: preferencia por etiqueta (evita confundir fechas 2018-2021)
-    tel = re.search(
+    tel_etq = re.search(
         r"(?:tel[eé]fono|celular|m[óo]vil|phone)\D{0,10}"
         r"((?:\+\d{1,3}[\s-]?)?\d{4}[\s-]\d{4}(?:[\s-]\d{3,4})?)",
-        texto, re.IGNORECASE) or re.search(
-        r"\+\d{1,3}[\s-]?\d{4}[\s-]\d{4}", texto)
+        texto, re.IGNORECASE)
+    # fallback: prefijo internacional sin etiqueta (ej. "+506 8888-8888").
+    # SIN grupo de captura: group(1) no existe -> usar group(0).
+    tel_libre = None if tel_etq else re.search(r"\+\d{1,3}[\s-]?\d{4}[\s-]\d{4}", texto)
+    tel = tel_etq or tel_libre
     if tel:
-        contacto["telefono"] = re.sub(r"\s+", " ", tel.group(1)).strip()
+        num = tel_etq.group(1) if tel is tel_etq else tel_libre.group(0)
+        contacto["telefono"] = re.sub(r"\s+", " ", num).strip()
     li = re.search(r"linkedin\.com/in/[\w\-]+", texto, re.IGNORECASE)
     if li:
         contacto["linkedin"] = "https://" + li.group(0)
@@ -468,23 +497,30 @@ class CVAnalyzer:
         es_titles, en_titles = titulos["es"], titulos["en"]
 
         # --- temas: pares ES/EN elegidos por similitud cruzada de embeddings
-        # contra TODO el vocabulario EN (no solo en_titles[:6]: con el pool
-        # recortado, "Desarrollador Full Stack" no veia "Full Stack Developer"
-        # y le tocaba "Cloud Support Engineer") ---
+        # contra TODO el vocabulario EN, con mapa curado por delante. Sin el
+        # mapa, mpnet con frases cortas elige vecinos absurdos (p.ej. para
+        # "Analista de Soporte" prefiere "Content Moderator" [0.336] sobre
+        # "Technical Support Analyst" [0.248]).
         from core.search_engine import SemanticSearchEngine
         temas = []
         usados_en = set()
         for es_title in es_titles[:3]:
             pick = es_title
-            cands = [v for v in SemanticSearchEngine.VOCABULARY_EN
-                     if v != es_title and v not in usados_en]
-            if not cands:
-                cands = [v for v in SemanticSearchEngine.VOCABULARY_EN
-                         if v != es_title]
-            ranked = self.engine.rank_terms(es_title, cands, top_k=1)
-            if ranked:
-                pick = ranked[0]
+            clave = deacc(es_title).strip().lower()
+            curated = PARES_ES_EN.get(clave)
+            if curated and curated not in usados_en:
+                pick = curated
                 usados_en.add(pick)
+            else:
+                cands = [v for v in SemanticSearchEngine.VOCABULARY_EN
+                         if v != es_title and v not in usados_en]
+                if not cands:
+                    cands = [v for v in SemanticSearchEngine.VOCABULARY_EN
+                             if v != es_title]
+                ranked = self.engine.rank_terms(es_title, cands, top_k=1)
+                if ranked:
+                    pick = ranked[0]
+                    usados_en.add(pick)
             temas.append({
                 "puesto": es_title,
                 "puesto_en": pick if pick else es_title,
@@ -499,32 +535,46 @@ class CVAnalyzer:
         }
 
 
-def merge_profile(actual: Dict, novedad: Dict, replace: bool = False) -> Dict:
-    """Fusiona: titulos/skills se suman (sin duplicados); temas se reemplazan
-    si el CV genero nuevos (reflejan al candidato). Con replace, todo se toma
-    del CV salvo los pesos/filtros existentes.
+def merge_profile(actual: Dict, novedad: Dict, replace: bool = True) -> Dict:
+    """Fusiona lo extraido del CV con el perfil existente.
 
-    Campos ATS (experiencia/educacion/certificaciones/idiomas/contacto):
-    el CV es la fuente de verdad -> si el nuevo trae datos, reemplazan."""
+    Default (replace=True): LIMPIEZA — el CV es la fuente unica de verdad y las
+    secciones de origen CV (nombre, titulos, skills, temas) SE REEMPLAZAN por
+    lo extraido, sin arrastrar residuos de perfiles anteriores (semilla
+    generica, datos de demo o corridas previas con otro CV). Se preservan los
+    ajustes que NO derivan del CV: pesos, pesos_ats, filtros y _comentario.
+    Los campos ATS solo cambian si el CV los detecta; si no, quedan los
+    actuales (experiencia/educacion/idiomas/contacto/seniority).
+    Si una seccion no se detecta en el CV (lista vacia), se respeta la actual
+    para no dejar el perfil vacio por una extraccion fallida.
+
+    replace=False (--merge): modo historico que SUMA titulos/skills sin quitar
+    lo anterior. Util si el perfil se edita a mano y no se quiere perder lo
+    curado; a cambio, acumula contenido de perfiles previos (fue la causa de
+    arrastrar datos de un CV demo al perfil del candidato).
+    """
     nuevo = dict(actual)
 
     campos_ats = ("experiencia_anios", "educacion_nivel", "certificaciones",
                   "idiomas", "contacto", "seniority")
     for c in campos_ats:
         v = novedad.get(c)
-        if v:  # no vacia (si el CV no detecto anios, se conserva el valor actual)
+        if v:  # no vacia (si el CV no detecto el dato, se conserva el actual)
             nuevo[c] = v
 
     if replace:
-        nuevo["titulos"] = novedad.get("titulos", [])
-        nuevo["skills"] = novedad.get("skills", [])
-        if novedad.get("temas"):
-            nuevo["temas"] = novedad["temas"]
+        # Limpieza: lo que no viene del CV no sobrevive (nombre incluido).
+        if novedad.get("nombre"):
+            nuevo["nombre"] = novedad["nombre"]
+        for campo in ("titulos", "skills", "temas"):
+            v = novedad.get(campo)
+            if v:
+                nuevo[campo] = v
         return nuevo
 
     def uniq(a, b):
-        low = {t.lower() for t in a}
-        return a + [t for t in b if t.lower() not in low]
+        low = {str(t).lower() for t in a}
+        return a + [t for t in b if str(t).lower() not in low]
 
     nuevo["titulos"] = uniq(actual.get("titulos", []), novedad.get("titulos", []))
     nuevo["skills"] = uniq(actual.get("skills", []), novedad.get("skills", []))
