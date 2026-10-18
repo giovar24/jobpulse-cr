@@ -29,7 +29,8 @@
   "experiencia_anios": 3,
   "educacion_nivel": "universitario",
   "idiomas": [
-    { "idioma": "Ingles", "nivel": "Intermedio" }
+    { "idioma": "Ingles", "nivel": "Intermedio" },
+    { "idioma": "Espanol", "nivel": "Nativo" }
   ],
   "certificaciones": ["ITIL"],
   "contacto": {

@@ -20,9 +20,11 @@ System). Sin APIs de pago, sin nube, sin LLMs.
   `skills 40% · título 30% · experiencia 15% · educación 7.5% · idiomas 7.5%`
   con **keywords faltantes** por vacante y umbrales
   (🟢 ≥85 fuerte · 🟡 70-84 ajustar · 🔴 <70 débil).
-- **Analizador de CV** (`cv2profile.py`): CV (PDF/DOCX/TXT) → perfil
-  (`data/profile.json`): títulos semánticos, skills, idiomas con nivel,
-  años de experiencia, educación, certificaciones y contacto.
+- **Analizador de CV** (`cv2profile.py`): CV (PDF/DOCX/TXT) en **español o
+  inglés** → perfil (`data/profile.json`): títulos semánticos, skills, idiomas
+  con nivel, años de experiencia, educación, certificaciones y contacto.
+  Inspección completa del proceso con `reporte_cv.py "MiCV.pdf"` (texto crudo,
+  extracciones, IA local, revisión con evidencia por frase y perfil final).
 - **Dashboard Streamlit** (`app.py`): ranking de mejores opciones con
   desglose ATS + búsqueda libre, todo local.
 
@@ -63,6 +65,12 @@ python search.py "mesa de ayuda bilingüe remoto"
 
 # 5. Dashboard
 streamlit run app.py
+
+# 6. Diagnosticar la extraccion de un CV (texto, regex, IA, revision, perfil)
+python reporte_cv.py "MiCV.pdf"
+
+# 7. Benchmark de modelos de embeddings (compara candidatos locales)
+python bench_modelos.py
 ```
 
 ## Estructura
@@ -82,6 +90,9 @@ main.py · search.py · cv2profile.py · app.py
 ## Notas
 
 - Todo corre en **CPU local**; nada de tu perfil o CV sale de tu máquina.
+- Modelo de embeddings elegido por benchmark (`bench_modelos.py`, 16 tareas
+  reales): gana `paraphrase-multilingual-mpnet-base-v2` (16/16) frente a
+  `e5-small` y `MiniLM` multilingües.
 - `.env` está en `.gitignore`: tus tokens nunca se suben al repo.
 - `data/jobs.db` y los caches de embeddings se regeneran con `python main.py`.
 - Cambio de equipo: clona + `pip install -r requirements.txt` y arranca; el

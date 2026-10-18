@@ -43,6 +43,11 @@ SKILL_LEXICON = [
     "Bug Tracking", "Calidad de Software", "Gestion de Defectos",
     "Selenium", "Cypress", "Playwright", "Postman", "Pruebas de API",
     "ISTQB", "Cobertura de Pruebas", "Pruebas de Integracion",
+    # --- Desarrollo de software ---
+    "Java", "TypeScript", "Node.js", "React", "Angular", "Vue", "PHP",
+    "C#", ".NET", "Spring Boot", "Django", "Laravel", "Redis", "GraphQL",
+    "RESTful", "Microservicios", "Scrum", "Metodologias Agiles",
+    "CI/CD", "GitLab", "GitHub", "Jenkins", "Kubernetes", "Terraform",
 ]
 
 # Cabeceras tipicas del encabezado de un CV.
@@ -52,15 +57,68 @@ _HEAD_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
-_LANG_PATTERNS = [
-    ("Ingles Avanzado", re.compile(r"ingl[eé]s[^.;\n]{0,40}?(avanzado|bilingü[eé]|fluido|c1|c2)", re.IGNORECASE)),
-    ("Ingles Intermedio", re.compile(r"ingl[eé]s[^.;\n]{0,40}?(intermedio|conversacional|b1|b2)", re.IGNORECASE)),
-    ("Ingles Basico", re.compile(r"ingl[eé]s[^.;\n]{0,40}?(básico|basico|a1|a2)", re.IGNORECASE)),
-    ("Ingles", re.compile(r"\bingl[eé]s\b", re.IGNORECASE)),
-    ("Portugues", re.compile(r"\bportugu[eé]s\b", re.IGNORECASE)),
-    ("Frances", re.compile(r"\bfranc[eé]s\b", re.IGNORECASE)),
-    ("Aleman", re.compile(r"\balem[aá]n\b", re.IGNORECASE)),
+# Idiomas: reglas bilingues ES|EN (el CV puede venir en cualquiera de los dos).
+# (idioma, patron del nombre, [(nivel, patron)] de mayor a menor)
+_LANG_RULES = [
+    ("Ingles", r"ingl[eé]s|english", [
+        ("Nativo", r"nativo|native"),
+        ("Avanzado", r"avanzado|fluido|fluent|professional|profesional|advanced|biling[uü]e|c1|c2"),
+        ("Intermedio", r"intermedio|intermediate|conversacional|conversational|b1|b2"),
+        ("Basico", r"basico|b[aá]sico|basic|elementary|a1|a2"),
+    ]),
+    ("Espanol", r"espa[nñ]ol|spanish", [
+        ("Nativo", r"nativo|native|c2"),
+        ("Avanzado", r"avanzado|fluido|fluent|professional|profesional|advanced|c1"),
+        ("Intermedio", r"intermedio|intermediate|b1|b2"),
+        ("Basico", r"basico|b[aá]sico|basic|a1|a2"),
+    ]),
+    ("Portugues", r"portugu[eé]s|portuguese", []),
+    ("Frances", r"franc[eé]s|french", []),
+    ("Aleman", r"alem[aá]n|german", []),
 ]
+
+
+def detect_languages_struct(texto: str) -> List[Dict]:
+    """[{"idioma": "Ingles", "nivel": "Avanzado"|"no especificado"}, ...]
+    Busca el nombre del idioma en ES o EN y el nivel en ES o EN.
+
+    El segmento de nivel se recorta en el proximo nombre de OTRO idioma:
+    sin eso, "Inglés: Profesional Avanzado C1 Español: Nativo C2" (lineas
+    pegadas por el PDF) hacia que la ventana de Ingles vea el "Nativo"
+    del Espanol y reporte el nivel equivocado."""
+    out, vistos = [], set()
+    for idioma, pat_nombre, niveles in _LANG_RULES:
+        if idioma in vistos:
+            continue
+        m = re.search(r"(?<![\w])(" + pat_nombre + r")(?![\w])", texto, re.IGNORECASE)
+        if not m:
+            continue
+        vistos.add(idioma)
+        seg = texto[m.end(): m.end() + 60]
+        fin = len(seg)
+        for otro_idioma, pat_otro, _ in _LANG_RULES:
+            if otro_idioma == idioma:
+                continue
+            mo = re.search(pat_otro, seg, re.IGNORECASE)
+            if mo and mo.start() < fin:
+                fin = mo.start()
+        seg = seg[:fin]
+        nivel = "no especificado"
+        for nombre_nivel, pat_nivel in niveles:
+            if re.search(pat_nivel, seg, re.IGNORECASE):
+                nivel = nombre_nivel
+                break
+        out.append({"idioma": idioma, "nivel": nivel})
+    return out
+
+
+def detect_languages(texto: str) -> List[str]:
+    """Etiquetas para skills: "Ingles Avanzado", "Espanol Nativo", "Portugues"..."""
+    return [
+        d["idioma"] if d["nivel"] == "no especificado"
+        else f"{d['idioma']} {d['nivel']}"
+        for d in detect_languages_struct(texto)
+    ]
 
 
 def extract_text(path: str) -> str:
@@ -72,7 +130,15 @@ def extract_text(path: str) -> str:
     if suffix == ".pdf":
         from pypdf import PdfReader
         reader = PdfReader(str(p))
-        return "\n".join((page.extract_text() or "") for page in reader.pages)
+        txt = "\n".join((page.extract_text() or "") for page in reader.pages)
+        # ligaduras tipograficas del PDF: "ﬁcticio" -> "ficticio" (si no,
+        # ninguna palabra que contenga fi/fl/ff matchea en el lexicon)
+        txt = txt.translate(str.maketrans({
+            "ﬁ": "fi", "ﬂ": "fl", "ﬀ": "ff", "ﬃ": "ffi", "ﬄ": "ffl",
+        }))
+        # palabras partidas a mitad de linea: "usuario-\nficticio" ->
+        # "usuario-ficticio" (recupera LinkedIn/URLs rotas por el salto)
+        return re.sub(r"(\w)-[ \t]*\n[ \t]*(\w)", r"\1-\2", txt)
     if suffix == ".docx":
         from docx import Document
         doc = Document(str(p))
@@ -82,15 +148,15 @@ def extract_text(path: str) -> str:
     raise ValueError(f"Formato no soportado: {suffix} (use pdf, docx, txt o md)")
 
 
-def detect_languages(texto: str) -> List[str]:
-    out = []
-    for nombre, patron in _LANG_PATTERNS:
-        if patron.search(texto) and nombre not in out:
-            out.append(nombre)
-    return out
-
-
 # --------------------------------------------------------------- ATS: extras
+
+def deacc(text: str) -> str:
+    """Minusculas sin acentos: 'Instalación' == 'Instalacion' == 'INSTALACION'."""
+    return "".join(
+        c for c in unicodedata.normalize("NFD", text or "")
+        if unicodedata.category(c) != "Mn"
+    ).lower()
+
 
 CERT_LEXICON = [
     "ISTQB", "ITIL", "PMP", "Scrum Master", "CSM", "AWS Certified",
@@ -125,11 +191,13 @@ def detect_education_level(texto: str) -> str:
 
 
 def detect_experience_years(texto: str) -> float:
-    """Anios de experiencia: sum de rangos de fechas YYYY-YYYY (o 'hasta actualidad')
-    o la frase explicita 'N anios de experiencia' (la mayor)."""
-    # frase explicita tiene prioridad
+    """Anios de experiencia (ES|EN): frase explicita 'N anios de experiencia' /
+    'N years of experience' (la mayor), o suma de rangos YYYY-YYYY
+    ('hasta actualidad' / 'present')."""
+    # frase explicita tiene prioridad (ES y EN)
     explicitos = [float(n) for n in re.findall(
-        r"(\d{1,2})\s*(?:\+\s*)?an(?:o|õ)s?\s+de\s+experiencia", texto, re.IGNORECASE)]
+        r"(\d{1,2})\s*(?:\+\s*)?(?:años|anos|years?)\s*"
+        r"(?:de\s+|of\s+)?(?:experiencia|experience)?", texto, re.IGNORECASE)]
     if explicitos:
         return min(max(explicitos), 45.0)
 
@@ -158,17 +226,72 @@ def detect_experience_years(texto: str) -> float:
 
 
 def detect_contact(texto: str) -> Dict:
+    """Email, telefono (formato CR +506 / 8000-0000), LinkedIn, GitHub y ciudad."""
     contacto = {}
     email = re.search(r"[\w.+-]+@[\w-]+\.[\w.]+", texto)
     if email:
         contacto["email"] = email.group(0).strip(".,;)")
-    tel = re.search(r"(?:\+?\d{1,3}[\s-]?)?(?:\d{4}[\s-]?){2}\d{3,4}", texto)
+    # telefono: preferencia por etiqueta (evita confundir fechas 2018-2021)
+    tel = re.search(
+        r"(?:tel[eé]fono|celular|m[óo]vil|phone)\D{0,10}"
+        r"((?:\+\d{1,3}[\s-]?)?\d{4}[\s-]\d{4}(?:[\s-]\d{3,4})?)",
+        texto, re.IGNORECASE) or re.search(
+        r"\+\d{1,3}[\s-]?\d{4}[\s-]\d{4}", texto)
     if tel:
-        contacto["telefono"] = re.sub(r"\s+", " ", tel.group(0)).strip()
+        contacto["telefono"] = re.sub(r"\s+", " ", tel.group(1)).strip()
     li = re.search(r"linkedin\.com/in/[\w\-]+", texto, re.IGNORECASE)
     if li:
         contacto["linkedin"] = "https://" + li.group(0)
+    gh = re.search(r"github\.com/[\w\-\.]+", texto, re.IGNORECASE)
+    if gh:
+        contacto["github"] = "https://" + gh.group(0)
+    ub = re.search(
+        r"(?:ubicaci[óo]n|location)\s*:\s*(.+?)(?=\s+(?:linkedin|github|email|tel|phone|id)\b|\s\||$)",
+        texto, re.IGNORECASE)
+    if ub:
+        contacto["ciudad"] = re.sub(r"\s+", " ", ub.group(1)).strip().rstrip("|,")
     return contacto
+
+
+def detect_seniority(texto: str) -> str:
+    """Nivel detectado en el encabezado del CV (titular del puesto)."""
+    head = deacc(texto[:300])
+    if re.search(r"\b(senior|sr\.?|principal|lead|lider|arquitecto|staff)\b", head):
+        return "senior"
+    if re.search(r"\b(junior|jr\.?|trainee|becario|asistente)\b", head):
+        return "junior"
+    if re.search(r"\b(mid|intermedio|pleno|especialista)\b", head):
+        return "mid"
+    return ""
+
+
+def _split_phrases(texto: str, max_len: int = 180) -> List[str]:
+    """Trocea el CV en fragmentos cortos tipo frase (para evidencia de revision).
+
+    Corta por salto de linea y puntuacion; los fragmentos largos se parten en
+    ventanas de max_len por frontera de palabra. Devuelve lista sin vacios.
+    """
+    base = re.split(r"[\n.;:!?]+|\s+\|\s+", texto)
+    frases = []
+    for b in base:
+        b = re.sub(r"\s+", " ", b).strip()
+        if len(b) < 12:      # restos muy cortos no aportan contexto
+            continue
+        while len(b) > max_len:
+            corte = b.rfind(" ", 0, max_len)
+            if corte < 40:
+                corte = max_len
+            frases.append(b[:corte].strip())
+            b = b[corte:].strip()
+        if b:
+            frases.append(b)
+    # dedupe conservando orden
+    out, vistos = [], set()
+    for f in frases:
+        if f.lower() not in vistos:
+            vistos.add(f.lower())
+            out.append(f)
+    return out
 
 
 
@@ -219,53 +342,119 @@ class CVAnalyzer:
         txt = re.sub(r"\s+", " ", txt).strip()
         return txt[:1500]
 
+    # ------------------------------------------------------------ revision IA
+    def review(self, propuesto: Dict, texto: str) -> Dict:
+        """Revision de coherencia semantica de la extraccion (IA local).
+
+        Mecanica IDENTICA a la busqueda: cada campo extraido se embeda como
+        consulta (QUERY_PROMPT) y se busca su mejor frase dentro del CV
+        troceado en fragmentos embebidos como documentos (DOC_PROMPT).
+
+        Para cada campo devuelve:
+          - score: coseno con su MEJOR frase (evidencia maxima en el CV)
+          - evidencia: esa frase (donde "encontro" el campo)
+        Score bajo + sin evidencia literal => posible falso positivo.
+
+        Devuelve {"titulos": {campo: {score, evidencia}}, "skills": {...},
+                  "avisos": [...], "min_titulo", "min_skill"}.
+        """
+        from core.search_engine import DOC_PROMPT, QUERY_PROMPT
+
+        engine = self.engine
+        frases = _split_phrases(texto)
+        if not frases:
+            return {"titulos": {}, "skills": {}, "avisos": [],
+                    "min_titulo": 0.0, "min_skill": 0.0}
+
+        f_vecs = engine.model.encode(
+            [DOC_PROMPT.format(text=f) for f in frases], normalize_embeddings=True)
+
+        campos = ([("titulo", t) for t in propuesto.get("titulos", [])] +
+                  [("skill", s) for s in propuesto.get("skills", [])])
+        if not campos:
+            return {"titulos": {}, "skills": {}, "avisos": [],
+                    "min_titulo": 0.0, "min_skill": 0.0}
+
+        q_vecs = engine.model.encode(
+            [QUERY_PROMPT.format(text=c) for _, c in campos], normalize_embeddings=True)
+        M = q_vecs @ f_vecs.T   # coseno campo x frase
+        f_deacc = [deacc(f) for f in frases]
+
+        def _literal_idx(campo: str):
+            """Indices de frases que contienen el campo literalmente
+            (sin acentos, frontera de palabra) -> evidencia dura."""
+            cd = deacc(campo)
+            patron = re.compile(r"(?<![\w\-/])" + re.escape(cd) + r"(?![\w\-/])")
+            return [k for k, fd in enumerate(f_deacc) if patron.search(fd)]
+
+        titulos, skills = {}, {}
+        for i, (tipo, campo) in enumerate(campos):
+            lit = _literal_idx(campo)
+            if lit:
+                # presencia literal en el CV: elegir la frase literal de
+                # mayor coseno (la regex/lexicon ya confirmo presencia)
+                j = max(lit, key=lambda k: float(M[i][k]))
+                literal = True
+            else:
+                j = int(M[i].argmax())
+                literal = False
+            reg = {
+                "score": round(float(M[i][j]), 3),
+                "evidencia": frases[j],
+                "literal": literal,
+            }
+            (titulos if tipo == "titulo" else skills)[campo] = reg
+
+        # Umbrales SOLO aplican a campos sin presencia literal (decide la IA):
+        # con evidencia literal la presencia es hecho, no estimacion.
+        TIT_MIN, SKILL_MIN = 0.40, 0.35
+        avisos = [
+            f"Titulo sin presencia literal ni buena evidencia semantica: '{t}' "
+            f"(coseno {r['score']:.2f}) -> '{r['evidencia'][:70]}...'"
+            for t, r in titulos.items() if not r["literal"] and r["score"] < TIT_MIN
+        ]
+        avisos += [
+            f"Skill sin presencia literal ni buena evidencia semantica: '{s_}' "
+            f"(coseno {r['score']:.2f}) -> '{r['evidencia'][:70]}...'"
+            for s_, r in skills.items() if not r["literal"] and r["score"] < SKILL_MIN
+        ]
+        return {
+            "titulos": titulos,
+            "skills": skills,
+            "avisos": avisos,
+            "min_titulo": TIT_MIN,
+            "min_skill": SKILL_MIN,
+        }
+
+
     # ---------------------------------------------------------------- analyze
     def analyze(self, cv_texto: str) -> Dict:
         texto = re.sub(r"\s+", " ", cv_texto).strip()
-        low = texto.lower()
+        low = deacc(texto)   # sin acentos: "metodologías ágiles" == "metodologias agiles"
 
-        # --- skills por lexicon literal ---
+        # --- skills por lexicon literal (frontera de palabra, sin acentos) ---
         skills = []
         for s in SKILL_LEXICON:
-            patron = re.compile(r"(?<![\w-])" + re.escape(s) + r"(?![\w-])", re.IGNORECASE)
+            patron = re.compile(r"(?<![\w-])" + re.escape(deacc(s)) + r"(?![\w-])")
             if patron.search(low):
                 skills.append(s)
 
-        # --- idiomas ---
-        langs = detect_languages(texto)
-        skills += [lang for lang in langs if lang not in skills]
+        # --- idiomas (reglas bilingues ES|EN en detect_languages_struct) ---
+        idiomas_struct = detect_languages_struct(texto)
+        for d in idiomas_struct:
+            etiqueta = (d["idioma"] if d["nivel"] == "no especificado"
+                        else f"{d['idioma']} {d['nivel']}")
+            if not any(etiqueta.lower() in s.lower() for s in skills):
+                skills.append(etiqueta)
 
         # --- campos ATS (reglas puras, ver core/ats.py) ---
-        # busca niveles sin acentos: "Inglés avanzado" -> "ingles avanzado"
-        def _deacc(s):
-            return "".join(
-                c for c in unicodedata.normalize("NFD", s)
-                if unicodedata.category(c) != "Mn"
-            ).lower()
-        texto_d = _deacc(texto)
-        idiomas_struct, vistos_idioma = [], set()
-        for lang in langs:
-            base = lang.split()[0]
-            key = _deacc(base)
-            if key in vistos_idioma:
-                continue
-            vistos_idioma.add(key)
-            m = re.search(
-                key + r"[^.;\n]{0,40}?"
-                r"(avanzado|bilingue|fluido|intermedio|basico|c1|c2|b1|b2|a1|a2)",
-                texto_d,
-            )
-            idiomas_struct.append({
-                "idioma": base,
-                "nivel": m.group(1).capitalize() if m else "no especificado",
-            })
-
         datos_ats = {
             "experiencia_anios": detect_experience_years(texto),
             "educacion_nivel": detect_education_level(texto),
             "certificaciones": detect_certifications(texto),
             "idiomas": idiomas_struct,
             "contacto": detect_contact(texto),
+            "seniority": detect_seniority(texto),
         }
 
         # --- titulos semanticos ---
@@ -308,7 +497,7 @@ def merge_profile(actual: Dict, novedad: Dict, replace: bool = False) -> Dict:
     nuevo = dict(actual)
 
     campos_ats = ("experiencia_anios", "educacion_nivel", "certificaciones",
-                  "idiomas", "contacto")
+                  "idiomas", "contacto", "seniority")
     for c in campos_ats:
         v = novedad.get(c)
         if v:  # no vacia (si el CV no detecto anios, se conserva el valor actual)

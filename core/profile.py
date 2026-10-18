@@ -37,6 +37,7 @@ class CandidateProfile:
             c for c in data.get("certificaciones", []) if c and str(c).strip()
         ]
         self.contacto = data.get("contacto") or {}      # email / telefono / linkedin / ciudad
+        self.seniority = (data.get("seniority") or "").strip()  # junior / mid / senior
         self.pesos_ats = data.get("pesos_ats") or {}    # pesos del score ATS (suman 1)
 
     @classmethod
@@ -63,6 +64,7 @@ class CandidateProfile:
             "educacion_nivel": self.educacion_nivel,
             "idiomas": self.idiomas,
             "certificaciones": self.certificaciones,
+            "seniority": self.seniority,
             "pesos": self.pesos,
             "pesos_ats": self.pesos_ats,
         }

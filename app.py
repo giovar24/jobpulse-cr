@@ -102,6 +102,8 @@ with st.sidebar:
         with st.expander("🪪 Ficha ATS"):
             st.write(f"**Experiencia:** {profile.experiencia_anios or '—'} años")
             st.write(f"**Educación:** {profile.educacion_nivel or '—'}")
+            if profile.seniority:
+                st.write(f"**Seniority:** {profile.seniority}")
             if profile.certificaciones:
                 st.write("**Certificaciones:** " + ", ".join(profile.certificaciones))
             if profile.idiomas:

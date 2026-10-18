@@ -304,7 +304,7 @@ Crear un sistema eficiente de scraping de empleos para Costa Rica que consolide 
 **Privacidad**:
 - `data/profile.example.json` (nuevo, SI en git): plantilla generica 100% falsa (nombre "Juan Perez", email `juan.perez@example.com`, linkedin de ejemplo, 3 anios, universitario, Ingles Intermedio, ITIL) con todos los campos ATS.
 - `data/profile.json` (SALIO de git: `git rm --cached` + `.gitignore`): es la copia local que el usuario personaliza con `cv2profile.py --save`. Sus datos reales jamas viajan al repo publico.
-- Auditoria: grep de `giova|Giovar24|@gmail|C:\Users` sobre los archivos trackeados -> 0 coincidencias.
+- Auditoria: grep de usuario, email y rutas locales sobre los archivos trackeados -> 0 coincidencias.
 - El `profile.json` local existente se re-escribio con los mismos datos genericos de la plantilla.
 
 **Portabilidad (`core/bootstrap.py`)**:
@@ -315,3 +315,37 @@ Crear un sistema eficiente de scraping de empleos para Costa Rica que consolide 
 - Flujo "equipo nuevo": `git clone` + `pip install -r requirements.txt` + arrancar. Cero copias manuales.
 
 **Validado**: py_compile de los 4 entrypoints; test real - `Remove-Item data/profile.json` + `ensure_workspace()` -> recreado desde la plantilla con "Juan Perez" y pesos_ats correctos.
+
+
+### 27. Revision IA del CV (evidencia por frase) + extraccion bilingue ES|EN + benchmark de modelos
+
+**Objetivo**: (a) que la revision IA de la extraccion sea *explicable* (evidencia frase a frase, no un score opaco), (b) que el analizador de CV funcione igual de bien en español que en inglés (requisito del usuario), (c) elegir el modelo de embeddings con datos y no por intuición.
+
+**Revision IA por frase (`CVAnalyzer.review()`)**:
+- v1 (coseno campo vs documento completo, 1500 chars) se descarto por no discriminar: `JavaScript` 0.153 vs `Analista Ciberseguridad` 0.424 en el mismo CV.
+- v2 (la implementada): trocear el CV en frases (`_split_phrases`), embedarlas como documentos y usar cada campo extraido como query. Para cada campo se reporta `(frase encontrada, coseno)`.
+- **Preferencia a la evidencia literal**: si un regex confirma la presencia literal del valor en el texto, el veredicto es `ok` aunque el coseno sea bajito (los embeddings castigan siglas: `js` vs `JavaScript`). Los umbrales (0.40 aceptar / 0.35 dudoso) solo aplican cuando NO hay presencia literal.
+- `reporte_cv.py` (nuevo): reporte de 5 secciones - texto crudo, extracciones regex, IA local (titulo sugerido), revision IA y perfil JSON final. Es la herramienta oficial de validación del analizador.
+
+**Extraccion bilingue ES|EN (`core/cv_analysis.py`)**:
+- `_LANG_RULES` (antes `_LANG_PATTERNS`): nombre de idioma en ES o EN (`inglés|english`, `español|spanish`...) y nivel en ES o EN (`nativo|native`, `fluido|fluent`, `c1`...). `detect_languages_struct()` devuelve `[{"idioma", "nivel"}]` y `detect_languages()` las etiquetas para skills (`"Ingles Avanzado"`).
+- **Trampa de ventana**: "Inglés: Profesional Avanzado C1 Español: Nativo C2" (líneas pegadas por el PDF) hacia que la ventana de 40 chars de `inglés` viera el `Nativo` del `español` y reportara el nivel equivocado. Fix: el segmento de nivel se **recorta en el primer nombre de otro idioma**.
+- Experiencia EN: `N years of experience` ademas de `N años de experiencia` (regex unificada, `de|of` y `experiencia|experience` opcionales).
+- Contacto EN: `Location:` paralelo a `Ubicación:`; `Phone:` ya cubierto.
+- Duplicado eliminado: quedaban **dos** definiciones de `detect_languages()` (la vieja con `_LANG_PATTERNS` muerto ganaba por ser la ultima y reventaba con NameError).
+- Lado vacante (`core/ats.py`): `_LANG_REQ` con aliases EN (`english`, `portuguese`...) para `extract_languages_required`; `extract_years_required` ya cubría `years`; `extract_education_required` ahora entiende `degree` con guarda `(?<!high )...(?!\s*of)` para no confundir "a high degree of autonomy".
+- Plantilla `profile.example.json` + `profile.json` local: idiomas ahora incluyen `Espanol Nativo`.
+
+**Benchmark de modelos (`bench_modelos.py`)**: 4 modelos locales CPU evaluados en 16 tareas reales (títulos ES, vacantes ES, consultas EN, cruce ES↔EN y evidencia de skills), cada uno con el envoltorio recomendado por su fabricante (raw / `query:`+`passage:` / prompts de EmbeddingGemma).
+
+| modelo | hits | cross | evidencia | margen | encode |
+|---|---|---|---|---|---|
+| **paraphrase-multilingual-mpnet-base-v2** | **16/16** | **4/4** | **3/3** | **+0.442** | 1289ms |
+| intfloat/multilingual-e5-small | 15/16 | 3/4 | 3/3 | +0.082 | 428ms |
+| paraphrase-multilingual-MiniLM-L12-v2 | 14/16 | 3/4 | 2/3 | +0.395 | 340ms |
+| Alibaba-NLP/gte-multilingual-base | crash del proceso (no completó) | | | | |
+| google/embeddinggemma-300m | gated 401 sin `HF_TOKEN` (no evaluable) | | | | |
+
+**Decision**: se mantiene `paraphrase-multilingual-mpnet-base-v2` como fallback. gana en exactitud (perfecto), cruce ES↔EN y margen; `e5-small` es 3.7× más rápido pero pierde un cruce y su margen (+0.082) es tan estrecho que roza el fallo en varias tareas - para indexar cientos de vacantes la diferencia de 1.3s→0.4s es irrelevante vs. arruinar el ranking. Para desbloquear EmbeddingGemma solo hace falta un `HF_TOKEN` en `.env` + aceptar la licencia en huggingface.co (si no, fallback automático y silencioso salvo el warning 401).
+
+**Validado**: `reporte_cv.py` con los 2 CVs de prueba - ES (8 años, universitario, Ingles Avanzado, Espanol Nativo, contacto completo) e EN (`demo_cv_en.txt`: 9 años, senior, `Location:`, `Bachelor's`, Español Nativo + Inglés Avanzado, email/teléfono/LinkedIn); prueba ATS cruzada perfil EN vs vacante EN y perfil ES vs vacante ES (100 Fuerte cuando pide inglés/inglés, 0 Rechazo probable para "Auxiliar de Bodega", `languages_score` 1.0/None/0.0).

@@ -35,17 +35,26 @@ if sys.stdout and sys.stdout.encoding and sys.stdout.encoding.lower().replace("-
         pass
 
 
-def show(proposed, actual=None):
+def show(proposed, actual=None, revision=None):
     print("\n" + "=" * 60)
     print("ANALISIS DEL CV\n")
     print("Titulos sugeridos:")
     for t in proposed["titulos"][:8]:
-        print(f"  - {t}")
+        extra = ""
+        if revision and t in revision.get("titulos", {}):
+            r = revision["titulos"][t]
+            extra = f"  (evidencia IA {r['score']:.2f})"
+        print(f"  - {t}{extra}")
     print(f"\nSkills detectadas ({len(proposed['skills'])}):")
     for chunk in [proposed["skills"][i:i+6] for i in range(0, min(30, len(proposed['skills'])), 6)]:
         print("  " + " | ".join(chunk))
     if len(proposed["skills"]) > 30:
         print(f"  ... y {len(proposed['skills'])-30} mas")
+    if revision and revision.get("avisos"):
+        print("\n⚠ Revision IA (coherencia de cada campo con el propio CV):")
+        for a in revision["avisos"]:
+            print(f"  ! {a}")
+        print("  (baja coherencia = posible falso positivo de la regex; verifica a mano)")
     print("\nTemas de scraping sugeridos (ES / EN):")
     for t in proposed["temas"]:
         print(f"  - {t['puesto']}  /  {t.get('puesto_en')}")
@@ -53,6 +62,7 @@ def show(proposed, actual=None):
     exp = proposed.get("experiencia_anios")
     print(f"  Experiencia     : {f'{exp:g} años' if exp else 'no detectada'}")
     print(f"  Educacion       : {proposed.get('educacion_nivel') or 'no detectada'}")
+    print(f"  Seniority       : {proposed.get('seniority') or 'no detectado'}")
     certs = proposed.get("certificaciones") or []
     print(f"  Certificaciones : {', '.join(certs) if certs else '(ninguna)'}")
     idiomas = proposed.get("idiomas") or []
@@ -109,6 +119,7 @@ def main():
 
     analyzer = CVAnalyzer()
     proposed = analyzer.analyze(texto)
+    revision = analyzer.review(proposed, texto)   # IA local: coherencia por campo
 
     actual_data = None
     if out_path.exists():
@@ -116,7 +127,7 @@ def main():
             actual_data = json.loads(out_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as exc:
             print(f"[warn] Perfil actual invalido ({out_path}): {exc}")
-    show(proposed, actual_data)
+    show(proposed, actual_data, revision)
 
     if actual_data:
         final = merge_profile(actual_data, proposed, replace=args.replace)
@@ -131,6 +142,7 @@ def main():
             "certificaciones": proposed.get("certificaciones", []),
             "idiomas": proposed.get("idiomas", []),
             "contacto": proposed.get("contacto", {}),
+            "seniority": proposed.get("seniority", ""),
             "pesos": {"titulo": 1.0, "skills": 0.7, "tema": 0.5},
             "pesos_ats": {"skills": 0.40, "titulo": 0.30, "experiencia": 0.15,
                           "educacion": 0.075, "idiomas": 0.075},

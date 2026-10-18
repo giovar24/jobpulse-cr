@@ -64,7 +64,8 @@ def extract_education_required(text: str) -> Optional[str]:
     if re.search(r"maestr[íi]a|master'?s? degree|maestria", t, re.I):
         return "maestria"
     if re.search(r"universitario|licenciatura|ingenier[íi]a|bachelor|grado universitario"
-                 r"|titulo profesional|carrera universitaria", t, re.I):
+                 r"|titulo profesional|carrera universitaria"
+                 r"|(?<!high )\bdegree\b(?!\s*of)", t, re.I):   # "degree in X" (EN)
         return "universitario"
     if re.search(r"tecn[oó]logo|technologist", t, re.I):
         return "tecnologo"
@@ -77,15 +78,21 @@ def extract_education_required(text: str) -> Optional[str]:
     return None
 
 
-_LANGS = ["ingles", "portugues", "frances", "aleman", "mandarin", "italiano"]
+# Idioma requerido en la vacante: nombre canonico ES + aliases EN/ES
+_LANG_REQ = {
+    "Ingles": ("ingles", "english"),
+    "Portugues": ("portugues", "portuguese"),
+    "Frances": ("frances", "french"),
+    "Aleman": ("aleman", "german"),
+}
 
 
 def extract_languages_required(text: str) -> List[str]:
     t = _norm(text)
     out = []
-    for lang in _LANGS:
-        if re.search(rf"\b{lang}\b", t):
-            out.append(lang.capitalize())
+    for canon, alias in _LANG_REQ.items():
+        if any(re.search(rf"\b{a}\b", t) for a in alias):
+            out.append(canon)
     return out
 
 

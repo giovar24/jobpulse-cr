@@ -236,12 +236,15 @@ class SemanticSearchEngine:
         "Disenador Grafico", "Auxiliar de Bodega", "Motorizado",
         "Especialista en Nomina", "Analista de Nomina",
         "Tecnico de Mantenimiento", "Enfermera", "Operador de Produccion",
+        "Ingeniero de Software", "Desarrollador Full Stack",
+        "Ingeniero DevOps", "Arquitecto de Software",
     ]
     VOCABULARY_EN = [
         "IT Support", "Help Desk", "Bilingual IT Support Technician",
         "Technical Support Analyst", "Data Entry Clerk", "Data Analyst",
         "Web Developer", "Backend Developer", "Frontend Developer",
         "QA Automation Tester", "Junior Software Engineer",
+        "Software Engineer", "Full Stack Developer",
         "Systems Administrator", "Network Engineer",
         "Cybersecurity Analyst", "Bilingual Customer Service Representative",
         "Call Center Agent", "Virtual Assistant", "Sales Representative",
@@ -251,6 +254,7 @@ class SemanticSearchEngine:
         "Warehouse Operator", "Recruiting Coordinator", "Customer Success Manager",
         "IT Operations Specialist", "DevOps Engineer", "Cloud Support Engineer",
         "Support Desk Technician", "Customer Experience Associate",
+        "Senior Software Engineer", "Site Reliability Engineer",
     ]
 
     def rank_terms(self, query: str, candidates: List[str], top_k: int = 3) -> List[str]:

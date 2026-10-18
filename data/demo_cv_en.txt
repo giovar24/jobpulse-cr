@@ -1,0 +1,24 @@
+JANE DOE
+SENIOR SOFTWARE ENGINEER
+Email: jane.doe@example.com Phone: +506 8000 1234 Location: San José, Costa Rica
+LinkedIn: linkedin.com/in/jane-doe-example
+PROFESSIONAL SUMMARY
+Software Engineer with more than 9 years of experience building web applications,
+RESTful APIs and microservices on AWS. Skilled in JavaScript/TypeScript, Python and
+Agile methodologies. Led teams of 8 developers with Scrum and CI/CD pipelines.
+EXPERIENCE
+Senior Software Engineer — Acme Corp Jan 2020 – Present | San José, Costa Rica
+Designed microservices in Node.js and Docker on Amazon Web Services (AWS).
+Improved API response times with SQL query optimization and Redis caching.
+Mentored a team of 8 developers using Scrum and CI/CD pipelines with GitLab.
+Full Stack Developer — Globex Inc Mar 2017 – Dec 2019 | Heredia, Costa Rica
+Built e-commerce modules with React, Node.js and Spring Boot.
+Implemented CI/CD pipelines with GitLab and Docker.
+EDUCATION
+Bachelor's Degree in Computer Science
+University of Costa Rica 2012 – 2016 | San José, Costa Rica
+LANGUAGES
+Spanish: Native C2
+English: Fluent C1
+TECHNICAL SKILLS
+JavaScript, TypeScript, Python, SQL, Docker, AWS, GitLab, Redis, Scrum, React
