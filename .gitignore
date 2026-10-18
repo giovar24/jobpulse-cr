@@ -25,6 +25,11 @@ data/*_backup_*.json
 *.doc
 *.docx
 !data/demo_cv.docx
+# cv2profile tambien acepta .txt/.md: un CV real en texto plano no debe
+# viajar a git (el demo publico queda exceptuado).
+data/*.txt
+data/*.md
+!data/demo_cv_en.txt
 ~$*
 
 # --- Salidas ---
