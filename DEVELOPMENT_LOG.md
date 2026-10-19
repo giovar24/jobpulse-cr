@@ -412,3 +412,14 @@ Crear un sistema eficiente de scraping de empleos para Costa Rica que consolide 
 Ningun modelo separa: el problema es estructural (las descripciones de oficios comparten superficie semantica con los empleos de servicio). e5-small comprime todo en 0.79-0.84 (rango operativo ~0.02). EmbeddingGemma sigue sin ser evaluable (gated: licencia + HF_TOKEN). Decision de arquitectura: **hibrido** - los embeddings rankean dentro de lo aprobado (donde mpnet gano el benchmark 16/16 y el cruce ES-EN), el lexico fija el dominio de la puerta.
 
 **Estado final de la corrida**: jobs 71 (solo dominio soporte/atencion al cliente) / jobs_raw 241 con razon de descarte por fila (fecha / relevancia / dominio).
+
+### 31. Validacion del usuario: el ciclo completo funciona con el perfil real
+
+Primer ciclo validado de punta a punta con el CV real del candidato (ES, soporte bilingue). El usuario confirmo sobre el top-10 del ranking (`search.py --perfil`):
+
+- **Relevancia**: SI se aplicaria a las vacantes del top-10 - "esta muy de acuerdo con el perfil" (Bilingual Technical Support Advisor via ANE, Technical Support, Bilingual Interpreter, Analista de Soporte TI, Cognizant On-site Heredia, everis HR Help Desk, Procore...). El barrido ANE aporta el #1 del ranking: la inversion del proveedor paga.
+- **Scores**: sensatos para el perfil; la busqueda trae puestos relevantes para el CV.
+
+Conclusion del QA: gate (fecha + relevancia + dominio) y ranking funcionan con datos reales. Los veredictos ATS honestos (mejor 75.3% "Ajustable", sin "Fuerte") reflejan gaps REALES del CV detectados por keywords faltantes (`Teams`, `Help Desk` literal) e "Ingles (no especificado)" - accionable para el candidato: declarar el nivel de ingles y las herramientas usadas; re-extraer con `cv2profile --save` sube los veredictos. El sistema hace su trabajo: dice que le falta al CV para el ATS.
+
+**Pendiente**: automatizar la corrida diaria (Task Scheduler) para que la ventana de 30 dias se mantenga fresca sin ejecucion manual.
