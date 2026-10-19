@@ -105,6 +105,18 @@ local, sin servicios externos ni motores OCR).
 queda **local-only** — el `.gitignore` lo excluye; solo los demos sintéticos
 (`data/demo_cv.docx`, `data/demo_cv_en.txt`) viajan al repo.
 
+## Credenciales de los portales (primera corrida)
+
+| Portal | ¿Credenciales? | Primera corrida |
+|---|---|---|
+| **LinkedIn** | No | Funciona solo: el scraper usa el endpoint público *guest* y tu navegador Brave real. Si inicias sesión en LinkedIn **dentro de Brave**, el acceso mejora (sin sesión puedes ver menos resultados o el muro "Iniciar sesión"). |
+| **Indeed** | No (parcial) | Funciona sin login, pero el sitio muestra un **muro de login intermitente** en algunas búsquedas (otras devuelven todo normal). Sin credenciales en el código: es comportamiento del sitio, no configuración. |
+| **ANE** | **Sí** | Es el proveedor con más vacantes. Crea tu cuenta gratuita en [ane.cr](https://www.ane.cr) y pon `ANE_USER`/`ANE_PASSWORD` en `.env` — el scraper inicia sesión solo. **Atajo**: si ya iniciaste sesión en ane.cr dentro de Brave, no necesitas nada (reutiliza esa sesión). Sin credenciales ni sesión, el barrido se **omite con un aviso** y los demás portales siguen. |
+
+**Resumen**: con un `.env` vacío el sistema corre y trae LinkedIn + Indeed; para
+desbloquear ANE (el proveedor #1) rellenas `ANE_USER`/`ANE_PASSWORD` o inicias
+sesión en ane.cr en tu Brave.
+
 ## Estructura
 
 ```

@@ -434,3 +434,17 @@ Conclusion del QA: gate (fecha + relevancia + dominio) y ranking funcionan con d
 - `app.py`: banner de frescura - caption "datos frescos" o warning si la ultima corrida tiene >= 24 h.
 
 **Pendiente**: nada - el usuario decide con el dialogo; el sistema nunca corre sin permiso y nunca depende de un equipo 24/7.
+
+### 33. Credenciales por portal: la primera corrida de un usuario nuevo
+
+Revision del estado real de autenticacion por provider (para el objetivo de portabilidad: cualquier persona debe poder arrancar):
+
+- **LinkedIn**: sin credenciales en el codigo - usa el endpoint publico `jobs-guest` + el perfil real de Brave del usuario. Loguearse en LinkedIn dentro de Brave mejora el acceso; sin login funciona degradado.
+- **Indeed**: sin credenciales; el sitio muestra muro de login INTERMITENTE en algunas busquedas (observado en la corrida real: unas consultas devuelven "Iniciar sesion" con 0 cards y otras 15/15 con descripciones completas). Es comportamiento del sitio, no configuracion.
+- **ANE**: el unico que exige credencial. Ya degradaba bien sin ellas (warning "sin credenciales en .env ni sesion activa en Brave" -> barrido omitido -> los demas portales siguen), pero nadie le decia al usuario nuevo que existe. Ademas tiene atajo: `_asegurar_sesion` detecta sesion activa de ane.cr en el Brave del usuario (enlaces reales a /Puesto/Detalles en el listado) y la reutiliza sin .env.
+
+Cierre del hueco de onboarding:
+- `.env.example`: comentarios explicando que ANE es opcional-recomendado, cuenta gratuita en ane.cr, el atajo de la sesion de Brave, y que sin credenciales el resto del sistema funciona.
+- README: seccion "Credenciales de los portales (primera corrida)" con la matriz LinkedIn/Indeed/ANE y el resumen "con .env vacio corres LinkedIn+Indeed; ANE se desbloquea con credenciales o sesion en Brave".
+
+**Decision**: no se agregan credenciales de LinkedIn/Indeed al sistema (no existen en el codigo y no hacen falta); ANE queda documentado como unico requisito opcional.
