@@ -73,6 +73,22 @@ python reporte_cv.py "MiCV.pdf"
 python bench_modelos.py
 ```
 
+### Corrida con un clic y recordatorio (Windows)
+
+- **`jobpulse.cmd`** — doble clic: scraping completo + dashboard + navegador.
+- **`recordatorio.py`** — sin servidor 24 h: al **iniciar sesión** pregunta
+  si quieres correr el scraping (si ya corriste hoy, no molesta). Con
+  "Más tarde..." tú fijas la hora; si el equipo estaba apagado a esa hora,
+  la corrida se ejecuta en cuanto arranque.
+
+```powershell
+# Instalar el recordatorio (una sola vez)
+powershell -File instalar_recordatorio.ps1
+
+# Probarlo a mano (ignora el chequeo de "ya corriste hoy")
+python recordatorio.py --forzar
+```
+
 ### Formatos de CV soportados
 
 | Formato | Vía | Notas |

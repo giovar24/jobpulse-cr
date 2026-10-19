@@ -5,6 +5,7 @@ Ejecutar:  streamlit run app.py
 import asyncio
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -27,6 +28,36 @@ SOURCES = ["indeed", "linkedin", "ane", "procomer"]
 
 st.set_page_config(page_title="JobPulse CR", page_icon="💼", layout="wide")
 st.title("💼 JobPulse CR — mejores opciones para tu perfil")
+
+
+def _frescura_datos():
+    """Banner de frescura: cuanto hace que el sistema no scrapea."""
+    import sqlite3
+    db = Path("data/jobs.db")
+    if not db.exists():
+        return None
+    try:
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        (val,) = con.execute("select max(created_at) from jobs_raw").fetchone()
+        con.close()
+        return datetime.fromisoformat((val or "")[:19])
+    except Exception:
+        return None
+
+
+_ult = _frescura_datos()
+if _ult:
+    _h = (datetime.now() - _ult).total_seconds() / 3600
+    _txt = (f"hace un rato" if _h < 1 else
+            f"hace {int(_h)} h" if _h < 24 else
+            f"hace {int(_h // 24)} día(s)")
+    if _h >= 24:
+        st.warning(f"🥱 Datos desactualizados: última corrida **{_txt}** "
+                   f"({_ult:%d/%m %H:%M}). Corre `python main.py` o "
+                   f"`jobpulse.cmd` para refrescar.")
+    else:
+        st.caption(f"✅ Datos frescos — última corrida {_txt} ({_ult:%d/%m %H:%M}).")
+del _ult
 
 
 async def _query_jobs(days=None):

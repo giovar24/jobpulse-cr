@@ -16,6 +16,7 @@ data/jobs.backup_*.db
 data/embeddings_cache.*
 data/report*.csv
 data/*_backup_*.json
+data/recordatorio_estado.json
 
 # --- CVs personales: el CV real del candidato nunca viaja a git ---
 # Patrones globales (cualquier carpeta del repo incluida la raiz). El demo

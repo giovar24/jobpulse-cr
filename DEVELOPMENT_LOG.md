@@ -423,3 +423,14 @@ Primer ciclo validado de punta a punta con el CV real del candidato (ES, soporte
 Conclusion del QA: gate (fecha + relevancia + dominio) y ranking funcionan con datos reales. Los veredictos ATS honestos (mejor 75.3% "Ajustable", sin "Fuerte") reflejan gaps REALES del CV detectados por keywords faltantes (`Teams`, `Help Desk` literal) e "Ingles (no especificado)" - accionable para el candidato: declarar el nivel de ingles y las herramientas usadas; re-extraer con `cv2profile --save` sube los veredictos. El sistema hace su trabajo: dice que le falta al CV para el ATS.
 
 **Pendiente**: automatizar la corrida diaria (Task Scheduler) para que la ventana de 30 dias se mantenga fresca sin ejecucion manual.
+
+### 32. Recordatorio interactivo al iniciar sesion (sin servidor 24h)
+
+**Restriccion real del usuario**: su equipo no esta encendido todo el dia, asi que una tarea programada a hora fija no sirve (la corrida se perderia). Solucion: **el recordatorio se dispara al INICIAR SESION** - cuando el equipo SI esta encendido - y solo pregunta si hace falta.
+
+- `recordatorio.py` (tkinter, `pythonw` para no mostrar consola): lee la ultima corrida real (`MAX(created_at)` de `jobs_raw`); si ya corrio hoy o el usuario descarto el recordatorio hoy, sale en silencio. Si no, dialogo con 3 caminos: **Correr ahora** (lanza `jobpulse.cmd` en su propia ventana) / **Mas tarde...** (pide la hora HH:MM y registra una corrida UNICA con `StartWhenAvailable`: si el equipo estaba apagado a esa hora, corre en cuanto arranque; si la hora ya paso, se programa para manana) / **Hoy no** (marca el descarte del dia en `data/recordatorio_estado.json`, local-only).
+- `instalar_recordatorio.ps1`: registra la tarea "JobPulse Recordatorio" al logon del usuario actual (sin admin).
+- `jobpulse.cmd` (launcher de un clic): scraping completo + dashboard (reutiliza el que ya este corriendo en 8501 via `Get-NetTCPConnection`, robusto en Windows en espanol) + abre el navegador. Cierre automatico a los 15 s (sin `pause`: las corridas programadas no deben dejar ventanas atascadas).
+- `app.py`: banner de frescura - caption "datos frescos" o warning si la ultima corrida tiene >= 24 h.
+
+**Pendiente**: nada - el usuario decide con el dialogo; el sistema nunca corre sin permiso y nunca depende de un equipo 24/7.
