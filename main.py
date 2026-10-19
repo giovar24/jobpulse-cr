@@ -16,6 +16,7 @@ from providers.procomer import ProcomerProvider
 from providers.linkedin import LinkedInProvider
 from providers.indeed import IndeedProvider
 from providers.ane import AneProvider
+from providers.cinde import CindeProvider
 from providers.base import JobOffer
 
 ensure_workspace()   # crea data/, profile.json (generico) y .env si faltan
@@ -31,6 +32,10 @@ logger = logging.getLogger("jobpulse")
 # ANE barre por fecha (su buscador esta roto): tope de paginas de listado.
 # El corte por fecha real lo pone la ventana (dias); esto es una red de seguridad.
 ANE_PAGES = int(os.getenv("ANE_MAX_PAGES", "15"))
+
+# CINDE Jobs barre todo el tablero activo (su API no busca bien en ES y son
+# pocas vacantes): tope de paginas; cada pagina trae hasta 100 ofertas.
+CINDE_PAGES = int(os.getenv("CINDE_MAX_PAGES", "10"))
 
 
 def strip_html(text):
@@ -205,7 +210,7 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
         logger.error("Could not start Brave browser. Exiting.")
         return
 
-    # Todo lo crudo de los 4 portales; el gate despues decide que pasa a jobs.
+    # Todo lo crudo de los 5 portales; el gate despues decide que pasa a jobs.
     raw_offers: list = []
     try:
         # --- 1. Portales por termino (keyword) ---
@@ -250,6 +255,18 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
             raw_offers.extend(valid_ane)
         except Exception as e:
             logger.error(f"ANE barrido error: {e}")
+        # --- 2b. CINDE Jobs: barrido completo UNA sola vez (API GraphQL
+        # publica, sin navegador); el gate luego decide por relevancia ---
+        cinde = CindeProvider({})
+        try:
+            cinde_jobs = await cinde.fetch(
+                "barrido-todos", "Costa Rica", pages=CINDE_PAGES
+            )
+            valid_cinde = [j for j in cinde_jobs if j.title and j.link]
+            logger.info(f"CINDE barrido: {len(valid_cinde)} vacantes crudas")
+            raw_offers.extend(valid_cinde)
+        except Exception as e:
+            logger.error(f"CINDE barrido error: {e}")
     finally:
         browser_mgr.stop_brave()
 

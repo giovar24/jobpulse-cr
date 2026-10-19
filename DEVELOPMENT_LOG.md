@@ -455,3 +455,33 @@ Cierre del hueco de onboarding:
 - Escritura del `.env` con lo capturado + resumen final + corrida de prueba corta (1 pagina) para validar credenciales antes de la corrida completa.
 - Integracion con el flujo existente: al terminar, sugerir `instalar_recordatorio.ps1` y `jobpulse.cmd`.
 - Reemplazaria la seccion "Credenciales de los portales" del README como primer contacto (el texto queda como referencia).
+
+### 34. Nuevo proveedor: CINDE Jobs (cindejobs.com)
+
+**Objetivo**: agregar el portal de empleo de CINDE (open 24/7, multinacionales instaladas en Costa Rica) como quinta fuente del scraper, sin navegador ni credenciales.
+
+**Descubrimiento del backend**: el sitio es Next.js renderizado con Apollo Client contra una **API GraphQL publica** en `api.cindejobs.com/graphql`. Proceso de hallazgo: el HTML de `/en/job-offers` no contiene vacantes (client-rendered) -> se escanearon los chunks JS de `/_next/static/chunks/*` buscando URLs -> aparecio `https://api.cindejobs.com` y la referencia a los developer tools de Apollo -> POST GraphQL con `__typename` respondio 200 -> la **introspection est abierta**, lo que expuso el esquema completo: `Query.viewJobOffers(search, page, limit, categories, modalities, englishLevels...) -> [ViewJobOffer]` con `jobOfferId, name/nameEs, slug, companySlug/companyName, officeName, description/descriptionEs, technicalSkillsRequired, languagesEs, academicLevelRequiredEs, wfhEs...`.
+
+**Implementacion**:
+1. **`providers/cinde.py`** (nuevo, patron de `procomer.py`: solo httpx, cero Playwright e indexable al pipeline sin toques extra):
+   - Query GraphQL con variables (`limit: 100`, `page: N`) y loop de paginacion hasta respuesta vacia o tope de paginas.
+   - Barrido tipo ANE (`search_term="barrido-todos"`): trae TODO el tablero activo en una pasada; el gate semantico filtra contra el perfil. Razon: el buscador del API es debil en espanol ("ingeniero"/"desarrollador" devuelven 0, "it support"/"soporte" funcionan) y el tablero tiene pocas vacantes (~20 hoy).
+   - `job_id="cinde-{jobOfferId}"` con prefijo OBLIGATORIO: `job_id` es PRIMARY KEY global en `jobs`/`jobs_raw` y Procomer/ANE ya usan ids numericos crudos (colision real).
+   - Link de detalle construido con el patron publico verificado (HTTP 200): `https://cindejobs.com/en/fair/{companySlug}/{slug}`.
+   - Descripcion: version ES si existe, si no EN (los embeddings son multilingues; casi todo el contenido del tablero esta EN).
+2. **`main.py`**: bloque 2b despues del barrido de ANE (una sola vez por corrida), tope `CINDE_MAX_PAGES` (10 por defecto, cada pagina hasta 100 ofertas); comentario "los 4 portales" -> 5.
+3. **Docs**: README (seccion credenciales: fila "CINDE Jobs - No - nunca pide nada, API GraphQL publica"), `.env.example` (variable opcional documentada), `core/gate.py` (docstring sensible al listado de portales actualizado).
+
+**Trampas del API encontradas**:
+- **Sin fecha de publicacion**: el esquema no expone createdAt/updatedAt en `ViewJobOffer` (tablero "abierto 24/7"). `date_published=None`; el gate ya trata fechas no parseables como "beneficio de la duda" (verificado: `es_reciente(None, 1) = True`), asi que la relevancia semantica decide sola. Contrapartida: CINDE nunca se descarta por ventana temporal (aceptable: son pocas y activas).
+- **Campos duplicados con el mismo HTML**: `description == descriptionEs == features == technicalSkillsRequired` en la mayoria de vacantes (baseline ~8 KB repetidos 4 veces). Fix: solo se mapea la descripcion (ES||EN) y `features`/`academicLevelRequiredEs`/`languagesEs` van a `_adicional` en `raw_data`; `requirements` queda vacio para no hinchar la DB ni doble-contar keywords ATS.
+- **`nameEs` suele venir vacio**: title con fallback `nameEs || name`; `slug` se conserva EN (es el que usa la ruta publica).
+
+**Validado**:
+- Proveedor aislado: 19/19 vacantes con titulo, link, empresa, ubicacion y descripcion (ej. "IT Systems Engineer II" - World Fuel - Virtual; "Technical Architect" - HCLTech - Belen Heredia).
+- `py_compile` OK en `main.py`, `providers/cinde.py`, `core/gate.py`.
+- Gate sin fecha: las vacantes de CINDE pasan el filtro temporal y son rankeadas por score semantico + veto lexico del dominio como cualquier otra fuente.
+
+**Captura**: solo datos publicos del tablero (titulos/empresas/links/descripciones visibles a cualquier visitante); no se tocan datos de usuarios ni endpoints autenticados; 1-2 HTTP requests por corrida total.
+
+**Pendiente**: si el usuario lo quiere, segundo proveedor para practicas (`Query.viewInterships`, mismas args, ya documentado en la introspection).

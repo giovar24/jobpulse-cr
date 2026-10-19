@@ -1,8 +1,8 @@
 """Puerta de relevancia (gate): decide que vacantes scrapeadas pasan al ranking.
 
 Filosofia (decision del usuario):
-  1. El scraper junta TODO lo crudo de los 4 portales (Procomer, LinkedIn,
-     Indeed, ANE) en la tabla `jobs_raw`.
+  1. El scraper junta TODO lo crudo de los 5 portales (Procomer, LinkedIn,
+     Indeed, ANE, CINDE Jobs) en la tabla `jobs_raw`.
   2. El gate aplica "Fecha Y relevancia Y dominio" con la IA local
      (embeddings) sobre el perfil del candidato y deja lo que sirve en
      `jobs` (la tabla que leen search.py y app.py).

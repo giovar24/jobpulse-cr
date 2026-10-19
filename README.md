@@ -7,7 +7,7 @@ System). Sin APIs de pago, sin nube, sin LLMs.
 
 ## Características
 
-- **Scraper** (`main.py`): Indeed, LinkedIn, ANE y Procomer → `data/jobs.db`
+- **Scraper** (`main.py`): Indeed, LinkedIn, ANE, Procomer y CINDE Jobs (cindejobs.com) → `data/jobs.db`
   (SQLite). Temáticas de búsqueda derivadas del perfil del candidato y
   expandidas semánticamente (ES↔EN).
 - **Búsqueda semántica** (`search.py`): consulta en lenguaje natural sobre
@@ -112,9 +112,10 @@ queda **local-only** — el `.gitignore` lo excluye; solo los demos sintéticos
 | **LinkedIn** | No | Funciona solo: el scraper usa el endpoint público *guest* y tu navegador Brave real. Si inicias sesión en LinkedIn **dentro de Brave**, el acceso mejora (sin sesión puedes ver menos resultados o el muro "Iniciar sesión"). |
 | **Indeed** | No (parcial) | Funciona sin login, pero el sitio muestra un **muro de login intermitente** en algunas búsquedas (otras devuelven todo normal). Sin credenciales en el código: es comportamiento del sitio, no configuración. |
 | **ANE** | **Sí** | Es el proveedor con más vacantes. Crea tu cuenta gratuita en [ane.cr](https://www.ane.cr) y pon `ANE_USER`/`ANE_PASSWORD` en `.env` — el scraper inicia sesión solo. **Atajo**: si ya iniciaste sesión en ane.cr dentro de Brave, no necesitas nada (reutiliza esa sesión). Sin credenciales ni sesión, el barrido se **omite con un aviso** y los demás portales siguen. |
+| **CINDE Jobs** | No | Nunca pide nada: barre las vacantes activas de [cindejobs.com](https://cindejobs.com) por su API GraphQL pública (sin navegador ni login). El tablero no expone fecha de publicación, así que el gate las trata como vigentes y las rankea por relevancia con tu perfil. |
 
-**Resumen**: con un `.env` vacío el sistema corre y trae LinkedIn + Indeed; para
-desbloquear ANE (el proveedor #1) rellenas `ANE_USER`/`ANE_PASSWORD` o inicias
+**Resumen**: con un `.env` vacío el sistema corre y trae LinkedIn + Indeed +
+CINDE Jobs; para desbloquear ANE (el proveedor #1) rellenas `ANE_USER`/`ANE_PASSWORD` o inicias
 sesión en ane.cr en tu Brave.
 
 ## Estructura
@@ -127,6 +128,7 @@ core/
   profile.py         # CandidateProfile (fuente única de verdad)
   database.py        # SQLite de vacantes
 providers/           # scrapers por portal
+  cinde.py           # CINDE Jobs (cindejobs.com): API GraphQL publica, sin navegador
 data/profile.json    # perfil del candidato
 main.py · search.py · cv2profile.py · app.py
 ```
