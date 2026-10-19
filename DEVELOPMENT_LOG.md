@@ -485,3 +485,27 @@ Cierre del hueco de onboarding:
 **Captura**: solo datos publicos del tablero (titulos/empresas/links/descripciones visibles a cualquier visitante); no se tocan datos de usuarios ni endpoints autenticados; 1-2 HTTP requests por corrida total.
 
 **Pendiente**: si el usuario lo quiere, segundo proveedor para practicas (`Query.viewInterships`, mismas args, ya documentado en la introspection).
+
+---
+
+## 📌 NOTA IMPORTANTE (revisar mañana): Workday como fuente candidata
+
+**Contexto**: surgió en conversación (el asistente original con el que se inicio el proyecto sugirió que "las grandes empresas están en Workday", pero nunca documentó el método). Investigado y **verificado en vivo** hoy; falta decidir si se integra como proveedor #6.
+
+**El método (CXS API de Workday)**: los portales de `*.myworkdayjobs.com` exponen una API JSON publica y estable (es la misma que usa el navegador):
+
+```
+POST https://{tenant}.wd{n}.myworkdayjobs.com/wday/cxs/{tenant}/{Sitio}/jobs
+Body: {"appliedFacets": {}, "limit": 10, "offset": 0, "searchText": "Costa Rica"}
+```
+
+- Respuesta JSON: `total` + `jobPostings[]` (titulo, `locationsText`, `postedOn` "Posted 2 Days Ago", `externalPath` → link de la vacante). Paginacion = incrementar `offset`.
+- Como localizar el tenant: el sitio de carreras enlaza a `{tenant}.wd{n}.myworkdayjobs.com/{Sitio}`; o googlear `site:myworkdayjobs.com {empresa}`.
+- Ventajas vs los agregadores actuales: sin muros de login ni 403 (estilo Procomer/CINDE), portal PROPIO de cada empresa, **fechas de publicacion exactas** (parseables a ISO con `core/dates.py`; algo que CINDE no da).
+
+**Verificado hoy (datos reales)**:
+- ✅ `intel.wd1.myworkdayjobs.com/External` (Intel CR): POST CXS con `searchText: "Costa Rica"` devolvio 200 JSON con 5 vacantes (SoC Logic Design Engineer, IT Intern...).
+- ✅ `syniverse.wd1.../SyniverseCareers` (TI CR), `confluentmedical.wd503.../Confluent_Medical` (83 vacantes en Alajuela), `smithnephew.wd5.../External` (Alajuela) — listados encontrados via busqueda web.
+- ❌ **El consejo original tenia el ATS equivocado en ejemplos clave**: P&G (`pgcareers.com`) y Thermo Fisher (`jobs.thermofisher.com/global/en`) usan **Phenom People**, NO Workday; Bridgestone publica en `bebridgestone.com` (portal propio, 403 por Cloudflare contra HTTP crudo). Leccion: verificar el ATS real de cada empresa antes de asumir.
+
+**Decision pendiente**: agregar `providers/workday.py` con lista curada de tenants con presencia en CR (Intel, Syniverse, Confluent Medical, Smith+Nephew como base; el usuario puede ir sumando). El patron ya existe (`procomer.py`): query paginada a JSON, `job_id = "workday-{...}"`, fecha ISO, link directo. Mucho mas rapido y estable que empleado navigator ( scrappeo de UI): si CXS deja de responder, fallback al HTML renderizado.
