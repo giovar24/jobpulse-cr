@@ -448,3 +448,10 @@ Cierre del hueco de onboarding:
 - README: seccion "Credenciales de los portales (primera corrida)" con la matriz LinkedIn/Indeed/ANE y el resumen "con .env vacio corres LinkedIn+Indeed; ANE se desbloquea con credenciales o sesion en Brave".
 
 **Decision**: no se agregan credenciales de LinkedIn/Indeed al sistema (no existen en el codigo y no hacen falta); ANE queda documentado como unico requisito opcional.
+
+**Pendiente (backlog)**: sistema de primera corrida (`setup` interactivo) que configure el proyecto de punta a punta para un usuario nuevo. Alcance tentativo:
+- Deteccion de primera corrida: `profile.json` generico (Juan Perez), `.env` con placeholders, `jobs.db` inexistente.
+- Wizard interactivo en consola: CV del candidato (ofrecer `cv2profile --save` alli mismo) o edicion manual minima, ubicacion de busqueda (default: Costa Rica), credenciales ANE opcionales con validacion de login, `HF_TOKEN` opcional, verificacion de venv y Brave.
+- Escritura del `.env` con lo capturado + resumen final + corrida de prueba corta (1 pagina) para validar credenciales antes de la corrida completa.
+- Integracion con el flujo existente: al terminar, sugerir `instalar_recordatorio.ps1` y `jobpulse.cmd`.
+- Reemplazaria la seccion "Credenciales de los portales" del README como primer contacto (el texto queda como referencia).
