@@ -81,8 +81,14 @@ python main.py --preflight
 python credenciales.py                       # la lista + estado
 python credenciales.py --set "Indeed"        # pedir usuario/password
 python credenciales.py --set "Indeed" --user "yo@x.com" --pass "S3creto"
+python credenciales.py --set "Indeed" --user "mi@gmail.com" --sso google
+                                             # Indeed no tiene clave: entra con Google
+python credenciales.py --set "MiPortal" --user "u" --pass "p" \
+    --url "https://miportal.com/jobs"        # sitio NUEVO: alta automatica en la
+                                             # lista y en el barrido de portales
 python credenciales.py --auto "Indeed" on    # login automatico con fallback
 python credenciales.py --borrar "Indeed"
+python credenciales.py --quitar-sitio "MiPortal"   # baja de un sitio que tu agregaste
 
 # 8. Diagnosticar la extraccion de un CV (texto, regex, IA, revision, perfil)
 python reporte_cv.py "MiCV.pdf"
@@ -152,10 +158,27 @@ git) con escritura atómica. **Auto-login con fallback** (opcional por sitio,
 CAPTCHA/2FA o falla, el scraper **no se rompe** — cae a login manual /
 sesión existente y sigue con el resto de la corrida.
 
+**Regla "sesión primero"** (Indeed y LinkedIn): el scraper reutiliza la
+sesión de tu navegador cuando existe y **el SSO solo se activa si NO hay
+sesión activa** (sonda real contra `/account` / authwall). Indeed no tiene
+clave propia — se entra con tu Gmail vía **"Continuar con Google"**
+(`--set "Indeed" --user "mi@gmail.com" --sso google`); LinkedIn usa el mismo
+SSO solo como recurso opt-in si se cae la sesión (lo recomendable es
+loguearte una vez a mano con `hacer_login.py`).
+
+**Sitios nuevos**: si guardas una credencial con un nombre/URL que **no está
+en la lista**, se da de **alta sola** — aparece en LA LISTA y, con URL, entra
+al barrido de portales (`login_sites.json`, origen *manual*): cada corrida lo
+visita en tu Brave con bloque `login` genérico para auto-login. Sin URL queda
+en la lista (aviso) pero todavía no se barre. Baja con el botón **🚫 Quitar
+del flujo** (pestaña Credenciales) o `--quitar-sitio`; los sitios fijos del
+sistema no se pueden quitar. Selectores opcionales `card_sel`/`loc_sel` en el
+formulario para que el sitio extraiga vacantes desde la primera corrida.
+
 | Portal | ¿Credenciales? | Primera corrida |
 |---|---|---|
-| **LinkedIn** | No | Funciona solo: el scraper usa el endpoint público *guest* y tu navegador Brave real. Si inicias sesión en LinkedIn **dentro de Brave**, el acceso mejora (sin sesión puedes ver menos resultados o el muro "Iniciar sesión"). |
-| **Indeed** | **Recomendado** | Funciona sin login, pero el sitio muestra un **muro de login intermitente** en algunas búsquedas (0 cards con título "Iniciar sesión | Cuentas Indeed"). Ahora se puede resolver: `python credenciales.py --set "Indeed" --auto on` (o pestaña 🔑 Credenciales). Sin credenciales, el scraper lo detecta, lo registra en la lista y sigue con el resto. |
+| **LinkedIn** | No (opcional) | Funciona solo: el scraper usa el endpoint público *guest* y tu navegador Brave real. **Sesión primero**: si inicias sesión en LinkedIn **dentro de Brave** (una vez, `hacer_login.py`), el scraper reusa las cookies y saca más resultados. El SSO con Google queda como **recurso opt-in** (`--auto on`): solo se activa si hay authwall y no hay sesión — LinkedIn es agresivo con logins automatizados. |
+| **Indeed** | **Recomendado** | Funciona sin login, pero el sitio muestra un **muro de login intermitente** en algunas búsquedas (0 cards con título "Iniciar sesión | Cuentas Indeed"). Se resuelve con `python credenciales.py --set "Indeed" --user "mi@gmail.com" --sso google --auto on`: **la cuenta es de Gmail (sin clave propia)** y el auto-login usa "Continuar con Google" **solo si NO hay sesión activa** (antes reintenta el listado con tu sesión). Sin credenciales, el scraper lo detecta, lo registra en la lista y sigue con el resto. |
 | **ANE** | **Sí** | Es el proveedor con más vacantes. Crea tu cuenta gratuita en [ane.cr](https://www.ane.cr) y ponla en el almacén local: `python credenciales.py --set "ANE"` (o `ANE_USER`/`ANE_PASSWORD` en `.env`, que sigue funcionando como fallback) — el scraper inicia sesión solo. **Atajo**: si ya iniciaste sesión en ane.cr dentro de Brave, no necesitas nada (reutiliza esa sesión). Sin credenciales ni sesión, el barrido se **omite con un aviso** y los demás portales siguen. |
 | **CINDE Jobs** | No | Nunca pide nada: barre las vacantes activas de [cindejobs.com](https://cindejobs.com) por su API GraphQL pública (sin navegador ni login). El tablero no expone fecha de publicación, así que el gate las trata como vigentes y las rankea por relevancia con tu perfil. |
 | **Workday** | No | Lista curada de tenants con presencia en CR (HPE, TD Synnex, Edwards Lifesciences, Thermo Fisher, Stryker, Roche...): empresas grandes que **no publican todo en LinkedIn/Indeed**. API CXS pública (`*.myworkdayjobs.com`), sin muros; descripcion completa y fecha exacta del propio ATS. Lista actualizable con `workday_cr.py`. |
@@ -225,9 +248,10 @@ providers/           # scrapers por fuente, en DOS grupos (razon: dedupe
                       # la corrida; registra el caso en login_requerido.json.
     browser_sites.py  # LoginSitesProvider: sitios en data/empresas/
                       # login_sites.json; modos "dom" (selectores CSS) y
-                      # "page_fetch" (API del SPA via fetch in-page, p.ej.
-                      # PayPal/Eightfold pcsx/search); interstitial Cloudflare
-                      # con deteccion title+body y auto-click del Turnstile
+                      # "page_fetch" (API del SPA via fetch in-page);
+                      # interstitial Cloudflare con deteccion title+body y
+                      # auto-click del Turnstile; acepta sitios que TÚ das
+                      # de alta (origen "manual")
   hacer_login.py      # CLI: recorre sitios que conviene loguear (Indeed sobre
                       # todo) + pendientes de login; abre cada uno en TU Brave
                       # (login manual UNA vez; la credencial local es opcional)
@@ -235,12 +259,17 @@ providers/           # scrapers por fuente, en DOS grupos (razon: dedupe
 core/credenciales.py # ALMACEN local de credenciales (gitignored) + LA LISTA
                       # de sitios que piden login: lista_sitios_login,
                       # credencial/upsert/borrar, marcar_auto_login,
-                      # registrar_requerimiento (seed + runtime + pendientes)
+                      # registrar_requerimiento (seed + runtime + pendientes),
+                      # sitio_en_flujo + agregar/quitar_sitio_login (alta y
+                      # baja de sitios nuevos sin romper el flujo), SSO sin
+                      # password (sso="google")
 core/progreso.py     # progreso de la corrida para el dashboard: escribe
                       # data/corrida_estado.json (atomico) + data/corrida.log;
                       # Progreso.fase/sumar/total/finalizar
 credenciales.py      # CLI de esa lista: sin argumentos la muestra; --set,
-                      # --borrar, --auto EMPRESA on|off, --user/--pass
+                      # --borrar, --auto EMPRESA on|off, --user/--pass,
+                      # --sso google (sin clave), --url (alta de sitio
+                      # nuevo), --quitar-sitio EMPRESA
 core/sesiones.py     # logica de sesiones compartida por app/hacer_login:
                       # sitios_con_sesion() (boards + login_sites + motivos),
                       # abrir_en_brave() y verificar_sesion() (detecta muro
@@ -260,11 +289,14 @@ main.py · search.py · cv2profile.py · app.py · credenciales.py
   Es el camino por defecto: el login automatico dispara CAPTCHAs/2FA.
 
 - **Credenciales (tab "🔑 Credenciales" / `python credenciales.py`)**:
-  opcional y por sitio. Si guardas usuario/password y activas `--auto on`,
-  el scraper intenta el login solo y, si el sitio responde con CAPTCHA/2FA
+  opcional y por sitio. Si guardas usuario/password (o SSO Google sin clave)
+  y activas `--auto on`, el scraper intenta el login solo — **primero
+  reutiliza la sesión existente y solo loguea si no la hay** — y, si el sitio
+  responde con CAPTCHA/2FA
   o 2 pasos que no puede completar, **cae al login manual sin romper la
   corrida**. Todo queda en `data/empresas/credenciales.json`, que está en
-  `.gitignore`: nunca viaja a git y solo vive en esta máquina.
+  `.gitignore`: nunca viaja a git y solo vive en esta máquina. Un sitio nuevo
+  guardado desde ahí **se da de alta solo** en la lista y en el barrido.
 
 - **Dedupe boards↔directos**: la misma vacante suele publicarse en LinkedIn/
   Indeed (agregador) y en el ATS de la empresa (Workday, Greenhouse...).

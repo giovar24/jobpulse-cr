@@ -26,11 +26,14 @@ Decision de diseño que se mantiene: el repo NO contiene credenciales; solo
 esta bola de datos local (como `data/profile.json`).
 """
 import json
+import logging
 import os
 import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+
+logger = logging.getLogger("jobpulse.credenciales")
 
 RAIZ = Path(__file__).resolve().parent.parent
 EMPRESAS_DIR = RAIZ / "data" / "empresas"
@@ -39,7 +42,8 @@ REQ_JSON = EMPRESAS_DIR / "login_requerido.json"
 PENDING_JSON = EMPRESAS_DIR / "pending_login.json"
 LOGIN_SITES_JSON = EMPRESAS_DIR / "login_sites.json"
 
-_LOCK = threading.Lock()
+# RLock: `agregar_sitio_login` anida registrar/marcar (mismo hilo reentra)
+_LOCK = threading.RLock()
 
 GRUPO_LABEL = {
     "boards": "Job board (agregador)",
@@ -68,8 +72,12 @@ _SEED = [
         "grupo": "boards",
         "obligatorio": True,
         "auto_login": True,
+        "sso": "google",
         "motivo": "Login-wall intermitente: en varias busquedas devuelve 0 "
-                  "cards con el titulo 'Iniciar sesion | Cuentas Indeed'.",
+                  "cards con el titulo 'Iniciar sesion | Cuentas Indeed'. "
+                  "La cuenta se crea/entra con GOOGLE (cuenta Gmail), no con "
+                  "clave propia: el auto-login usa 'Continuar con Google' y "
+                  "reutiliza tu sesion de Gmail en Brave.",
         "detectado": "seed",
     },
     {
@@ -80,8 +88,13 @@ _SEED = [
         "grupo": "boards",
         "obligatorio": False,
         "auto_login": False,
+        "sso": "google",
         "motivo": "Opcional: el guest endpoint funciona con limite; con "
-                  "sesion amplias resultados y evitas bloqueos progresivos.",
+                  "sesion amplias resultados y evitas bloqueos progresivos. "
+                  "PRIORIDAD: logueate A MANO una vez en tu Brave "
+                  "(hacer_login.py) y el scraper reusa las cookies. Solo "
+                  "como recurso opt-in (--auto on), si no hay clave se usa "
+                  "Google (cuenta Gmail) contra el authwall.",
         "detectado": "seed",
     },
 ]
@@ -137,7 +150,8 @@ def guardar_requeridos(data: List[dict]) -> bool:
 
 def registrar_requerimiento(empresa: str, url: str = "", motivo: str = "",
                             grupo: str = "", obligatorio: bool = True,
-                            url_check: str = "") -> dict:
+                            url_check: str = "",
+                            detectado: str = "runtime") -> dict:
     """Registra/actualiza un sitio que pide login (lo llaman los providers
     cuando detectan un login-wall). Dedupe por nombre de empresa."""
     if not empresa:
@@ -151,7 +165,7 @@ def registrar_requerimiento(empresa: str, url: str = "", motivo: str = "",
                 nuevo = it
                 break
         if nuevo is None:
-            nuevo = {"empresa": empresa.strip(), "detectado": "runtime"}
+            nuevo = {"empresa": empresa.strip(), "detectado": detectado}
             data.append(nuevo)
         if url:
             nuevo["url"] = url
@@ -180,6 +194,129 @@ def marcar_auto_login(empresa: str, valor: bool) -> bool:
     return False
 
 
+# ------------------------------------------- alta/baja de sitios en el flujo
+def sitio_en_flujo(empresa: str) -> bool:
+    """True si el sitio ya esta en LA LISTA o en el barrido de portales."""
+    key = _norm(empresa)
+    if any(_norm(r.get("empresa", "")) == key for r in cargar_requeridos()):
+        return True
+    return any(_norm(s.get("empresa", "")) == key
+               for s in _leer(LOGIN_SITES_JSON, []))
+
+
+def agregar_sitio_login(empresa: str, url: str = "", motivo: str = "",
+                        grupo: str = "directos",
+                        obligatorio: bool = False,
+                        card_sel: str = "",
+                        loc_sel: str = "") -> dict:
+    """Metodo ADECUADO de dar de alta un sitio NUEVO (pedido 2026-10-19:
+    'agregar una URL que no esta en la lista' no debe romper el flujo).
+
+    - SIEMPRE lo registra en LA LISTA (`login_requerido.json`), asi aparece
+      en la pestaña Credenciales / CLI / faltantes y se le puede guardar
+      credencial + auto-login.
+    - Si hay URL, lo agrega al barrido de portales
+      (`login_sites.json`, origen "manual"): la fase "Login sites (navegador
+      del usuario)" de `main.py` lo recorre cada corrida en TU Brave. La
+      entrada trae bloque `login` generico (user/pass/submit) para que el
+      auto-login funcione si el sitio pide sesion y hay credencial; si no
+      hay selectores (`card_sel`) se visita pero no extrae vacantes aun, sin
+      cortar la corrida.
+    """
+    if not empresa:
+        return {}
+    with _LOCK:
+        reg = registrar_requerimiento(
+            empresa, url,
+            motivo or ("sitio agregado manualmente (Credenciales/CLI); "
+                       "refinar card_sel en login_sites.json si el sitio "
+                       "tiene listado de vacantes"),
+            grupo=grupo, obligatorio=obligatorio, detectado="manual")
+        barrido = False
+        if url:
+            sitios = [s for s in _leer(LOGIN_SITES_JSON, [])
+                      if isinstance(s, dict)]
+            ex = None
+            for s in sitios:
+                if _norm(s.get("empresa", "")) == _norm(empresa):
+                    ex = s
+                    break
+            if ex is None:
+                nueva = {
+                    "empresa": empresa.strip(),
+                    "urls": [url],
+                    "mode": "dom",
+                    "origen": "manual",
+                    "login": {
+                        "login_url": url,
+                        "user_sel": ("input[type=email], input[name=email], "
+                                     "#username, input[name=user]"),
+                        "pass_sel": "input[type=password], input[name=password]",
+                        "submit_sel": "button[type=submit], input[type=submit]",
+                        "espera": 5000,
+                    },
+                    "nota": f"agregado manual {_ahora()}: "
+                            f"{'card_sel ' + card_sel if card_sel else 'sin selectores todavia (card_sel)'}; "
+                            f"el bloque login permite auto-login si pide sesion",
+                }
+                if card_sel:
+                    nueva["card_sel"] = card_sel
+                    nueva["title_sel"] = "h2, h3, h4, a"
+                    nueva["loc_sel"] = loc_sel or "h2, h3, .location, p"
+                sitios.append(nueva)
+            else:
+                urls = [u for u in (ex.get("urls") or []) if u]
+                if url not in urls:
+                    urls.append(url)
+                ex["urls"] = urls
+                ex["origen"] = ex.get("origen") or "manual"
+                ex.setdefault("login", {}).setdefault("login_url", url)
+                if card_sel:
+                    ex["card_sel"] = card_sel
+                    if loc_sel:
+                        ex["loc_sel"] = loc_sel
+            barrido = _escribir(LOGIN_SITES_JSON, sitios)
+        # que el estado auto_login guardado con la credencial quede asentado
+        if reg:
+            marcar_auto_login(empresa, bool(reg.get("auto_login", True)))
+        logger.info("alta sitio %s: en_la_lista=si barrido=%s url=%s",
+                    empresa, barrido, url or "(sin url)")
+        return {"empresa": empresa, "en_lista": True, "barrido": barrido,
+                "url": url}
+
+
+def quitar_sitio_login(empresa: str) -> dict:
+    """Quita un sitio MANUAL del flujo: del barrido (login_sites.json), de
+    los pendientes y de LA LISTA (los seeds fijos NO se tocan). La
+    credencial guardada, si la hay, se conserva."""
+    if not empresa:
+        return {}
+    key = _norm(empresa)
+    with _LOCK:
+        sitios = _leer(LOGIN_SITES_JSON, [])
+        nuevos = [s for s in sitios
+                  if isinstance(s, dict)
+                  and _norm(s.get("empresa", "")) != key]
+        quitado_barrido = len(nuevos) != len(sitios)
+        if quitado_barrido:
+            _escribir(LOGIN_SITES_JSON, nuevos)
+        pend = [p for p in _leer(PENDING_JSON, [])
+                if isinstance(p, dict)
+                and _norm(p.get("empresa", "")) != key]
+        _escribir(PENDING_JSON, pend)
+        req = cargar_requeridos()
+        nuevos_req = [r for r in req
+                      if _norm(r.get("empresa", "")) != key
+                      or r.get("detectado") == "seed"]
+        quitado_lista = len(nuevos_req) != len(req)
+        if quitado_lista:
+            guardar_requeridos(nuevos_req)
+        logger.info("baja sitio %s: lista=%s barrido=%s", empresa,
+                    quitado_lista, quitado_barrido)
+        return {"empresa": empresa, "quitado_de_lista": quitado_lista,
+                "quitado_de_barrido": quitado_barrido}
+
+
 # ------------------------------------------------------- credenciales store
 def cargar_credenciales() -> Dict[str, dict]:
     data = _leer(CRED_JSON, {})
@@ -201,7 +338,8 @@ def credencial(empresa: str) -> Optional[dict]:
     data = cargar_credenciales()
     for k, v in data.items():
         if _norm(k) == _norm(empresa) or _norm(v.get("empresa", "")) == _norm(empresa):
-            if v.get("usuario") and v.get("password"):
+            # vale con usuario + (password O metodo SSO como Google)
+            if v.get("usuario") and (v.get("password") or v.get("sso")):
                 return v
     if _norm(empresa) == "ane":
         u, p = os.getenv("ANE_USER"), os.getenv("ANE_PASSWORD")
@@ -211,9 +349,20 @@ def credencial(empresa: str) -> Optional[dict]:
     return None
 
 
-def upsert_credencial(empresa: str, usuario: str, password: str,
+def upsert_credencial(empresa: str, usuario: str, password: str = "",
                       url: str = "", auto_login: bool = True,
-                      nota: str = "") -> dict:
+                      nota: str = "", sso: str = "",
+                      card_sel: str = "", loc_sel: str = "") -> dict:
+    """Guarda una credencial. `password` puede ir vacio si `sso` indica el
+    metodo de acceso (p.ej. sso="google" para Indeed, que no tiene clave).
+
+    Si el sitio NO existia en el flujo (no esta ni en LA LISTA ni en el
+    barrido), se da de alta solo: asi una URL nueva guardada desde la
+    pestaña Credenciales/CLI entra al programa en vez de quedar huérfana.
+    """
+    if not (password or sso):
+        raise ValueError("hace falta password o un metodo SSO (ej. google)")
+    era_nuevo = not sitio_en_flujo(empresa)
     data = cargar_credenciales()
     clave = _norm(empresa)
     prev = data.get(clave) or {}
@@ -221,6 +370,7 @@ def upsert_credencial(empresa: str, usuario: str, password: str,
         "empresa": empresa.strip(),
         "usuario": usuario.strip(),
         "password": password,
+        "sso": (sso or prev.get("sso", "")) if not password else "",
         "url": url or prev.get("url", ""),
         "auto_login": bool(auto_login),
         "nota": nota or prev.get("nota", ""),
@@ -228,6 +378,16 @@ def upsert_credencial(empresa: str, usuario: str, password: str,
     }
     data[clave] = reg
     guardar_credenciales(data)
+    if era_nuevo:
+        # alta en LA LISTA (+ barrido si trae URL): nada de credenciales
+        # "huérfanas" fuera del flujo del scraper
+        agregar_sitio_login(
+            empresa, url,
+            motivo=("sitio nuevo, dado de alta al guardar la credencial"
+                    + ("" if url
+                       else "; falta URL: aparece en la lista pero el "
+                            "scraper no lo barre aun")),
+            card_sel=card_sel, loc_sel=loc_sel)
     # tener credencial activa el auto-login del sitio en el registro
     marcar_auto_login(empresa, bool(auto_login))
     return reg
@@ -272,6 +432,7 @@ def lista_sitios_login() -> List[dict]:
                 "empresa": empresa, "url": "", "url_check": "",
                 "grupo": "", "motivo": "", "obligatorio": False,
                 "auto_login": False, "ts": "", "detectado": "",
+                "sso": "", "acceso": "", "origen": "",
             }
         items[k].update(kw)
         return items[k]
@@ -285,6 +446,7 @@ def lista_sitios_login() -> List[dict]:
             "motivo": r.get("motivo") or it.get("motivo") or "",
             "obligatorio": bool(r.get("obligatorio")),
             "auto_login": bool(r.get("auto_login")),
+            "sso": r.get("sso") or it.get("sso") or "",
             "ts": r.get("ts") or "",
             "detectado": r.get("detectado") or "runtime",
         })
@@ -298,6 +460,7 @@ def lista_sitios_login() -> List[dict]:
         it["grupo"] = it.get("grupo") or "directos"
         it["motivo"] = it.get("motivo") or (s.get("nota") or "")[:180]
         it["requiere_sesion_navegador"] = True
+        it["origen"] = s.get("origen") or ""
 
     # pendientes detectados en corridas anteriores
     for k, p in _pendientes().items():
@@ -307,8 +470,23 @@ def lista_sitios_login() -> List[dict]:
         it["pendiente"] = p.get("motivo")
         it["pendiente_ts"] = p.get("ts")
 
-    # estado de credencial + pendiente (cruzado otra vez por si venia solo)
+    # credenciales guardadas de sitios que no estan en NINGUNA lista: no se
+    # pierden, aparecen aqui (detectado="credencial") hasta que se les dé
+    # alta con URL (agregar_sitio_login / guardar desde la pestaña)
     creds = cargar_credenciales()
+    for ck, cv in creds.items():
+        if not isinstance(cv, dict) or not cv.get("usuario"):
+            continue
+        k = _norm(cv.get("empresa") or ck)
+        if k not in items:
+            it = _base(cv.get("empresa") or ck)
+            it["detectado"] = "credencial"
+            it["auto_login"] = bool(cv.get("auto_login"))
+            it["motivo"] = ("credencial guardada sin sitio en el flujo de "
+                            "scraping: dale de alta con URL para que el "
+                            "scraper lo barra")
+
+    # estado de credencial + pendiente (cruzado otra vez por si venia solo)
     pends = _pendientes()
     for k, it in items.items():
         c = None
@@ -318,9 +496,15 @@ def lista_sitios_login() -> List[dict]:
                 break
         if c is None and k == "ane":
             c = credencial("ANE")   # fallback .env
-        it["tiene_credencial"] = bool(c and c.get("usuario"))
+        if c and c.get("sso"):
+            it["sso"] = c.get("sso")
+        it["tiene_credencial"] = bool(
+            c and c.get("usuario")
+            and (c.get("password") or c.get("sso") or it.get("sso")))
         it["usuario"] = (c or {}).get("usuario") or (c or {}).get("fuente") or ""
         it["password_fuente"] = (c or {}).get("fuente", "json" if c else "")
+        it["acceso"] = ("vía " + it["sso"].capitalize()) if it.get("sso") \
+            else ("password" if it["tiene_credencial"] else "")
         p = pends.get(k)
         if p:
             it["pendiente"] = p.get("motivo")

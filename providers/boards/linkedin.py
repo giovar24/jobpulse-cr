@@ -47,6 +47,65 @@ class LinkedInProvider(BaseProvider):
         m = re.search(r"(\d{6,})", job.job_id or "")
         return m.group(1) if m else ""
 
+    # ------------------------------------------------------------------
+    # Sesión: para LinkedIn lo PRIMERO es la SESIÓN del navegador (cookies
+    # de tu Brave, logueate una vez con `python hacer_login.py`). El login
+    # automatico (SSO Google / user+clave) queda como ULTIMO RECURSO opt-in:
+    # LinkedIn es agresivo con logins automatizados (verificacion/CAPTCHA),
+    # asi que no se usa en cada corrida sino solo si hay authwall.
+    # ------------------------------------------------------------------
+    def _muro_login(self, page) -> bool:
+        """True si LinkedIn redirigio al authwall / login."""
+        try:
+            url = (page.url or "").lower()
+        except Exception:
+            return False
+        return "authwall" in url or "/login" in url
+
+    def _registrar_requiere_login(self, url: str):
+        """Alimenta LA LISTA de sitios que piden sesión."""
+        try:
+            from core.credenciales import registrar_requerimiento
+            registrar_requerimiento(
+                "LinkedIn", url,
+                "authwall: sin sesión LinkedIn corta la busqueda. Lo mejor "
+                "es loguearte A MANO una vez en tu Brave (hacer_login.py) y "
+                "reusar la sesión; como recurso, pone tu Gmail en Credenciales "
+                "(--set LinkedIn --sso google) y activa --auto on.",
+                grupo="boards", obligatorio=False,
+                url_check="https://www.linkedin.com/jobs/search/")
+        except Exception as e:
+            logger.debug("registrar_requerimiento LinkedIn fallo: %s", e)
+
+    def _auto_login(self, page) -> bool:
+        """RECURSO opt-in: solo si el usuario guardo credencial (SSO Google
+        o user+clave) y activo auto_login. Si falla (CAPTCHA/2FA de
+        LinkedIn), la corrida sigue con lo que ya se extrajo."""
+        try:
+            from providers.login.auto_login import (hay_login_configurable,
+                                                    intentar_login)
+            if not hay_login_configurable("LinkedIn"):
+                return False
+            logger.info("LinkedIn: authwall -> intento auto-login como "
+                        "ultimo recurso (lo normal es tu sesion de Brave)...")
+            res = intentar_login(page, "LinkedIn", {
+                "login_url": "https://www.linkedin.com/login",
+                "sso": "google",
+                "sso_iframe": 'iframe[src*="accounts.google.com"]',
+                "user_sel": "#username",
+                "pass_sel": "#password",
+                "submit_sel": "button[type=submit]",
+                "espera": 6000,
+            })
+            if not res["ok"]:
+                logger.warning("LinkedIn: auto-login fallo (%s); se registra "
+                               "pendiente y se sigue con los demas portales.",
+                               res["motivo"])
+            return bool(res["ok"])
+        except Exception as e:
+            logger.warning("LinkedIn auto-login fallo: %s", e)
+            return False
+
     async def _fetch_details_guest(self, client: httpx.AsyncClient, job_id: str) -> Dict[str, Any]:
         """El endpoint público 'jobs-guest' suele devolver la descripción sin necesidad de sesión."""
         url = f"https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/{job_id}"
@@ -177,6 +236,16 @@ class LinkedInProvider(BaseProvider):
                     )
                     page.goto(url, wait_until="domcontentloaded")
                     page.wait_for_timeout(3000)
+
+                    # Authwall: sin sesion LinkedIn corta los resultados. Lo
+                    # PRIMERO es reusar la sesion de tu Brave (login manual una
+                    # vez con hacer_login.py); el auto-login (SSO Google) es
+                    # SOLO un recurso opt-in para cuando la sesion se cae.
+                    if self._muro_login(page):
+                        self._registrar_requiere_login(page.url)
+                        if self._auto_login(page):
+                            page.goto(url, wait_until="domcontentloaded")
+                            page.wait_for_timeout(3000)
 
                     for _ in range(pages):
                         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")

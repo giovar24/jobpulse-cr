@@ -377,9 +377,14 @@ deteccion title+body y auto-click del Turnstile (cedio en las pruebas).
   Proyectos; Heredia; oct-2026). Entrada agregada a
   `successfactors_sites.json`. Sin login.
 
-### PayPal — ATS identificado: Eightfold AI (producto PCSX)
+### PayPal — DESCARTADO (2026-10-19: 0 vacantes CR, busqueda manual)
 
-- careers.pypl.com = CMS corporativo (Q4 Inc), NO es el board.
+- **Descartado para CR**: busqueda manual del portal confirmado que no hay
+  ninguna vacante de Costa Rica (facets: solo US/UK/Singapore/Berlin/
+  Bengaluru). Fuera de `login_sites.json` y del script de caza; no re-cazar
+  salvo que PayPal abra CR.
+- Hallazgo tecnico conservado por si re-abre: careers.pypl.com = CMS
+  corporativo (Q4 Inc), NO es el board.
 - Board real: `paypal.eightfold.ai/careers` (Eightfold).
 - `/api/apply/v2/jobs` -> 403 {"message": "Not authorized for PCSX"} (httpx
   e in-page).
@@ -388,20 +393,20 @@ deteccion title+body y auto-click del Turnstile (cedio en las pruebas).
   -> 200 con fetch in-page. Shape: data.positions[] con name, locations[],
   standardizedLocations[], positionUrl (relativo), postedTs (epoch s),
   displayJobId, department, workLocationOption.
-- Facets locations: SIN Costa Rica (US/UK/Singapore/Berlin/Bengaluru).
-  Provider listo en login_sites.json (modo page_fetch); cuando PayPal abra
-  CR fluye solo. El redirect geo-IP a "Heredia, CR" del SPA es solo
-  localizacion por IP.
+- El redirect geo-IP a "Heredia, CR" del SPA es solo localizacion por IP.
 
-### Alorica — pendiente (funnel por campana)
+### Alorica — DESCARTADO (2026-10-19: 0 vacantes CR, busqueda manual)
 
-- Hub `alorica.com/careers/` -> funnels `recruit-latam.alorica.com/*-career`
-  por campana (gdl/leon/pbl = Mexico; sjo/san-jose = 404).
+- **Descartado para CR**: busqueda manual del portal no encontro ningun
+  registro de empleos para Costa Rica. Fuera de `login_sites.json`,
+  `pending_login.json` y del script de caza; no re-cazar.
+- Hallazgo tecnico conservado: hub `alorica.com/careers/` -> funnels
+  `recruit-latam.alorica.com/*-career` por campana (gdl/leon/pbl = Mexico;
+  sjo/san-jose = 404).
 - Funnel global: `alorica-hire.bling-ai.com/alorica/career` = app de
   entrevistas AI "bling-ai" (bundle 6.2MB revisado: /api/interview/start,
   /api/req/detail, /api/candidates/*, alorica-api.bling-ai.com). Sin
-  endpoint publico de listado de vacantes. Registrar pendiente hasta hallar
-  el funnel CR vigente.
+  endpoint publico de listado de vacantes.
 
 ### Nota tecnica (bug reorg corregido)
 

@@ -83,6 +83,9 @@ class IndeedProvider(BaseProvider):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
         }
+        # guarda: el SSO se intenta UNA vez por corrida (si falla, el sitio
+        # queda como pendiente manual en vez de reintentar en cada busqueda)
+        self._login_intents = 0
 
     async def _fetch_details_http(self, client: httpx.AsyncClient, url: str) -> Dict[str, Any]:
         """Último recurso: intenta la descripción por HTTP (Indeed responde 403 a httpx)."""
@@ -122,19 +125,76 @@ class IndeedProvider(BaseProvider):
         return (any(m in titulo for m in self._MURO_TITULO)
                 or any(m in cuerpo for m in self._MURO_CUERPO))
 
-    def _auto_login(self, page) -> bool:
-        """Login automatico OPT-IN: solo si hay credencial guardada para
-        Indeed (pestaña Credenciales / CLI `credenciales.py --set "Indeed"`)
-        y auto_login activo. Si falla (CAPTCHA/2FA), la corrida sigue y el
-        sitio queda registrado como pendiente."""
+    def _hay_sesion(self, page) -> bool:
+        """True SOLO con evidencia POSITIVA de sesion de Indeed (redireccion
+        a /settings/account o 'Cerrar sesion' visible). Si hay form de login,
+        titulo/cuerpo de login, o la pagina no termina de decidir -> False.
+
+        REGLA (misma que LinkedIn): la SESION manda; el SSO solo se activa
+        si NO hay sesion activa. En duda devuelve False: prefiero un intento
+        SSO fallido (se registra pendiente) a saltarmelo y quedarme sin
+        vacantes. Calibrado en vivo 2026-10-19 contra secure.indeed.com."""
         try:
+            page.goto("https://secure.indeed.com/account",
+                      wait_until="domcontentloaded", timeout=30_000)
+            try:
+                # la redireccion (auth vs settings) llega en pocos segundos
+                page.wait_for_url(re.compile(r"/(auth|settings)"), timeout=8_000)
+            except Exception:
+                pass
+            url = (page.url or "").lower()
+            if "/auth" in url or "/account/login" in url:
+                return False
+            if page.query_selector("input[type=password], input[name=email]"):
+                return False
+            cuerpo = (page.inner_text("body")[:2000] or "").lower()
+            if any(m in cuerpo for m in ("crea una cuenta o inicia sesi",
+                                         "continuar con google",
+                                         "direccion de email",
+                                         "dirección de email",
+                                         "create an account or sign in")):
+                return False
+            return "/settings" in url or "cerrar sesi" in cuerpo \
+                or "sign out" in cuerpo
+        except Exception:
+            return False   # sin poder verificar -> se asume sin sesion
+
+    def _auto_login(self, page) -> bool:
+        """REGLA 'sesion primero' (igual que LinkedIn):
+
+        1. Si el navegador YA tiene sesion activa de Indeed (te logueaste a
+           mano o de un SSO anterior), NO se toca el login: se reintenta el
+           listado con esa sesion.
+        2. Solo si NO hay sesion, y hay credencial guardada con auto_login
+           activo, se intenta el SSO Google ("Continuar con Google" con tu
+           sesion de Gmail en Brave) UNA vez por corrida.
+        3. Si el SSO falla (CAPTCHA/2FA/sesion de Gmail vencida), la corrida
+           sigue y el sitio queda registrado como pendiente manual."""
+        try:
+            # 1) sesion activa -> nada que loguear
+            if self._hay_sesion(page):
+                logger.info("Indeed: hay SESION activa en el navegador -> no "
+                            "se usa el SSO; se reintenta el listado.")
+                return True
+            # 2) sin sesion: ¿credencial + auto_login? ¿ya se intentó hoy?
             from providers.login.auto_login import hay_login_configurable, intentar_login
             if not hay_login_configurable("Indeed"):
                 return False
-            logger.info("Indeed: pide sesion -> intento auto-login con la "
-                        "credencial guardada...")
+            if self._login_intents >= 1:
+                logger.info("Indeed: SSO ya intentado en esta corrida; no se "
+                            "reintenta (queda pendiente manual).")
+                return False
+            self._login_intents += 1
+            logger.info("Indeed: SIN sesion -> intento auto-login "
+                        "(SSO Google si la credencial no tiene clave)...")
             res = intentar_login(page, "Indeed", {
                 "login_url": "https://secure.indeed.com/account/login",
+                "sso": "google",
+                "sso_sel": ('[data-tn-element*="google"], '
+                            '[id*="google-button"], '
+                            'button:has-text("Google"), '
+                            'a:has-text("Google"), '
+                            '[role=button]:has-text("Google")'),
                 "user_sel": "input[name=email], input[id*=email], #inline-username",
                 "pass_sel": "input[name=password]",
                 "submit_sel": "button[type=submit], input[type=submit]",
@@ -156,7 +216,8 @@ class IndeedProvider(BaseProvider):
             registrar_requerimiento(
                 "Indeed", url,
                 "login-wall en la busqueda (0 cards + 'Iniciar sesion'); "
-                "pon tu password en la pestaña Credenciales para auto-login",
+                "la cuenta es de Google: pon tu Gmail en la pestaña "
+                "Credenciales (--set Indeed --sso google) para auto-login",
                 grupo="boards", obligatorio=True,
                 url_check=url)
         except Exception as e:

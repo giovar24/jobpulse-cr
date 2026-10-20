@@ -371,7 +371,9 @@ with tab_cred:
         "cada corrida. Aquí (o con `python credenciales.py --set \"Empresa\"`) "
         "pones tu usuario/password: se guardan SOLO en esta máquina, en "
         "`data/empresas/credenciales.json`, que está en `.gitignore` — "
-        "**nunca viaja a git**. Si el login automático falla (CAPTCHA/2FA), "
+        "**nunca viaja a git**. Si la cuenta no tiene clave propia (Indeed "
+        "se entra con tu Gmail), marca el acceso vía **Google/SSO** y solo "
+        "guardas el correo. Si el login automático falla (CAPTCHA/2FA), "
         "el scraper cae al login manual de la pestaña Sesiones sin cortar "
         "la corrida.")
 
@@ -388,7 +390,12 @@ with tab_cred:
             "Empresa": s["empresa"],
             "Grupo": s["grupo_label"],
             "Obligatorio": "Sí" if s["obligatorio"] else "No",
-            "Credencial": (s["usuario"] + (" (.env)" if s.get("password_fuente") == ".env" else "")) if s["tiene_credencial"] else "— falta —",
+            "Credencial": ((s["usuario"]
+                            + ("" if not s.get("sso")
+                               else " · " + s["acceso"])
+                            + (" (.env)" if s.get("password_fuente") == ".env"
+                               else "")) if s["tiene_credencial"]
+                           else "— falta —"),
             "Auto-login": "ON" if s.get("auto_login") else "off",
             "Pendiente": s.get("pendiente") or "",
             "Motivo": (s.get("motivo") or "")[:120],
@@ -407,26 +414,63 @@ with tab_cred:
         c1, c2 = st.columns(2)
         sel = c1.selectbox("Sitio", nombres + ["Otro (escribir a mano)"])
         otra = c2.text_input("Nombre del otro sitio")
-        usuario = st.text_input("Usuario")
-        password = st.text_input("Password", type="password")
+        usuario = st.text_input("Usuario",
+                                help="Correo de la cuenta. Para Indeed usa tu "
+                                     "Gmail: ahí no hay clave propia.")
+        password = st.text_input("Password (opcional si usas SSO)",
+                                 type="password")
+        sso_ok = st.checkbox(
+            "Sin clave: entrar vía Google/SSO (Indeed se entra con la cuenta "
+            "de Gmail; se reutiliza tu sesión en Brave)",
+            value=False)
         url_n = st.text_input("URL de login (opcional; obligatoria si el sitio "
                               "entra por el provider de navegador)")
         auto_ok = st.checkbox("Login automático en la corrida (si falla, "
                               "fallback manual)", value=True)
+        card_sel = st.text_input(
+            "Selectores del listado (opcional): card_sel",
+            help="Clase CSS de cada tarjeta de vacante (p. ej. '.job-card'). "
+                 "Sin esto el sitio nuevo se visita y se le aplica el "
+                 "login/pendientes, pero todavía no extrae vacantes.")
+        loc_sel = st.text_input(
+            "Selector de ubicación (opcional): loc_sel",
+            help="Clase CSS de la ubicación dentro de la tarjeta; sin ella "
+                 "solo pasan las vacantes con 'Costa Rica' en el título.")
         if st.form_submit_button("💾 Guardar credencial", type="primary"):
             nombre = (otra or "").strip() or sel
-            if not usuario.strip() or not password:
-                st.error("Faltan usuario o password.")
+            sso = "google" if sso_ok else ""
+            if not usuario.strip() or (not password and not sso):
+                st.error("Falta el usuario, o bien la password o el acceso "
+                         "vía SSO (marca la casilla si la cuenta no tiene "
+                         "clave propia).")
             else:
+                nuevo = not creds_store.sitio_en_flujo(nombre)
                 creds_store.upsert_credencial(nombre, usuario, password,
-                                              url=url_n, auto_login=auto_ok)
-                st.success(f"Credencial de {nombre} guardada localmente.")
+                                              url=url_n, auto_login=auto_ok,
+                                              sso=sso, card_sel=card_sel,
+                                              loc_sel=loc_sel)
+                if nuevo and url_n.strip():
+                    st.success(
+                        f"**{nombre}** dado de alta en el flujo: credencial "
+                        "guardada, aparece en LA LISTA y entra al barrido de "
+                        "portales (cada corrida lo visita en tu Brave).")
+                elif nuevo:
+                    st.success(
+                        f"**{nombre}** en LA LISTA con su credencial. Sin URL "
+                        "no se barre todavía: vuelve a guardar con la URL del "
+                        "portal y el scraper lo recorrerá cada corrida.")
+                else:
+                    st.success(
+                        f"Credencial de {nombre} guardada localmente"
+                        f"{' (acceso vía Google, sin clave)' if sso else ''}.")
                 st.rerun()
 
     st.markdown("**Acciones por sitio**")
     for s in sitios:
         k = s["empresa"].casefold().replace(" ", "_")
-        c1, c2, c3, c4 = st.columns([3, 2, 2, 3])
+        es_manual = s.get("detectado") == "manual"
+        cols = [3, 2, 2, 3] + ([3] if es_manual else [])
+        c1, c2, c3, c4, *rest = st.columns(cols)
         c1.write(f"{s['empresa']}{' 🔒' if s['obligatorio'] else ''}")
         if c2.button(("🟢 Auto-login ON" if s.get("auto_login")
                       else "⚪ Auto-login OFF"), key=f"al_{k}",
@@ -438,6 +482,13 @@ with tab_cred:
             st.rerun()
         if s.get("url"):
             c4.markdown(f"[Abrir sitio]({s['url']})")
+        if es_manual and rest and rest[0].button(
+                "🚫 Quitar del flujo", key=f"qs_{k}",
+                help="Quita el sitio que tú agregaste de la lista y del "
+                     "barrido (los sitios fijos del sistema no se pueden "
+                     "quitar). La credencial se conserva."):
+            creds_store.quitar_sitio_login(s["empresa"])
+            st.rerun()
 
 
 with tab_ses:

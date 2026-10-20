@@ -1386,3 +1386,103 @@ commit `86a2ef4` (idéntico a `origin/main`), en el venv local (Python 3.11.9).
   no la reacción puntual de Indeed ante un CAPTCHA.
 - **Known-issue** vigente: exit 1 cosmético al terminar corridas con
   Brave+CDT + torch, sin traceback y con todo persistido.
+
+## 43. SSO con Google, regla "sesión primero", Alorica/PayPal fuera y alta de sitios nuevos (2026-10-19, noche)
+
+Contexto: el usuario confirmó que **Indeed y LinkedIn se entran con la cuenta
+de Gmail** (sin clave propia), pidió aplicar a LinkedIn la regla de cookies y
+luego la misma regla a Indeed ("solo activar el SSO si no hay sesión
+activa"); además descartó **Alorica** y **PayPal** tras búsquedas manuales
+(0 vacantes CR) y señaló que **guardar una URL nueva que no está en la lista
+rompería el flujo** si no hay método adecuado.
+
+### 1. SSO Google para Indeed (selectores validados en vivo)
+- `secure.indeed.com/auth` monta el botón **client-side** (`div#login-google-button`,
+  `data-testid=google-sdk-button-container`) con **Google Identity Services
+  dentro de su propio iframe** (`accounts.google.com/gsi/button`, client_id
+  104783...apps.googleusercontent.com). Clicar solo el contenedor no hace
+  nada: el clic debe ir al `div[role=button]` **dentro** del frame → abre
+  **popup** a `accounts.google.com/v3/signin/identifier` (probado en vivo,
+  headless Chromium, sin tocar el Brave del usuario).
+- `providers/login/auto_login.py`: `_clic_sso` (iframe de Indeed, genérico
+  `iframe[src*=accounts.google.com]` de LinkedIn, y fallback por texto),
+  `_elegir_cuenta_google` (data-identifier / texto / primera cuenta),
+  `_login_sso` con manejo de **popup vs navegación**, "Google pide password →
+  aborta → fallback manual" y verificación final (`/auth` o form = fallo).
+- Credencial sin password: `upsert_credencial(..., sso="google")` (ya vale con
+  usuario+SSO), CLI `--sso google`, casilla "Sin clave: entrar vía Google/SSO"
+  en la pestaña 🔑 Credenciales. Seeds Indeed/LinkedIn con `sso: "google"`.
+
+### 2. LinkedIn: sesión primero, SSO solo como recurso
+- Decisión (explicada al usuario): **cookies de tu Brave > SSO**. LinkedIn es
+  el más agresivo con logins automatizados (verificación/CAPTCHA/restricción);
+  la sesión manual (`hacer_login.py`, una sola vez) dura semanas y el scraper
+  la reutiliza por CDP. El SSO solo dispara con authwall + opt-in (el seed
+  mantiene `auto_login: False`; ahora documenta la capacidad `sso: google`).
+- `providers/boards/linkedin.py`: `_muro_login` (authwall en URL),
+  `_registrar_requiere_login`, `_auto_login` (opt-in) y enganche en
+  `_run_sync_scraping` (reintenta el listado tras el login).
+- Botón GIS de `linkedin.com/login` validado en vivo: dos iframes GIS con
+  "Continue with Google" (mismo patrón que Indeed).
+
+### 3. Indeed: regla "sesión primero" (pedido del usuario)
+- `_hay_sesion()` sondea `secure.indeed.com/account` con **evidencia
+  positiva**: espera la redirección (`/auth` vs `/settings`), y solo devuelve
+  True si hay settings/"Cerrar sesión"; form password/email o frases de login
+  → False. Calibrado en vivo: sin sesión → `/auth?continue=/settings/account`
+  + "Crea una cuenta o inicia sesión" → **False**. En duda → False
+  (prefiero un intento SSO fallido —1 por corrida— a saltármelo y quedarme
+  sin vacantes).
+- `_auto_login` reescrito: (1) sesión activa → **no toca el SSO** y reintenta
+  el listado; (2) sin sesión + credencial + auto_login → SSO **una vez por
+  corrida** (`_login_intents`); (3) fallo → pendiente manual sin cortar la
+  corrida.
+
+### 4. Alorica y PayPal: DESCARTADOS (búsqueda manual del usuario)
+- 0 vacantes de Costa Rica en ambos portales. Fuera de `login_sites.json`
+  (quedó `[]`), `pending_login.json` (`[]`) y de `caza_ats_grandes.py` (con
+  comentario "no re-cazar"); `ATS_ACCESOS.md` marcado **DESCARTADO** (se
+  conserva el hallazgo técnico por si re-abren CR); `providers/login/__init__.py`
+  y README depurados de esos ejemplos. Registro maestro queda
+  **ANE, Indeed, LinkedIn**.
+- Nota: `data/empresas/` no se trackea (datos locales regenerables), así que
+  la limpieza de JSONs es local; lo que viaja a git es código + docs.
+
+### 5. Método adecuado: alta/baja de sitios nuevos sin romper el flujo
+- Problema confirmado: `upsert_credencial` con un sitio desconocido guardaba
+  la credencial pero **no lo metía a LA LISTA ni a ningún provider** huérfano
+  invisible; `marcar_auto_login` devolvía False y la URL jamás se barre.
+- Solución en `core/credenciales.py`:
+  - `sitio_en_flujo()`, **`agregar_sitio_login()`** (siempre a
+    `login_requerido.json`; con URL también a `login_sites.json` con
+    `origen: "manual"`, `mode: "dom"`, bloque `login` genérico user/pass/submit
+    y selectores opcionales `card_sel`/`loc_sel`) y **`quitar_sitio_login()`**
+    (barrido + pendientes + lista, **respeta los seeds fijos**).
+  - `upsert_credencial` da de alta **solo si el sitio era nuevo** y acepta
+    `card_sel`/`loc_sel`.
+  - `lista_sitios_login` muestra las credenciales huérfanas
+    (`detectado: "credencial"`) — nada invisible.
+  - `_LOCK` → **RLock** (la alta anida registrar/marcar: con `Lock` habría
+    deadlock) + `logger` propio del módulo.
+- UI: campos opcionales de selectores, mensaje según alta (con URL →
+  lista+barrido; sin URL → lista con aviso) y botón **🚫 Quitar del flujo**
+  para sitios `detectado: manual`. CLI: `--url` y `--quitar-sitio`.
+
+### Verificación
+- Prueba integral **23/23 OK**: alta en lista+barrido+bloque login, selectores,
+  alta automática desde credencial (auto_login asentado,
+  `hay_login_configurable` True), sin URL → solo lista, huérfano visible,
+  baja manual OK, **seed Indeed inmune**, regresión Alorica/PayPal fuera,
+  `_muro_login`/muros Indeed (duck-typing), **`_hay_sesion` en vivo = False
+  sin sesión**, `_clic_sso` expuesto; restauración limpia (registro
+  ANE/Indeed/LinkedIn, `login_sites []`, creds `{}`).
+- `py_compile` 8 archivos críticos OK · `main.py --preflight` **exit 0,
+  22/22 fases**, faltantes ahora **solo Indeed, LinkedIn** (Alorica/PayPal ya
+  no aparecen).
+
+### Pendientes
+- Ejercitar el SSO completo en vivo contra el Brave del usuario (clic → popup
+  → Google está validado headless; el chooser con la cuenta real no).
+- Refinar `card_sel`/`loc_sel` de los sitios manales que devuelvan 0 vacantes
+  (revisar en la próxima corrida).
+- (known-issue) exit 1 cosmético tras corridas Brave+CDT+torch.

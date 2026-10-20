@@ -55,8 +55,9 @@ CANDIDATOS = {
     "Broadcom CR": ["https://broadcom.wd1.myworkdayjobs.com/Broadcom",
                     "https://careers.broadcom.com/", "https://www.broadcom.com/company/careers"],
     "Fiserv CR": ["https://careers.fiserv.com/", "https://www.fiserv.com/careers.html"],
-    "PayPal CR": ["https://www.paypal.com/careers", "https://jobs.paypal.com/",
-                  "https://paypal.wd5.myworkdayjobs.com/htdocs/jobs/paypal/"],
+    # Descartados 2026-10-19 (busqueda manual: 0 vacantes CR en su portal):
+    # "PayPal CR" (Eightfold/PCSX, solo US/UK/etc.) y "Alorica CR" (funnel
+    # bling-ai por pais, sin CR) — no re-cazar.
     "Oracle CR": ["https://careers.oracle.com/jobs/", "https://www.oracle.com/careers/"],
     "Microsoft CR": ["https://jobs.careers.microsoft.com/global/en/search?q=Costa%20Rica",
                      "https://careers.microsoft.com/us/en/search-results"],
@@ -73,7 +74,6 @@ CANDIDATOS = {
     "Teleperformance CR": ["https://jobs.teleperformance.com/global/en/search-results",
                            "https://jobs.teleperformance.com/",
                            "https://www.teleperformance.com/en/careers/"],
-    "Alorica CR": ["https://careers.alorica.com/jobs", "https://jobs.alorica.com/"],
     "Atento CR": ["https://atento.wd1.myworkdayjobs.com/", "https://www.atento.com/careers/"],
     "Salesforce CR": ["https://career-site-aggregator.salesforce.wd1.myworkdayjobs.com/External_Career_Site",
                       "https://careers.salesforce.com/"],
