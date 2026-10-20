@@ -1347,3 +1347,42 @@ Objetivo de esta entrada: responder "¿hasta dónde llegamos?" con **evidencia d
   --preflight` → dashboard primero (8501), navegador, corrida, exit 0.
 - Dashboard con 5 pestañas: Ranking · Búsqueda libre · 🚀 Corrida ·
   🔑 Credenciales · 🔐 Sesiones.
+
+---
+
+## 42. Informe de verificación: ¿funciona? (2026-10-19, 20:20)
+
+Veredicto: **SÍ FUNCIONA — 16/16 verificaciones OK, 0 fallos.** Todo contra el
+commit `86a2ef4` (idéntico a `origin/main`), en el venv local (Python 3.11.9).
+
+| # | Qué se probó | Resultado | Evidencia |
+|---|---|---|---|
+| 1 | Compilación de todo el código | ✅ | `py_compile`: **52 archivos, 0 fallos**, exit 0 |
+| 2 | Carga de los 15 providers | ✅ | **15/15 importan**; `SOURCES = 15` |
+| 3 | Diferenciación boards vs portales | ✅ | `boards=5` (indeed, linkedin, ane, procomer, cinde) · `directos=10` (workday, phenom, tp, greenhouse, icims, smartrecruiters, successfactors, rippling, ats_ligeros, login_sites) |
+| 4 | Núcleo nuevo | ✅ | importan `core/credenciales`, `core/progreso`, `core/sesiones`, `core/dedupe`, `providers/login/auto_login` |
+| 5 | Lista de sitios que piden password | ✅ | 5 sitios · obligatorios **ANE, Indeed** · con credencial **ANE** |
+| 6 | Guardar/borrar credencial | ✅ | guardar → auto-login → borrar; `gitignore=True`; **sin residuo** en `credenciales.json` |
+| 7 | Toggle de auto-login por sitio | ✅ | `False → ON=True → OFF=False`; registro queda limpio (ANE, Indeed, LinkedIn) |
+| 8 | `main.py --preflight` | ✅ | **exit 0**, **22/22 fases**, reporta faltantes: Indeed, Alorica, LinkedIn, PayPal |
+| 9 | `jobpulse.cmd --preflight` | ✅ | **dashboard primero** (reutiliza 8501) → HTTP 200 → navegador → corrida → **exit 0** |
+| 10 | GUI viva y activada | ✅ | 5 pestañas: Ranking · Búsqueda libre · 🚀 Corrida · 🔑 Credenciales · 🔐 Sesiones |
+| 11 | Contenido de la pestaña Corrida (DOM) | ✅ | `🧪 Preflight OK (sin red)` · inicio 20:20:26 · **Paso 15/22** · contadores Job boards / Portales · botones ▶️ 🧪 ⏹ 🔄 · 📝 Log |
+| 12 | Estado de corrida legible | ✅ | `data/corrida_estado.json`: `estado=preflight`, `paso=15/22`, UTF-8 válido |
+| 13 | Base de datos íntegra | ✅ | `jobs=138`, `jobs_raw=911`; top: workday 339, ane 231, linkedin 131, indeed 78, rippling 42 |
+| 14 | Salidas y documentación | ✅ | reportes 24h/día, `corrida.log`, README, bitácora, `ATS_ACCESOS.md`: **ninguno falta** |
+| 15 | Privacidad (local **y** GitHub) | ✅ | **0 archivos sensibles trackeados** (`.env`, `profile.json`, `credenciales.json`, logs, `data/empresas/`); barrido contra `origin/main` también vacío |
+| 16 | Git sincronizado | ✅ | `main == origin/main` (18 commits), árbol limpio (solo `data/empresas/` sin trackear, a propósito) |
+
+**Corrida real de validación (misma jornada, desde el botón del dashboard)**:
+`estado ok` · **290 crudas de boards + 434 de portales directos** → dedupe →
+**1 vacante nueva** · progreso en vivo (fase, grupo, barra) visible en la pestaña.
+
+### Alcance honesto (lo que el informe NO cubre)
+- No se repitió un **scraping completo** en esta pasada (ya validado antes;
+  una corrida real usa Brave y tarda varios minutos).
+- El **auto-login ante CAPTCHA real** no se ejercitó en vivo: está probado el
+  mecanismo (login 1/2 pasos + fallback manual) y el interruptor por sitio,
+  no la reacción puntual de Indeed ante un CAPTCHA.
+- **Known-issue** vigente: exit 1 cosmético al terminar corridas con
+  Brave+CDT + torch, sin traceback y con todo persistido.
