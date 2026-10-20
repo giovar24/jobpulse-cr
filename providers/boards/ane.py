@@ -17,6 +17,7 @@ import asyncio
 import logging
 import re
 import time
+import unicodedata
 from datetime import date, timedelta
 from typing import Any, Dict, List
 
@@ -32,6 +33,31 @@ BASE = "https://www.ane.cr"
 
 def _limpiar(t: str) -> str:
     return " ".join((t or "").split())
+
+
+def _norm_lab(s: str) -> str:
+    """Etiqueta sin acentos ni ':' final, para comparar sin romperse si ANE
+    cambia 'Cómputo' por 'Computo'."""
+    s = unicodedata.normalize("NFD", s or "")
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    return _limpiar(s).rstrip(":").strip().lower()
+
+
+# Secciones del detalle que ANE publica como <ul class="list-3"> DETRAS de un
+# <strong>, SIN <p>. `_campo()` no las ve (busca <p><strong>et</strong>: valor),
+# asi que antes se tiraban. Muestreado en 3 paginas reales (2026-10-20):
+#   "Habilidades importantes..."  -> 5, 7 y 9 items
+#   "Requisitos adicionales"      -> 0, 2 y 3 items
+#   "Licencias de conducir"       -> 0, 2 y 1 items
+# Ese texto era TODO el requisito que hoy sale vacio en 124/254 vacantes ANE.
+_REQ_UL = (
+    "habilidades importantes",
+    "requisitos adicionales",
+    "licencias de conducir",
+    "idiomas",
+    "programas de computo",
+    "vehiculos",
+)
 
 
 class AneProvider(BaseProvider):
@@ -262,6 +288,34 @@ class AneProvider(BaseProvider):
                             if _limpiar(li.get_text())]
         return []
 
+    @staticmethod
+    def _secciones_ul(cont) -> List[tuple]:
+        """TODAS las secciones <strong> + <ul class="list-3"> de una columna.
+
+        Devuelve [(etiqueta_normalizada, etiqueta_visible, items)]. A
+        diferencia de _lista_tras no busca un label concreto (que por
+        substring puede pegarse a la seccion equivocada) ni exige <p>:
+        recorre cada <strong> y se queda con el <ul> que lo sigue INMEDIATO
+        (si hay otro <strong> en medio, ese <ul> pertenece al otro).
+        """
+        out: List[tuple] = []
+        vistos = set()
+        if cont is None:
+            return out
+        for st in cont.find_all("strong"):
+            visible = _limpiar(st.get_text()).rstrip(":").strip()
+            lab = _norm_lab(visible)
+            if not lab or lab in vistos:
+                continue
+            ul = st.find_next("ul", class_="list-3")
+            if ul is None or ul.find_previous("strong") is not st:
+                continue
+            items = [i for i in (_limpiar(li.get_text()) for li in ul.find_all("li")) if i]
+            if items:
+                vistos.add(lab)
+                out.append((lab, visible, items))
+        return out
+
     def _parse_detalle(self, html: str, card: Dict[str, str]):
         """Devuelve solo lo que persiste JobPulse, o None si no es un detalle."""
         soup = BeautifulSoup(html, "html.parser")
@@ -278,14 +332,33 @@ class AneProvider(BaseProvider):
         h2 = root.select_one("div.content.with-padding h2.text-center")
         sm = root.select_one("div.content.with-padding p.text-center small")
 
+        # "Funciones principales" es la descripcion. "Detalles del salario" es
+        # texto libre del empleador que en varios puestos ES la descripcion
+        # completa (Puesto=120575: funciones="Soldadura y construcción." y el
+        # detalle trae "Se necesita operarios de construcción. Que sepa
+        # soldar. Responsable. Licencia B1 al día"): se agrega si difiere.
         desc = self._campo(der, "Funciones principales del empleo") \
             or self._campo(der, "Detalle del horario")
+        extra = self._campo(der, "Detalles del salario")
+        if extra and extra not in desc:
+            desc = f"{desc} | {extra}".strip(" |") if desc else extra
+
+        # Requisitos: el <p> etiquetado + TODAS las secciones que ANE publica
+        # como <ul class="list-3"> (habilidades, requisitos adicionales,
+        # licencias, idiomas, programas, vehiculos). Antes solo se leia el
+        # <p>: 124/254 vacantes ANE quedaban sin requisitos.
+        reqs = [self._campo(der, "Requisitos adicionales para el empleo")]
+        for lab_n, lab_txt, items in self._secciones_ul(der):
+            if lab_n.startswith(_REQ_UL):
+                reqs.append(f"{lab_txt}: " + ", ".join(items))
+        reqs = [r for r in reqs if r]
+
         return {
             "titulo": _limpiar(h2.get_text()) if h2 else card["titulo"],
             "empresa": _limpiar(sm.get_text()) if sm else card["empresa"],
             "ubicacion": "; ".join(self._lista_tras(izq, "Ubicaciones del empleo"))
             or card["ubicacion"],
             "descripcion": desc,
-            "requisitos": self._campo(der, "Requisitos adicionales para el empleo"),
+            "requisitos": ". ".join(reqs),
             "salario": self._campo(der, "Salario"),
         }

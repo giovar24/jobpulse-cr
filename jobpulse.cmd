@@ -33,6 +33,9 @@ rem      asi que la pestana "Corrida" del dashboard lo muestra en vivo
 rem      (fase actual, grupo boards vs portales, vacantes encontradas).
 rem      Si ya hay una corrida viva, no se lanza otra.
 rem      Paso extra de argumentos: jobpulse.cmd --preflight
+rem      Corridas separadas:   jobpulse.cmd --solo ats     (portales de empresa)
+rem                             jobpulse.cmd --solo boards  (Indeed, LinkedIn,
+rem                                                          Procomer, ANE, CINDE)
 rem ------------------------------------------------------------------
 echo.
 echo [JobPulse] 2/3 Scraping (seguilo en la pestana Corrida del dashboard)...

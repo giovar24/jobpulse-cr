@@ -91,7 +91,8 @@ def _link_key(link: str) -> str:
 
 
 def dedupe_boards_vs_directos(
-        offers: Iterable[JobOffer]) -> tuple[List[JobOffer], int]:
+        offers: Iterable[JobOffer],
+        referencia: Iterable[JobOffer] = ()) -> tuple[List[JobOffer], int]:
     """Politica: los providers DIRECTOS ganan; en boards se descartan los
     puestos que ya existen en directos (otra fuente).
 
@@ -99,6 +100,11 @@ def dedupe_boards_vs_directos(
     - mismo link (query/UTM off) -> duplicado (agregadores redirigen al ATS).
     - si la ubic difiere (o falta de un lado) y empresa+titulo coinciden,
       TAMBIEN se considera duplicado (agregadores reetiquetan lugares).
+
+    `referencia`: ofertas DIRECTO de corridas anteriores (lee jobs_raw con
+    `main.py --solo boards`). Sin ella, cuando las dos corridas se lanzan por
+    separado la de boards no ve a la de ATS y reintroduciria copias que esta
+    ya habia descartado. Solo aporta llaves de directos; nunca agrega filas.
 
     Devuelve (offers_filtradas, n_descartadas). No dedupe intra-grupo.
     """
@@ -111,15 +117,22 @@ def dedupe_boards_vs_directos(
     def _es_directo(o: JobOffer) -> bool:
         return source_group(o.source) == GROUP_DIRECTOS
 
+    def _registrar(o: JobOffer) -> None:
+        directo_keys.add(_key(o))
+        directo_keys_base.add(_key_base(o))
+        lk = _link_key(o.link)
+        if lk:
+            directo_links.add(lk)
+
     lista = list(offers)
-    # registrar TODO lo directo primero
+    # registrar TODO lo directo primero (incluida la referencia de corridas
+    # anteriores: va antes para que mande sobre los boards de ESTA corrida)
+    for o in referencia:
+        if _es_directo(o):
+            _registrar(o)
     for o in lista:
         if _es_directo(o):
-            directo_keys.add(_key(o))
-            directo_keys_base.add(_key_base(o))
-            lk = _link_key(o.link)
-            if lk:
-                directo_links.add(lk)
+            _registrar(o)
 
     for o in lista:
         if _es_directo(o):

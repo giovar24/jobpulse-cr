@@ -258,20 +258,30 @@ with tab_run:
     st.caption(
         "El dashboard se abre ANTES del scraping: esta pestaña muestra en "
         "vivo qué está haciendo cada proveedor y separa **job boards** "
-        "(agregadores: Indeed, LinkedIn, ANE...) de **portales de la "
-        "empresa** (ATS directo: Workday, iCIMS, Greenhouse...). "
-        "`jobpulse.cmd` arranca esta pantalla primero y después corre el "
-        "scraping — por eso nunca tarda en aparecer.")
+        "(agregadores: Indeed, LinkedIn, Procomer + portales locales "
+        "ANE/Brete y CINDE) de **portales de la empresa** (ATS directo: "
+        "Workday, iCIMS, Greenhouse...). "
+        "Las dos corridas se pueden lanzar **por separado**: si una falla, "
+        "la otra sigue andando. `jobpulse.cmd` arranca esta pantalla "
+        "primero y después corre el scraping — por eso nunca tarda en "
+        "aparecer.")
 
-    def _arrancar(preflight: bool = False):
+    def _arrancar(preflight: bool = False, solo: str = "todos"):
         """Lanza `python main.py` como proceso hijo; la GUI solo observa
-        data/corrida_estado.json (asi funciona aunque reinicies Streamlit)."""
+        data/corrida_estado.json (asi funciona aunque reinicies Streamlit).
+
+        `solo` separa la corrida en dos alcances (ver source_groups.RUN_*):
+        "ats" = portales de empresa, "boards" = job boards (Indeed, LinkedIn,
+        Procomer, ANE/Brete, CINDE). El candado sigue siendo exclusivo, asi
+        que si hay una viva no se lanza otra."""
         import subprocess
         import sys
         raiz = Path(__file__).resolve().parent
         args = [sys.executable, "-u", "-X", "utf8", "main.py"]
         if preflight:
             args.append("--preflight")
+        if solo and solo != "todos":
+            args += ["--solo", solo]
         out_path = raiz / "data" / "corrida_stdout.log"
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -309,18 +319,26 @@ with tab_run:
                         text=f"Paso {min(paso, total)}/{total}")
         grupo = est.get("grupo") or ""
         chip = f"`{GRUPO_TXT.get(grupo, 'sistema')}`" if grupo else ""
+        # Alcance de la corrida (--solo ats|boards|todos): sale del resumen
+        # (corrida finalizada) o del titulo que publica main.py al arrancar.
+        alcance = (est.get("resumen") or {}).get("alcance") or ""
+        if not alcance:
+            _t = est.get("titulo") or ""
+            alcance = _t.split(" · ", 1)[1] if " · " in _t else ""
+        achip = f" · **{alcance}**" if alcance else ""
         if estado == "corriendo":
-            st.markdown(f"**▶ {est.get('fase_actual', '')}** {chip}"
+            st.markdown(f"**▶ {est.get('fase_actual', '')}** {chip}{achip}"
                         + (f" — {est.get('detalle')}" if est.get("detalle") else ""))
         elif estado == "ok":
             r = est.get("resumen") or {}
-            st.success(f"Corrida completada a las {(est.get('fin_ts') or '')[11:19]} — "
+            st.success(f"Corrida completada{achip} a las "
+                       f"{(est.get('fin_ts') or '')[11:19]} — "
                        f"{r.get('crudas_boards', 0)} crudas en boards, "
                        f"{r.get('crudas_directos', 0)} en portales de empresa, "
                        f"**{r.get('nuevas', 0)} vacantes nuevas** tras el gate.")
         elif estado == "preflight":
-            st.info("Preflight OK: plan de corrida y credenciales reportados "
-                    "sin tocar la red. Revisa el log.")
+            st.info(f"Preflight OK{achip}: plan de corrida y credenciales "
+                    "reportados sin tocar la red. Revisa el log.")
         elif estado == "error":
             st.error(f"La corrida terminó con error: "
                      f"{(est.get('resumen') or {}).get('motivo', '') or 'ver log'}")
@@ -330,22 +348,40 @@ with tab_run:
         elif estado == "detenida":
             st.warning("Corrida detenida a mano.")
 
-        b1, b2, b3, b4 = st.columns([2, 2, 2, 3])
-        if b1.button("▶️ Iniciar scraping", type="primary", disabled=vivo,
-                     width="stretch"):
+        b1, b2, b3 = st.columns(3)
+        if b1.button("🏢 Corrida ATS de empresa", type="primary", disabled=vivo,
+                     width="stretch",
+                     help="Solo portales directos del ATS: Workday, Phenom, TP, "
+                          "Greenhouse, iCIMS, SmartRecruiters, SuccessFactors, "
+                          "Rippling, ATS ligeros y login-sites. "
+                          "Equivalente: python main.py --solo ats"):
+            _arrancar(solo="ats")
+            st.toast("Corrida ATS lanzada: el progreso aparece aquí en unos segundos.")
+        if b2.button("📋 Corrida job boards", type="primary", disabled=vivo,
+                     width="stretch",
+                     help="Solo tableros: Indeed, LinkedIn, Procomer y los "
+                          "portales locales/estatales ANE (brete.cr) y CINDE. "
+                          "Equivalente: python main.py --solo boards"):
+            _arrancar(solo="boards")
+            st.toast("Corrida de job boards lanzada: el progreso aparece aquí en unos segundos.")
+        if b3.button("▶️ Corrida completa", disabled=vivo, width="stretch",
+                     help="Las dos anteriores en una sola corrida "
+                          "(equivalente: python main.py)."):
             _arrancar()
             st.toast("Scraping lanzado: el progreso aparece aquí en unos segundos.")
-        if b2.button("🧪 Preflight (sin red)", disabled=vivo, width="stretch",
+
+        c1, c2, c3 = st.columns(3)
+        if c1.button("🧪 Preflight (sin red)", disabled=vivo, width="stretch",
                      help="Dry-run: publica el plan de corrida y qué "
                           "credenciales faltan, sin navegador ni requests."):
             _arrancar(preflight=True)
             st.toast("Preflight lanzado.")
-        if b3.button("⏹ Detener", disabled=not vivo, width="stretch"):
+        if c2.button("⏹ Detener", disabled=not vivo, width="stretch"):
             if detener():
                 st.toast("Corrida detenida.")
             else:
                 st.error("No se pudo detener (quizás ya terminó).")
-        if b4.button("🔄 Reindexar vacantes nuevas", width="stretch"):
+        if c3.button("🔄 Reindexar vacantes nuevas", width="stretch"):
             st.cache_data.clear()
             st.toast("Cache limpio: se reindexa en la próxima consulta.")
 
