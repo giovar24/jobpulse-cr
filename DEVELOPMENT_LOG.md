@@ -1283,3 +1283,67 @@ envolver con `; exit 0`).
 - Round-trip CLI `--set/--auto/--borrar` OK y `git check-ignore` confirma
   `data/empresas/credenciales.json` ignorado (sin password residual tras
   la prueba). `py_compile` OK en todos los archivos tocados.
+
+---
+
+## 41. Reconciliación de la bitácora: dónde se quedó la sesión anterior (2026-10-19 noche)
+
+Objetivo de esta entrada: responder "¿hasta dónde llegamos?" con **evidencia del repo**
+(código + historial de git), aprovechando lo que ya existe en vez de rehacer trabajo.
+
+### Dónde se quedó
+
+- El repositorio tenía **16 commits** y el último era `fce6397` ("Bitácora: nota
+  importante — Workday CXS"). Todo lo posterior vivió **solo en disco, sin commitear**:
+  la reorganización `providers/boards|directos|login`, los providers nuevos
+  (Workday, Phenom, TP, Greenhouse, iCIMS, SmartRecruiters, SuccessFactors,
+  Rippling, ATS ligeros), `core/sesiones.py`, `core/dedupe.py`, las herramientas
+  (`barrido_empresas.py`, `barrido_ats_otros.py`, `caza_ats_grandes.py`,
+  `sondeo_phenom.py`, `workday_cr.py`), `hacer_login.py`, `ATS_ACCESOS.md`,
+  el `SOURCES` ampliado de `search.py` **y las secciones 26–40 de esta bitácora**.
+- En `ff4031e` se commiteó todo junto (41 archivos): desde ahora el código y la
+  bitácora están alineados. `data/empresas/` (catálogos regenerables, ~2.5 MB)
+  sigue sin trackear, como hasta ahora.
+
+### Gaps detectados al reconciliar (y cómo quedaron)
+
+1. **`ATS_ACCESOS.md` no estaba referenciado en esta bitácora.** Es el documento
+   maestro de cómo se consiguió cada ATS: Vía A (fuente original
+   `job-board-directory` → `data/empresas/ats_dir.csv`), Vía B (barrido de
+   tableros → `otros_ats_cr.json`), Vía C (caza por huella de las grandes →
+   `ats_grandes_huellas.json`), checklist de recreación desde cero, y el cierre
+   de la ronda `providers/login/` (Nestle por RSS, PayPal=Eightfold/PCSX,
+   Alorica pendiente). Quien continúe empieza por ahí.
+2. **`search.py` → 15 fuentes.** `SOURCES` pasó de `["indeed","linkedin","ane",
+   "procomer"]` a las 15 fuentes actuales (la sección 38 decía 14; después entró
+   `login_sites`). Búsqueda libre y `--perfil` cubren todos los providers.
+3. **Numeración.** La serie 1 salta de **5 → 7**: no existe el `### 6` (se perdió
+   en un reordenamiento viejo; no se renumera para no romper referencias). Además
+   las series se solapan (26–34 aparecen dos veces) porque la segunda tanda
+   reanudó desde 26. **A partir de esta entrada: una sola serie, continúa en #42.**
+4. **`phenom.py` en la raíz** (cliente que descubrió el patrón canvas SSR) no
+   tenía mención explícita: el log hablaba de `providers/directos/phenom.py`
+   (el provider) y `sondeo_phenom.py` (el sondeo). El de la raíz es la librería.
+
+### Qué queda abierto (para la próxima sesión)
+
+- **Known-issue**: `main.py` termina con exit 1 tras una corrida con Brave/CDT +
+  torch, sin traceback y con todo persistido (ver "Nota de cierre de sesión").
+- **Backlog**: wizard de setup de primera corrida (sección 33).
+- **Credenciales faltantes**: Indeed (obligatorio, SIN credencial → auto-login
+  OFF), Alorica (pendiente: selector del funnel a revisar), LinkedIn y PayPal
+  (opcionales). Se resuelven con `python credenciales.py --set "Empresa"`.
+- **Pausas técnicas**: Workable (throttle 429 con auto-pausa), Sutherland
+  (SeekOut), iCIMS (0 vacantes CR hoy), Personio (scan 0 CR).
+
+### Estado verificado al cierre (2026-10-19)
+
+- Commit `ff4031e` (17 commits en total); sin datos personales en el repo ni en
+  el historial (verificado: solo plantillas de ejemplo; `data/profile.json`
+  nunca tuvo datos reales; CVs/`.env`/credenciales jamás commiteados).
+- Corrida real completa desde el botón del dashboard: `estado ok`,
+  290 boards + 434 directos crudas, 1 nueva.
+- `python main.py --preflight` → exit 0, **22/22 fases**; `jobpulse.cmd
+  --preflight` → dashboard primero (8501), navegador, corrida, exit 0.
+- Dashboard con 5 pestañas: Ranking · Búsqueda libre · 🚀 Corrida ·
+  🔑 Credenciales · 🔐 Sesiones.
