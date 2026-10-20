@@ -3,6 +3,10 @@
 # Perfil personal del candidato (contacto, experiencia real...). La plantilla
 # generica SI se sube: data/profile.example.json
 data/profile.json
+# Credenciales de los portales (usuario/password escritos por el usuario):
+# solo viven en esta maquina. Se editan desde la pestaña Credenciales del
+# dashboard o con `python credenciales.py --set "Empresa"`.
+data/empresas/credenciales.json
 
 # --- Python / dependencias ---
 .venv/
@@ -36,3 +40,5 @@ data/*.md
 # --- Salidas ---
 *.log
 .streamlit/
+# Estado de la corrida en vivo (lo escribe core/progreso.py; volatil, sin datos)
+data/corrida_estado.json

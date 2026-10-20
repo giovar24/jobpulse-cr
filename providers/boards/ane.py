@@ -127,7 +127,9 @@ class AneProvider(BaseProvider):
         if html and "Puesto/Detalles" in html:
             return True
         if not (self.user and self.password):
-            logger.warning("ANE: sin credenciales en .env ni sesion activa en Brave.")
+            logger.warning("ANE: sin credencial (pestaña Credenciales / CLI "
+                           "credenciales.py --set \"ANE\") ni sesion activa en "
+                           "Brave: barrido ANE omitido.")
             return False
         logger.info("ANE: iniciando sesion...")
         return self._login(ctx)

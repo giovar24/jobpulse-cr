@@ -103,6 +103,65 @@ class IndeedProvider(BaseProvider):
             logger.warning(f"HTTP detail fetch failed for Indeed {url}: {e}")
             return {}
 
+    # Marcadores de login-wall de Indeed (el sitio los rota; se cubren los
+    # dos idiomas). El boton "Iniciar sesion" de la homepage NO cuenta.
+    _MURO_TITULO = ["iniciar sesion", "inicia sesion", "sign in", "log in",
+                    "create an account", "cuentas indeed"]
+    _MURO_CUERPO = ["inicia sesion para ver", "iniciar sesion para ver",
+                    "sign in to see", "create an account to see",
+                    "crea una cuenta para ver", "crea tu cuenta para ver"]
+
+    def _muro_login(self, page) -> bool:
+        """True si la pagina de resultados es un muro de login (0 cards +
+        frases de sesion en titulo/cuerpo)."""
+        try:
+            titulo = (page.title() or "").lower()
+            cuerpo = page.inner_text("body")[:1500].lower()
+        except Exception:
+            return False
+        return (any(m in titulo for m in self._MURO_TITULO)
+                or any(m in cuerpo for m in self._MURO_CUERPO))
+
+    def _auto_login(self, page) -> bool:
+        """Login automatico OPT-IN: solo si hay credencial guardada para
+        Indeed (pestaña Credenciales / CLI `credenciales.py --set "Indeed"`)
+        y auto_login activo. Si falla (CAPTCHA/2FA), la corrida sigue y el
+        sitio queda registrado como pendiente."""
+        try:
+            from providers.login.auto_login import hay_login_configurable, intentar_login
+            if not hay_login_configurable("Indeed"):
+                return False
+            logger.info("Indeed: pide sesion -> intento auto-login con la "
+                        "credencial guardada...")
+            res = intentar_login(page, "Indeed", {
+                "login_url": "https://secure.indeed.com/account/login",
+                "user_sel": "input[name=email], input[id*=email], #inline-username",
+                "pass_sel": "input[name=password]",
+                "submit_sel": "button[type=submit], input[type=submit]",
+                "espera": 5000,
+            })
+            if not res["ok"]:
+                logger.warning("Indeed: auto-login fallo (%s); se registra "
+                               "pendiente y se sigue con los demas portales.",
+                               res["motivo"])
+            return bool(res["ok"])
+        except Exception as e:
+            logger.warning("Indeed auto-login fallo: %s", e)
+            return False
+
+    def _registrar_requiere_login(self, url: str, page=None):
+        """Alimenta LA LISTA de sitios que piden password/sesion."""
+        try:
+            from core.credenciales import registrar_requerimiento
+            registrar_requerimiento(
+                "Indeed", url,
+                "login-wall en la busqueda (0 cards + 'Iniciar sesion'); "
+                "pon tu password en la pestaña Credenciales para auto-login",
+                grupo="boards", obligatorio=True,
+                url_check=url)
+        except Exception as e:
+            logger.debug("registrar_requerimiento Indeed fallo: %s", e)
+
     def _enrich_descriptions(self, page, jobs: List[JobOffer]) -> None:
         """Obtiene la descripción completa vía /rpc/jobdescs usando la sesión del navegador
         (equivalente al endpoint guest de LinkedIn)."""
@@ -188,6 +247,16 @@ class IndeedProvider(BaseProvider):
                             extracted = page.evaluate(_JS_EXTRACT_JOBS_FALLBACK) or []
                         if not extracted:
                             logger.warning(f"In Indeed page found 0 cards for '{search_term}' (title: {page.title()})")
+                            # muro de login: se registra en la lista de
+                            # sitios que piden password y, si hay credencial
+                            # con auto-login, se intenta UNA vez y se
+                            # reintenta el listado.
+                            if not seen and self._muro_login(page):
+                                self._registrar_requiere_login(url)
+                                if self._auto_login(page):
+                                    page.goto(url, wait_until="domcontentloaded")
+                                    page.wait_for_timeout(3500)
+                                    extracted = page.evaluate(_JS_EXTRACT_JOBS) or []
 
                         for item in extracted:
                             jk = item.get("jk") or ""

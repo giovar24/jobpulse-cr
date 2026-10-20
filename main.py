@@ -12,12 +12,17 @@ from core.bootstrap import ensure_workspace
 from core.database import JobDatabase
 from core.browser_manager import BraveManager
 from core.gate import gate_jobs, DEFAULT_DIAS, DEFAULT_MIN_SCORE
-from providers.procomer import ProcomerProvider
-from providers.linkedin import LinkedInProvider
-from providers.indeed import IndeedProvider
-from providers.ane import AneProvider
-from providers.cinde import CindeProvider
+from providers.boards.procomer import ProcomerProvider
+from providers.boards.linkedin import LinkedInProvider
+from providers.boards.indeed import IndeedProvider
+from providers.boards.ane import AneProvider
+from providers.boards.cinde import CindeProvider
+from providers.directos.workday import WorkdayProvider
 from providers.base import JobOffer
+from providers.source_groups import GROUP_DIRECTOS, source_group
+from core.dedupe import dedupe_boards_vs_directos
+from core.progreso import GRUPO_LABEL, iniciar_corrida
+from core import credenciales as creds_store
 
 ensure_workspace()   # crea data/, profile.json (generico) y .env si faltan
 load_dotenv()
@@ -36,6 +41,54 @@ ANE_PAGES = int(os.getenv("ANE_MAX_PAGES", "15"))
 # CINDE Jobs barre todo el tablero activo (su API no busca bien en ES y son
 # pocas vacantes): tope de paginas; cada pagina trae hasta 100 ofertas.
 CINDE_PAGES = int(os.getenv("CINDE_MAX_PAGES", "10"))
+
+# Workday: barrido de tenants curados con searchText "Costa Rica"; `pages`
+# paginas de 20 por tenant (los hits CR casi nunca pasan de 20).
+WORKDAY_PAGES = int(os.getenv("WORKDAY_MAX_PAGES", "3"))
+
+# Phenom: barrido de sitios SSR con keywords "Costa Rica"; 10 paginas por sitio.
+PHENOM_PAGES = int(os.getenv("PHENOM_MAX_PAGES", "3"))
+
+# TP (Teleperformance): API Umbraco de tp.com filtrada country=Costa Rica;
+# paginas de 50 (el cat CR actual es corto, 2 pag sobra).
+TP_PAGES = int(os.getenv("TP_MAX_PAGES", "2"))
+
+# Greenhouse: 1 GET por tablero (API board con content=true); los tokens
+# vienen del barrido multi-ATS (otros_ats_cr.json). Pages se usa como reintentos.
+GREENHOUSE_PAGES = int(os.getenv("GREENHOUSE_MAX_PAGES", "1"))
+
+# iCIMS: listado paginado pr=N (50/pag) por board; sin filtro server-side
+# de keyword -> se barre y se filtra CR del lado del proveedor.
+ICIMS_PAGES = int(os.getenv("ICIMS_MAX_PAGES", "8"))
+
+# SmartRecruiters: API publica q=Costa Rica por compania (pag de 100).
+SR_PAGES = int(os.getenv("SR_MAX_PAGES", "10"))
+
+# Rippling: boards con peloteo SSR; filtrado por registro (title+locations).
+RIPPLING_PAGES = int(os.getenv("RIPPLING_MAX_PAGES", "1"))
+
+# ATS ligeros: Ashby/Lever/Recruitee/Workable (1 GET por tablero; Workable
+# paginado de 10 y con throttle propio -> AL_MAX_PAGES limita el paginado).
+AL_PAGES = int(os.getenv("AL_MAX_PAGES", "6"))
+
+# Orden de los barridos "de un solo tiro" (uno por proveedor, sin termino de
+# busqueda). Lo usa la GUI (pestana Corrida) para la barra de progreso y para
+# diferenciar JOB BOARDS (agregadores: Indeed/LinkedIn/ANE...) de PORTALES DE
+# LA EMPRESA (ATS directo: Workday, iCIMS, Greenhouse...).
+BARRIDOS = [
+    ("ANE (barrido por fecha)", "boards"),
+    ("CINDE Jobs", "boards"),
+    ("Workday", "directos"),
+    ("Phenom", "directos"),
+    ("TP (Teleperformance)", "directos"),
+    ("Greenhouse", "directos"),
+    ("iCIMS", "directos"),
+    ("SmartRecruiters", "directos"),
+    ("SuccessFactors", "directos"),
+    ("Rippling", "directos"),
+    ("ATS ligeros (Ashby/Lever/Recruitee/Workable)", "directos"),
+    ("Login sites (navegador del usuario)", "directos"),
+]
 
 
 def strip_html(text):
@@ -62,6 +115,7 @@ def resolve_first(hosts):
 def job_row(j):
     return {
         "Fuente": j.source,
+        "Grupo": GRUPO_LABEL.get(source_group(j.source), "Job board (agregador)"),
         "Puesto": j.title,
         "Empresa": j.company,
         "Ubicación": j.location,
@@ -137,28 +191,117 @@ def _reportes(newly):
         logger.info("Sin publicaciones en las últimas 24 horas.")
 
 
-async def refiltrar(db, profile, engine, dias, min_score):
+async def refiltrar(db, profile, engine, dias, min_score, prog=None):
     """Re-aplica el gate sobre jobs_raw SIN re-scrapear (valor de la 2da tabla).
 
     La tabla curada `jobs` se RECONSTRUYE: lo que aprobo una corrida anterior
     pero ya no pasa los criterios actuales sale de `jobs` (nunca de jobs_raw).
     """
+    if prog:
+        prog.fase("Re-filtrar (sin scraping)")
     raw = await db.get_raw_jobs()
     if not raw:
         logger.warning("jobs_raw vacia: corre una corrida normal primero.")
         return
     await db.clear_curated()
     offers = [dict_a_offer(r) for r in raw]
-    logger.info("Re-filtrando %d vacantes crudas (sin scraping)..." % len(offers))
+    # mismo orden de prioridad que la corrida normal: first directos, luego
+    # boards (las copias de boards que ya existen en ATS se descartan).
+    offers, n_dup = dedupe_boards_vs_directos(offers)
+    logger.info("Re-filtrando %d vacantes crudas (dedupe boards<->directos "
+                "descarto %d; sin scraping)..." % (len(offers), n_dup))
+    if prog:
+        prog.fase("Gate + reportes")
     newly, _, _ = await _aplicar_gate(db, profile, engine, offers, dias, min_score)
     _reportes(newly)
+    if prog:
+        prog.sumar("boards", sum(1 for o in offers if source_group(o.source) != GROUP_DIRECTOS))
+        prog.sumar("directos", sum(1 for o in offers if source_group(o.source) == GROUP_DIRECTOS))
+    return _resumen_progreso(prog, len(newly)) if prog else None
+
+
+def _fases_totales(searches: list, re_filtrar: bool) -> int:
+    """Numero EXACTO de fases (para la barra de la GUI).
+
+    Se calcula sobre las busquedas ya EXPANDIDAS (el motor semantico puede
+    duplicarlas), mas los barridos de un solo tiro, el dedupe y el gate.
+    """
+    if re_filtrar:
+        return 2   # re-filtrar + reportes (sin scraping)
+    return (1                           # fase 1: preparar (perfil + BD)
+            + 1                         # fase 2: navegador Brave
+            + len(searches)             # boards por termino (una fase c/u)
+            + len(BARRIDOS)             # barridos de un solo tiro
+            + 2)                        # dedupe cross-source + gate/reportes
+
+
+_BARRIDO_GRUPO = {nombre: grupo for nombre, grupo in BARRIDOS}
+
+
+def _barrido_cfg(nombre: str):
+    """(nombre, grupo) para prog.fase(...) — grupo = boards|directos."""
+    return nombre, _BARRIDO_GRUPO.get(nombre, "directos")
 
 
 async def main(fresh: bool = False, searches: list = None, sin_expand: bool = False,
                dias: int = DEFAULT_DIAS, min_score: float = DEFAULT_MIN_SCORE,
-               re_filtrar: bool = False):
+               re_filtrar: bool = False, preflight: bool = False):
+    """Entrada: bloquea corridas dobles y publica el estado de progreso ANTES
+    de tocar la red, para que la GUI (pestana Corrida) muestre que paso."""
+    prog = iniciar_corrida("preflight" if preflight else "corrida")
+    if not prog:
+        return                      # ya hay una corrida viva (PID en uso)
+    try:
+        resumen = await _corrida(prog, fresh, searches, sin_expand, dias,
+                                 min_score, re_filtrar, preflight) or {}
+        estado = resumen.pop("_estado",
+                             "preflight" if preflight else "ok")
+        prog.finalizar(estado, resumen or _resumen_progreso(prog, 0))
+    except Exception as e:
+        prog.finalizar("error", {"error": str(e)})
+        logger.exception("Corrida abortada: %s", e)
+        raise
+
+
+def _resumen_progreso(prog, nuevas: int) -> dict:
+    enc = prog._estado.get("encontradas", {})
+    return {
+        "nuevas": nuevas,
+        "crudas_boards": enc.get("boards", 0),
+        "crudas_directos": enc.get("directos", 0),
+    }
+
+
+def _preflight(prog, profile, searches: list) -> dict:
+    """Dry-run: publica el plan de corrida + estado de credenciales/archivos,
+    sin navegador ni requests. Validacion rapida del setup y de la GUI."""
+    logger.info("PREFLIGHT: sin red ni navegador; solo reporte de setup.")
+    prog.fase("Preflight: plan de corrida")
+    for s in searches:
+        logger.info("  busqueda: %s / %s", s["puesto"], s["ubicacion"])
+    for nombre, grupo in BARRIDOS:
+        prog.fase(nombre, grupo, "preflight (sin ejecutar)")
+    prog.fase("Preflight: credenciales de login")
+    lst = creds_store.lista_sitios_login()
+    faltan = [s["empresa"] for s in lst if not s["tiene_credencial"]]
+    for s in lst:
+        logger.info("  login %-14s %-9s %s%s", s["empresa"],
+                    "OBLIGATORIO" if s["obligatorio"] else "opcional",
+                    "credencial ✓" if s["tiene_credencial"] else "SIN credencial",
+                    f" — auto-login {'ON' if s.get('auto_login') else 'OFF'}")
+    if faltan:
+        logger.warning("  Faltan credenciales en: %s (python credenciales.py "
+                       "--set \"Empresa\")", ", ".join(faltan))
+    return {"plan_fases": len(BARRIDOS), "busquedas": len(searches),
+            "login_total": len(lst), "login_faltan": faltan}
+
+
+async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
+                   dias: int, min_score: float, re_filtrar: bool,
+                   preflight: bool):
     # Perfil del candidato: fuente unica de verdad de las tematicas.
     from core.profile import CandidateProfile
+    prog.fase("Preparación (perfil + base de datos)")
     profile = CandidateProfile.load()
 
     db = JobDatabase()
@@ -166,8 +309,9 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
 
     # --- Modo re-filtrar: sin navegador, reevalua el crudo ya guardado ---
     if re_filtrar:
+        prog.total(_fases_totales(searches, re_filtrar))
         engine, _ = _motor(profile, sin_expand, [])
-        await refiltrar(db, profile, engine, dias, min_score)
+        await refiltrar(db, profile, engine, dias, min_score, prog)
         return
 
     if searches is None:
@@ -184,6 +328,14 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
 
     # Motor semantico: expande busquedas y luego decide el gate (Fecha Y relevancia).
     engine, searches = _motor(profile, sin_expand, searches)
+    # total de fases DESPUES de expandir: el motor puede duplicar las busquedas.
+    prog.total(_fases_totales(searches, re_filtrar))
+
+    # Preflight: publica el plan de corrida (y el estado de las credenciales)
+    # SIN navegador ni red. Sirve para validar la GUI y el setup.
+    if preflight:
+        _preflight(prog, profile, searches)
+        return
 
     if fresh:
         await db.clear_jobs()
@@ -204,21 +356,27 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
         logger.info(f"ANE host mapping: www.ane.cr -> {ane_ip}")
 
     browser_mgr = BraveManager(browser_cfg)
+    prog.fase("Navegador (Brave + perfil del usuario)", "",
+              "cierra y reabre Brave con depuracion CDP")
     port = browser_mgr.start_brave()
 
     if not port:
         logger.error("Could not start Brave browser. Exiting.")
-        return
+        prog.nota("Brave no arranco: revisa BRAVE_BIN en .env")
+        return {"_estado": "error", "motivo": "Brave no arranco",
+                **_resumen_progreso(prog, 0)}
 
     # Todo lo crudo de los 5 portales; el gate despues decide que pasa a jobs.
     raw_offers: list = []
     try:
         # --- 1. Portales por termino (keyword) ---
         providers = [ProcomerProvider({}), LinkedInProvider({}), IndeedProvider({})]
-        for search in searches:
+        for idx, search in enumerate(searches, 1):
             term = search["puesto"]
             loc = search["ubicacion"]
             logger.info(f"Searching for '{term}' in {loc}...")
+            prog.fase(f"Boards por término: {term}", "boards",
+                      f"búsqueda {idx}/{len(searches)} · {loc}")
 
             tasks = []
             for p in providers:
@@ -239,12 +397,17 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
                 else:
                     valid = [j for j in res if j.title and j.link]
                     logger.info(f"Provider {name} found {len(valid)} valid jobs")
+                    prog.sumar("boards", len(valid))
                     raw_offers.extend(valid)
 
         # --- 2. ANE por barrido de fecha (UNA sola vez, ignora termino) ---
+        # Credenciales: .env (ANE_USER/ANE_PASSWORD) o el almacén local
+        # (data/empresas/credenciales.json, pestaña "Credenciales" / CLI).
+        _cred_ane = creds_store.credencial("ANE") or {}
+        prog.fase(*_barrido_cfg("ANE (barrido por fecha)"))
         ane = AneProvider({
-            "username": os.getenv("ANE_USER"),
-            "password": os.getenv("ANE_PASSWORD"),
+            "username": _cred_ane.get("usuario"),
+            "password": _cred_ane.get("password"),
         })
         try:
             ane_jobs = await ane.fetch(
@@ -252,11 +415,13 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
             )
             valid_ane = [j for j in ane_jobs if j.title and j.link]
             logger.info(f"ANE barrido: {len(valid_ane)} vacantes crudas")
+            prog.sumar("boards", len(valid_ane))
             raw_offers.extend(valid_ane)
         except Exception as e:
             logger.error(f"ANE barrido error: {e}")
         # --- 2b. CINDE Jobs: barrido completo UNA sola vez (API GraphQL
         # publica, sin navegador); el gate luego decide por relevancia ---
+        prog.fase(*_barrido_cfg("CINDE Jobs"))
         cinde = CindeProvider({})
         try:
             cinde_jobs = await cinde.fetch(
@@ -264,15 +429,151 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
             )
             valid_cinde = [j for j in cinde_jobs if j.title and j.link]
             logger.info(f"CINDE barrido: {len(valid_cinde)} vacantes crudas")
+            prog.sumar("boards", len(valid_cinde))
             raw_offers.extend(valid_cinde)
         except Exception as e:
             logger.error(f"CINDE barrido error: {e}")
+        # --- 2c. Workday: tenants curados (empresas grandes sin LinkedIn/Indeed) ---
+        prog.fase(*_barrido_cfg("Workday"))
+        try:
+            wd = WorkdayProvider({})
+            wd_jobs = await wd.fetch("barrido-workday", "Costa Rica",
+                                     pages=WORKDAY_PAGES)
+            valid_wd = [j for j in wd_jobs if j.title and j.link]
+            logger.info(f"Workday barrido: {len(valid_wd)} vacantes crudas")
+            prog.sumar("directos", len(valid_wd))
+            raw_offers.extend(valid_wd)
+        except Exception as e:
+            logger.error(f"Workday barrido error: {e}")
+        # --- 2d. Phenom: sitios SSR confirmados (P&G, Zimmer Biomet...) ---
+        prog.fase(*_barrido_cfg("Phenom"))
+        try:
+            from providers.directos.phenom import PhenomProvider
+            ph = PhenomProvider({})
+            ph_jobs = await ph.fetch("barrido-phenom", "Costa Rica",
+                                     pages=PHENOM_PAGES)
+            valid_ph = [j for j in ph_jobs if j.title and j.link]
+            logger.info(f"Phenom barrido: {len(valid_ph)} vacantes crudas")
+            prog.sumar("directos", len(valid_ph))
+            raw_offers.extend(valid_ph)
+        except Exception as e:
+            logger.error(f"Phenom barrido error: {e}")
+        # --- 2e. TP Umbraco: el board de Teleperformance via tp.com ---
+        prog.fase(*_barrido_cfg("TP (Teleperformance)"))
+        try:
+            from providers.directos.tp import TpProvider
+            tp = TpProvider({})
+            tp_jobs = await tp.fetch("barrido-tp", "Costa Rica", pages=TP_PAGES)
+            valid_tp = [j for j in tp_jobs if j.title and j.link]
+            logger.info(f"TP barrido: {len(valid_tp)} vacantes crudas")
+            prog.sumar("directos", len(valid_tp))
+            raw_offers.extend(valid_tp)
+        except Exception as e:
+            logger.error(f"TP barrido error: {e}")
+        # --- 2f. Greenhouse: tokens con CR del barrido multi-ATS ---
+        prog.fase(*_barrido_cfg("Greenhouse"))
+        try:
+            from providers.directos.greenhouse import GreenhouseProvider
+            gh = GreenhouseProvider({})
+            gh_jobs = await gh.fetch("barrido-greenhouse", "Costa Rica",
+                                     pages=GREENHOUSE_PAGES)
+            valid_gh = [j for j in gh_jobs if j.title and j.link]
+            logger.info(f"Greenhouse barrido: {len(valid_gh)} vacantes crudas")
+            prog.sumar("directos", len(valid_gh))
+            raw_offers.extend(valid_gh)
+        except Exception as e:
+            logger.error(f"Greenhouse barrido error: {e}")
+        # --- 2g. iCIMS: boards TP/DocuSign (listado paginado pr=N) ---
+        prog.fase(*_barrido_cfg("iCIMS"))
+        try:
+            from providers.directos.icims import IcimsProvider
+            ii = IcimsProvider({})
+            ii_jobs = await ii.fetch("barrido-icims", "Costa Rica", pages=ICIMS_PAGES)
+            valid_ii = [j for j in ii_jobs if j.title and j.link]
+            logger.info(f"iCIMS barrido: {len(valid_ii)} vacantes crudas")
+            prog.sumar("directos", len(valid_ii))
+            raw_offers.extend(valid_ii)
+        except Exception as e:
+            logger.error(f"iCIMS barrido error: {e}")
+        # --- 2h. SmartRecruiters: API publica q=Costa Rica por compania ---
+        prog.fase(*_barrido_cfg("SmartRecruiters"))
+        try:
+            from providers.directos.smartrecruiters import SmartRecruitersProvider
+            sr = SmartRecruitersProvider({})
+            sr_jobs = await sr.fetch("barrido-sr", "Costa Rica", pages=SR_PAGES)
+            valid_sr = [j for j in sr_jobs if j.title and j.link]
+            logger.info(f"SmartRecruiters barrido: {len(valid_sr)} vacantes crudas")
+            prog.sumar("directos", len(valid_sr))
+            raw_offers.extend(valid_sr)
+        except Exception as e:
+            logger.error(f"SmartRecruiters barrido error: {e}")
+        # --- 2i. SuccessFactors: RSS publico keywords=(Costa Rica) ---
+        prog.fase(*_barrido_cfg("SuccessFactors"))
+        try:
+            from providers.directos.successfactors import SuccessFactorsProvider
+            sf = SuccessFactorsProvider({})
+            sf_jobs = await sf.fetch("barrido-sf", "Costa Rica", pages=1)
+            valid_sf = [j for j in sf_jobs if j.title and j.link]
+            logger.info(f"SuccessFactors barrido: {len(valid_sf)} vacantes crudas")
+            prog.sumar("directos", len(valid_sf))
+            raw_offers.extend(valid_sf)
+        except Exception as e:
+            logger.error(f"SuccessFactors barrido error: {e}")
+        # --- 2j. Rippling: boards ats.rippling.com con CR real (scan 2026-10-19) ---
+        prog.fase(*_barrido_cfg("Rippling"))
+        try:
+            from providers.directos.rippling import RipplingProvider
+            rp = RipplingProvider({})
+            rp_jobs = await rp.fetch("barrido-rippling", "Costa Rica", pages=RIPPLING_PAGES)
+            valid_rp = [j for j in rp_jobs if j.title and j.link]
+            logger.info(f"Rippling barrido: {len(valid_rp)} vacantes crudas")
+            prog.sumar("directos", len(valid_rp))
+            raw_offers.extend(valid_rp)
+        except Exception as e:
+            logger.error(f"Rippling barrido error: {e}")
+        # --- 2k. ATS ligeros: Ashby/Lever/Recruitee/Workable (tokens JSON) ---
+        prog.fase(*_barrido_cfg("ATS ligeros (Ashby/Lever/Recruitee/Workable)"))
+        try:
+            from providers.directos.ats_ligeros import AtsLigerosProvider
+            al = AtsLigerosProvider({})
+            al_jobs = await al.fetch("barrido-ats-ligeros", "Costa Rica", pages=AL_PAGES)
+            valid_al = [j for j in al_jobs if j.title and j.link]
+            logger.info(f"ATS ligeros barrido: {len(valid_al)} vacantes crudas")
+            prog.sumar("directos", len(valid_al))
+            raw_offers.extend(valid_al)
+        except Exception as e:
+            logger.error(f"ATS ligeros barrido error: {e}")
+        # --- 2l. Sitios con sesion/Cloudflare: browser del usuario (cookies) ---
+        prog.fase(*_barrido_cfg("Login sites (navegador del usuario)"))
+        try:
+            from providers.login.browser_sites import LoginSitesProvider
+            ls = LoginSitesProvider({})
+            ls_jobs = await ls.fetch("barrido-login-sites", "Costa Rica",
+                                     pages=1, port=port)
+            valid_ls = [j for j in ls_jobs if j.title and j.link]
+            logger.info(f"Login-sites barrido: {len(valid_ls)} vacantes crudas")
+            prog.sumar("directos", len(valid_ls))
+            raw_offers.extend(valid_ls)
+        except Exception as e:
+            logger.error(f"Login-sites barrido error: {e}")
     finally:
         browser_mgr.stop_brave()
 
+    # --- 2z. Dedupe cross-source: prioridad a providers DIRECTOS. Si el
+    # puesto ya esta en un provider directo (ATS de la empresa), se descarta
+    # la copia republicada en los job boards (LinkedIn/Indeed/ANE...). ---
+    prog.fase("Dedupe cross-source (boards vs portales de empresa)")
+    prev_total = len(raw_offers)
+    raw_offers, n_dupes = dedupe_boards_vs_directos(raw_offers)
+    logger.info(f"Dedupe: {prev_total} crudas -> {len(raw_offers)} deduplicadas "
+                f"({n_dupes} copias de job boards descartadas por existir ya "
+                f"en providers directos)")
+
     # --- 3. Gate (Fecha Y relevancia) -> staging + curado ---
+    prog.fase("Gate (fecha + relevancia) y reportes")
     newly, _, _ = await _aplicar_gate(db, profile, engine, raw_offers, dias, min_score)
     _reportes(newly)
+    return _resumen_progreso(prog, len(newly))
 
 
 if __name__ == "__main__":
@@ -286,8 +587,12 @@ if __name__ == "__main__":
                         help=f"Umbral de relevancia semantica 0-1 (default: {DEFAULT_MIN_SCORE})")
     parser.add_argument("--refiltrar", action="store_true",
                         help="Reaplica el gate sobre jobs_raw sin re-scrapear")
+    parser.add_argument("--preflight", action="store_true",
+                        help="Dry-run: publica el plan de corrida y el estado de "
+                             "credenciales en la GUI, sin navegador ni red")
     args = parser.parse_args()
     asyncio.run(main(
         fresh=args.fresh, sin_expand=args.sin_expand,
         dias=args.dias, min_score=args.score_min, re_filtrar=args.refiltrar,
+        preflight=args.preflight,
     ))

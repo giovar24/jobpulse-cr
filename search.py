@@ -32,7 +32,9 @@ if sys.stdout and sys.stdout.encoding and sys.stdout.encoding.lower() not in ("u
     except (AttributeError, OSError):
         pass
 
-SOURCES = ["indeed", "linkedin", "ane", "procomer"]
+SOURCES = ["indeed", "linkedin", "ane", "procomer", "cinde", "workday",
+           "phenom", "tp", "greenhouse", "icims", "smartrecruiters",
+           "successfactors", "rippling", "ats_ligeros", "login_sites"]
 
 
 def _safe(text):

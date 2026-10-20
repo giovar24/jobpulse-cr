@@ -509,3 +509,777 @@ Body: {"appliedFacets": {}, "limit": 10, "offset": 0, "searchText": "Costa Rica"
 - ❌ **El consejo original tenia el ATS equivocado en ejemplos clave**: P&G (`pgcareers.com`) y Thermo Fisher (`jobs.thermofisher.com/global/en`) usan **Phenom People**, NO Workday; Bridgestone publica en `bebridgestone.com` (portal propio, 403 por Cloudflare contra HTTP crudo). Leccion: verificar el ATS real de cada empresa antes de asumir.
 
 **Decision pendiente**: agregar `providers/workday.py` con lista curada de tenants con presencia en CR (Intel, Syniverse, Confluent Medical, Smith+Nephew como base; el usuario puede ir sumando). El patron ya existe (`procomer.py`): query paginada a JSON, `job_id = "workday-{...}"`, fecha ISO, link directo. Mucho mas rapido y estable que empleado navigator ( scrappeo de UI): si CXS deja de responder, fallback al HTML renderizado.
+
+---
+
+## 26. Barrido de empresas candidatas + deteccion de ATS Workday (2026-10-19)
+
+**Objetivo**: localizar empresas (medianas/grandes) que publican puestos fuera de LinkedIn/Indeed, empezando por ATS Workday.
+
+**Herramientas nuevas**:
+- `barrido_empresas.py`: barrido de 4 fuentes en una corrida (`--no-ane` sin navegador, `--solo ane`, `--solo merge`):
+  1. **CINDE** GraphQL `viewCompanies(limit: 1000)` (196 fichas) + `viewJobOffers` (tope real: 16/pag; limit alto devuelve pag 1 con pocos y resto vacias).
+  2. **Procomer** `jobs-available` (433 vacantes, 28 pag): la lista NO trae nombre de organizacion (solo id); se resuelve con 1 GET por org_id unico a `/api/candidate/organizations/{id}` (responde 2xx, tipicamente 201) -> `organization.name` + `legal_name`.
+  3. **Zonas Francas** procomer.com/zonas-franca/ (server-rendered, 104 entradas; `?paged=` no pagina).
+  4. **ANE** listado `/Puesto?Pagina=N` (150 pags, ~1s/pag) solo tomando `h4.job-listing-company` de cada tarjeta (sin abrir detalles): 444 empresas.
+- `workday_cr.py`: sondea la CXS API de un directorio publico de tableros Workday
+  (kalebconfer-sys.github.io/job-board-directory -> `workday.csv`, 1362 tableros
+  validados, check 2026-10-17; columnas tenant/api_url/roles).
+  POST `{api_url}` con `searchText: "Costa Rica"`, limit 20; un hit solo cuenta si
+  `locationsText|title` del resultado contiene "costa rica" (evita textos que solo
+  MENCIONAN el pais). SQLite no interviene; salida JSON de hits/fallos.
+- El merge normaliza nombres (sin acentos, quita sufijos legales), agrupa por
+  `razon_social` (Procomer legal_name casa con los nombres legales del directorio ZF),
+  clasifica tamano con semillas de multinacionales + conteo de vacantes observadas,
+  y marca tipo `recruiter`/`confidencial`.
+
+**Resultado**: `data/empresas/empresas_candidatas.csv` (782 empresas; 25 grandes,
+98 mediana?, 645 por_evaluar; recruiter 4, confidencial 1). **51 empresas con
+Workday confirmado** y vacantes activas en CR: HPE 20, TD Synnex 20, Edwards 18,
+Thermo Fisher 17 (usa Workday y Phenom a la vez), Abbott 16, Citi 16, J&J 15,
+Stryker 14, Huntsman 11, Four Seasons 11, Roche 10 (retry http1), Unisys 10...
+39 de ellas NO estaban en ningun barrido previo (incl. Intel, Metropolis...).
+
+**Fallos Workday**: 44 iniciales de los 1362 (37 "error" = HTTP/2/timeouts ->
+reintento secuencial http1.1 recupera Roche(10) e ING(1); 7 persistentes:
+403 x3 (bloqueo del host), 429 x2 (salesforce, rate limit), 422 x2).
+
+**Pendiente**: `providers/workday.py` (el patron CXS ya esta en workday_cr.py);
+la lista esta como CSV para elegir entreprises; otros ATS del mismo directorio
+(el sitio publica "one file for every platform at once": Phenom/Greenhouse/...).
+
+## 27. Proveedor Workday (providers/workday.py) (2026-10-19)
+
+**Implementacion** (sigue el patron CINDE: barrido unico, gate decide):
+- Lista curada de 51 tenants con CR (data/empresas/workday_cr.json, regenerable con
+  `workday_cr.py`; fallback constante embebido si el json falta).
+- Listado: POST `{api}/jobs` con `searchText: "Costa Rica"`, pag de 20
+  (WORKDAY_MAX_PAGES por tenant, default 3); se guarda solo externalPath donde
+  `locationsText|title` contiene "costa rica".
+- Detalle (la lista no trae descripcion): GET `{api}/job/{externalPath tras /job/}`
+  -> `jobPostingInfo.jobDescription` (HTML limpiado con BS4), `startDate` (fecha
+  exacta ISO; fallback: `postedOn` "Posted 7 Days Ago" via core/dates), `externalUrl`.
+- job_id estable: `workday-{jobPostingId}` del detalle; fallback `workday-{JRxxxxxx}`
+  del path y por ultimo hash del externalPath.
+
+**Validado en vivo** (1 pag por tenant): 299 vacantes CR de 51 tenants --
+298 con descripcion (6915-7722 chars en HPE), 299 con fecha ISO exacta. Lento
+pero estable (~4.5 min), sin navegador ni login, sleeps de cortesia (0.15s).
+
+**Integracion**: `main.py` barrido "2c" (WORKDAY_MAX_PAGES, default 3);
+`app.py` SOURCES += workday (y se agrego cinde que faltaba). Fechas viejas
+(el listado trae vacantes de hace meses) quedan fuera de la ventana del gate -- correcto:
+el gate filtra por fecha de verdad con este proveedor (algo que CINDE no da).
+
+**Leccion**: el `total` de la CXS satura a 2000 y sirve paginas mas alla del fin
+(no paginar a ciegas; el break `len(items) < PAGE_SIZE` + tope de paginas lo evita).
+
+
+## 28. Barrido multi-ATS (Greenhouse, Ashby, Workable, Lever, Recruitee, Personio, Rippling) (2026-10-19)
+
+**Objetivo**: extender la cobertura mas alla de Workday, usando el mismo directorio
+publico con las direcciones reales de los tableros (12,235 en total; 10,873 sin
+contar los 1362 Workday ya cubiertos).
+
+**Fuente**: `data/empresas/ats_dir.csv` = `job-board-directory.csv`
+(kalebconfer-sys.github.io/job-board-directory). Filas: platform, token, company,
+board_url, api_url, open_roles, region. Greenhouse 3576, Ashby 2486, Workable
+1875, Recruitee 1043, Personio 866, Rippling 864, Lever 163.
+
+**Herramienta**: `barrido_ats_otros.py` (--muestra, --plataforma, --workers).
+Para cada tablero hace GET del api_url y filtra vacantes con "Costa Rica" en
+campos de ubicacion/titulo. Extractores generales (jobs/postings/offers) mas
+casos especiales:
+- Personio: sirve XML `<workzag-jobs>` con nodos `<position>/<name>/<office>`
+  (no JSON); se parsea a mano con regex.
+- Lever: el titulo viene en campo `text` y el link en `applyUrl` (no `title`/url).
+- Recruitee: lista con `locationText`.
+
+**Resultados** (pasada 1 con 14 workers + pasada 2 con throttle 0.5s para los
+~1800 que cayeron por 429): **67 tableros con vacantes CR activas** -> 65 empresas
+nuevas en el CSV maestro. Fallos restantes 249 (404 tableros muertos, 302, 403).
+
+**Hallazgos relevantes**:
+- Empresas de producto con presencia/remoto CR via Greenhouse: Smartsheet (7
+  "Remote Eligible - Costa Rica"), Zuora (2), Fivetran, Nayya, Storyblok, Torq.
+- Lever: Westernacher (4), Sysdig. Ashby: Mindvalley, JBS-dev, Owner...
+- Workable/Lever/Recruitee estan dominados por firmas de STAFF REMOTO LatAm
+  (Pavago 230, Uptalent 53, Lago 22, cynet, Zipdev, Valatam, SupportYourApp,
+  Workana Premium...), no empleadores directos: sus vacantes CR solo sirven si
+  el gate las filtra bien. Muchas citan "Costa Rica" como mercado de contratacion
+  remota.
+
+**Integracion**: `barrido_empresas.py --solo merge` ahora tambien consume
+`data/empresas/otros_ats_cr.json` (nuevo bloque "OTROS ATS", con `ats_token`
+tipo `platform::token` y `vacantes_otros_ats_cr`). CSV maestro: 847 empresas
+unicas (grandes 25, mediana? 109, por_evaluar 694, recruiter 4, confidencial 1).
+
+**Pendientes (siguiente fase)**:
+- Phenom People e iCIMS/SuccessFactors NO estan en el directorio (y son los ATS
+  de las grandes con sede CR): caza manual de tenants por empresa.
+- Greenhouse/Lever valen un provider propio si el gate saca hits (patron
+  providers/workday.py). Candidatas concretas: Smartsheet, Zuora, Westernacher.
+- Renombrar "Cnx" (posible Concentrix) y el barrido Procomer completo siguen
+  pendientes de decision.
+
+
+## 29. Proveedor Phenom People (providers/phenom.py) + caza de ATS grandes (2026-10-19)
+
+**Objetivo**: las multinationales con sede CR que NO usan Workday (P&G,
+Zimmer Biomet, Cisco, Fiserv, UPS, Snowflake...) usan Phenom People, iCIMS,
+SuccessFactors o Taleo, que NO estan en el directorio publico de tableros. Se
+implemento caza por huella frente a las paginas de carreras.
+
+**Caza** (`caza_ats_grandes.py`): lista curada de ~40 empleadores grandes con
+URLs candidatas; huella por marcadores en el HTML (phenompeople/
+CareerConnectResources/csrfToken, icims, successfactors, taleo,
+smartrecruiters, myworkday...). Resultado en `data/empresas/
+ats_grandes_huellas.json`:
+- Phenom: Cisco, Fiserv, UPS, P&G, Snowflake, Zimmer Biomet, Thermo, HPE.
+- SmartRecruiters: Western Digital, Bosch. SuccessFactors: Microsoft, EY,
+  Foundever, Kuehne+Nagel. iCIMS: DocuSign. Workday extra: Rockwell, BD.
+- Sin firma (403 o front custom): Amazon (amazon.jobs propio), Dell, Autodesk,
+  Oracle, J&J, IBM, Deloitte, Salesforce, Walmart, Instacart, Bimbo, NCR,
+  KPMG-atento etc.
+
+**Descubrimiento del patron Phenom "canvas" (SSR)**, capturado con el
+navegador contra jobs.thermofisher.com:
+- El listado SSR `/global/en/search-results?keywords=Costa%20Rica&from=N`
+  embebe un JSON `"jobs":[...]` (10 por pagina) con title/multi_location/
+  reqId/applyUrl/postedDate y `"totalHits":N`. Paginacion por `from=0,10,20...`
+  (break al recibir < 10 items nuevos o al alcanzar totalHits).
+- El detalle SSR `{locale}/job/{reqId}/{slug}` trae `"description"` HTML
+  (`raw_decode`) y `"postedDate"` ISO exacto. Sin cookies ni tokens: el
+  x-csrf-token solo lo exigen los POST /widgets del front SPA.
+- El locale-path (global/en, us/en, cr/en...) se detecta del propio home
+  (P&G publica hasta sites por-pais: /cr/en) y se calan candidatos fijos.
+
+**Cliente**: `phenom.py` (PhenomSite: descubrir/pagina/buscar; tiene_cr en
+multi_location + lugar_txt). El POST /widgets con ddoKey searchJobs necesita
+csrf ligado a la sesion del navegador -> falla desde httpx: quedan pendientes
+por esa via Cisco/Fiserv/UPS/Snowflake (su SSR devuelve jobs vacio).
+
+**Provider**: `providers/phenom.py` (#7), mismo patron que workday.py:
+digiere `data/empresas/phenom_cr.json` (via sondeo_phenom.py) con lista
+fallback constante; keywords CR por sitio (PHENOM_MAX_PAGES, default 3) y
+detalle completo de cada CR. HPE/Thermo se SALTAN por solapamiento con
+Workday (su apply real va a su propio Workday, ya cubierto). Integrado en
+`main.py` (barrido "2d", PHENOM_MAX_PAGES) y `app.py` (SOURCES += phenom).
+
+**Validado**: smoke test con P&G (5 vacantes CR: Consumer Relations
+bilingues) y Zimmer Biomet (5 CR: Grecia, Alajuela - tecnicos); desc de
+3-16k chars, postedDate ISO; HPE/Thermo correctamente excluidas.
+
+
+## 32. Proveedor TP Umbraco (providers/tp.py) (2026-10-19)
+
+**Objetivo**: cubrir Teleperformance, el mayor empleador pendiente de la ronda
+de relevancia (seccion 31). Su board CR real no es `www.jobs-tp.cr` (formulario
+WP sin vacantes) sino la **API Umbraco de tp.com**:
+
+    GET /Umbraco/Api/Careers/GetCareersBase?node=1780&country=Costa%20Rica
+        &culture=en-us&pageSize=50&page=0&accumulated=true
+    -> {resultado: [{title, description(HTML), url, nodeId, country, location,
+        category, language, opportunityType, opportunityModel, workFromHome,
+        source(Umbraco|icims), date}], countFirst}
+
+Descubierto leyendo `scripts/modules/careersFilter.js` (el front de
+tp.com). Trampita: el `node` correcto es el 2do argumento del constructor
+`careersFilter` en el HTML de `/en-us/careers/job-opportunities/` (el 1ro es un
+hashCode que cambia y devuelve 0 resultados).
+
+**Provider** (`providers/tp.py`, sigue el patron phenom.py):
+- Lista curada `data/empresas/tp_umbraco_sites.json` con fallback constante
+  (`("Teleperformance Costa Rica", 1780, "en-us")`).
+- Paginado 50/pag (TP_MAX_PAGES default 2), dedupe por `nodeId` intra-pagina
+  (bug dedupe corregido en smoke test: el mismo posting aparece duplicado por
+  cultura `/es-cr/` y `/`).
+- job_id `tp-{nodeId}`; link absoluto; si `source=icims` se agrega
+  `?mode=job&iis=Teleperformance.com`; descripcion completa del listing
+  (limpiada con BS4) + extras entre corchetes; `date` ISO directly.
+- Sin detalle extra: el listing trae TODO (ni siquiera abre la pagina de apply).
+
+**Integracion**: `main.py` barrido "2e" (TP_MAX_PAGES default 2); `app.py`
+SOURCES += "tp". README: fila de TOC + estructura.
+
+**Validado en vivo**: 1 vacante CR (Representante de atencion al cliente,
+evergreen 2021-06-29, desc completa con requisitos). Las evergreen con fechas
+viejas las descarta el gate por ventana (comportamiento correcto); los roles
+frescos de TP entran cuando tp.com integre sus requisiciones iCIMS (source
+`icims`, fechas nuevas).
+
+
+## 33. Proveedor Greenhouse (providers/greenhouse.py) (2026-10-19)
+
+**Objetivo**: cubrir los tableros Greenhouse confirmados con CR por el barrido
+multi-ATS (seccion 28): Smartsheet (7 CR), Zuora (2) y compania, con vacantes
+de calidad recurrentes que ningun portal cubria.
+
+**API board publica** (documentada por el vendor):
+    GET https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true
+    -> {meta: {total}, jobs: [{id, title, absolute_url, location{name},
+        offices, departments, first_published ISO, updated_at, content(HTML),
+        requisition_id, company_name}]}
+
+TOMO el catalogo COMPLETO en 1 GET (con content=true el HTML de la descripcion
+viene inline; sin `content` solo titulos).
+
+**Provider** (patron tp.py):
+- Tokens de `data/empresas/otros_ats_cr.json` (filas platform=greenhouse);
+  fallback constante con las confirmadas. Alias de compania para tokens
+  anonimos (`12jlkfsk` = Orion Global Solutions, hallado en la propia
+  descripcion de sus vacantes; `thinkacademyus` = Think Academy US).
+- Filtro CR con regex `\bcosta\s*rica\b` sobre titulo+location+offices.
+- `first_published` como fecha (NO `updated_at`, que es last-edit).
+- Trampa HTML: `content` viene doblemente escapado (JSON + entidades:
+  `&lt;p&gt;`) -> html.unescape antes de BS4.
+
+**Integracion**: `main.py` barrido "2f" (GREENHOUSE_MAX_PAGES default 1; el
+parametro `pages` probaria reintentos, rara vez necesario); `app.py`
+SOURCES += "greenhouse". README: fila de portales + estructura.
+
+**Validado en vivo (smoke test)**: 8 tableros -> 16 vacantes CR: Smartsheet 7
+(+ una publicada HOY 2026-10-19, Content Designer II), Zuora 2 (incl. una de
+2026-10-14), Orion Global Solutions 2, Fivetran 1 (CRI - Remote), Nayya,
+Storyblok, Think Academy US, Torq. Todas con desc completa y fecha ISO
+first_published; las mas viejas (Smartsheet 2022, Think Academy 2026-04) las
+decidira el gate por ventana.
+
+
+## 34. Proveedor iCIMS (providers/icims.py) (2026-10-19)
+
+**Objetivo**: cubrir los boards iCIMS confirmados (Teleperformance USA/global,
+DocuSign por region). Patron decodificado con probes:
+
+- Listado: `GET https://{host}/jobs/search?search=true&in_iframe=1` -> HTML
+  server-side con `<li class="iCIMS_JobCardItem">` por vacante: ubicacion
+  ("MY-Kuala Lumpur-..."), post date en `title="M/D/YYYY H:MM AM"` y titulo en
+  `/jobs/{id}/{slug}/job?in_iframe=1` (class iCIMS_Anchor + h3).
+- Paginacion: **`&pr=N`** (pr=1,2,...: 50 nuevos por pag). Trampas pagadas:
+  `&pageNum=N` NO pagina (devuelve siempre la misma); el form lleva
+  `hashed=` POST (anti- forged) y el filtro keyword por GET
+  (`&in_0=`/`&searchKeyword=`) no filtra -> se barre paginado y se filtra
+  "costa rica" client-side (filas trae ubic + titulo).
+- Detalle: GET del href -> descripcion (iCIMS_JobDescription) + fecha ISO via
+  `datetime.strptime("%m/%d/%Y %I:%M %p")`.
+
+**Estado CR (2026-10-19)**: **0 vacantes CR hoy**. Barre comprobado: board
+base TP se agota en ~56 (sin CR en sus paginas), el global EN trae ~650 sin CR
+en 9 pags, TP-USA puro US, DocuSign root/us/emea/latam responden 200 PERO sin
+filas (front migrado a SPA propia, quedo el legacy). TP CR publica via tp.com
+(provider tp.py ya lo cubre) y DocuSign cuando vuelva a publicar LatAm se
+cacharia automaticamente. Provider queda integrado y barato (~12 req/corrida):
+`main.py` barrido "2g" (ICIMS_MAX_PAGES default 8), `app.py` SOURCES += icims;
+boards editables en `data/empresas/icims_boards.json`.
+
+
+## 35. Proveedores SmartRecruiters (providers/smartrecruiters.py) y SuccessFactors (providers/successfactors.py) (2026-10-19)
+
+### SmartRecruiters (#11)
+
+API publica documentada del vendor, sin key:
+
+- `GET api.smartrecruiters.com/v1/companies/{cid}/postings?q=Costa Rica&limit=100&offset=0`
+  -> `{"totalFound": N, "content": [...]}` con `releasedDate` ISO, `location`
+  (city/region/country/address), `postingUrl`, `function`, `typeOfEmployment`.
+- El `q` busca en TODOS los datos del posting (encontro la CR de Bosch aunque
+  el titulo no menciona el pais).
+- Detalle: `.../postings/{id}` -> `jobAd.sections` = {titulo: {title,
+  text(HTML)}}; se ensambla la desc con BS4.
+- Trampa: ids de compania case-sensitive y con formato exacto: `westerndigital`
+  (335 global) y `BoschGroup` (5,083 global) funcionan; `western-digital`,
+  `bosch`, `bosch-group`, `BshGroup` dan 200 con total=0.
+
+**Estado CR**: Bosch 1 (Senior SAP Commerce/Hybris Developer, Heredia,
+2026-08-13); Western Digital 0 hoy (aparecio en el barrido del directorio,
+rotara). Config: `data/empresas/smartrecruiters_companies.json`. Integrado
+`main.py` "2h" (SR_MAX_PAGES default 10), `app.py` SOURCES += smartrecruiters.
+
+### SuccessFactors (#12)
+
+Los portales SAP SuccessFactors "Career Section" (stack j2w) exponen **feed
+RSS publico sin key ni cookies**:
+
+- `GET {base}/services/rss/job/?locale=en_US&keywords=(Costa Rica)` -> XML
+  con `<item>`: title (incluye ubicacion), link `/job/{slug}/{id}/`,
+  pubDate RFC 2822 y description CDATA con el HTML completo de la vacante
+  (3-20 KB) -> NO hace falta GET de detalle.
+- Trampa: el `keywords` NO es estricto (KN trae Santo Domingo DO, EY trae
+  Buenos Aires) -> filtro client (`costa rica|barreal|heredia|san jose|
+  cartago|alajuela|(cr)`) sobre title+link+cola de desc.
+- Microsoft (jobs.careers.microsoft.com) NO es j2w: SPA con su API
+  GCSServices que hoy responde 404 -> queda en bloqueados/front propio.
+
+**Validado en vivo (smoke test)**: **13 vacantes CR** — Foundever 5 (Customer
+Service Reps On-Site Moravia/San Pedro/Heredia + Back Office, sept-oct 2026),
+Kuehne+Nagel 4 (Global Services Air Logistics/AI Solutions Developer, Barreal
+de Heredia, sept-oct 2026), EY 4 (San Jose: Transfer pricing intern,
+Pasantia Auditoria, Ingeniero y Staff en Telecomunicaciones, sep-oct 2026).
+Mejor yield fresco junto a Greenhouse. Integrado `main.py` "2i",
+`app.py` SOURCES += successfactors; sites editables en
+`data/empresas/successfactors_sites.json`.
+
+
+## 36. Proveedor Rippling (providers/rippling.py) + scans masivos Rippling/Personio (2026-10-19)
+
+### Scans del directorio (8 plataformas que faltaban)
+
+El directorio de kalebconfer-sys today cubre **8 plataformas**: workday (1,362),
+greenhouse (3,576), ashby (2,486), lever (163), workable (1,875), recruitee
+(1,043), **rippling (864)** y **personio (866)**. El barrido multi-ATS previo
+(otros_ats_cr.json) ya habia cubierto greenhouse/ashby/lever/workable/recruitee
+con CR; quedaban por hacer recuento los ultimos dos:
+
+- **Personio** (866 tenants, patron publico `{tenant}.jobs.personio.de/xml`):
+  scan completo con 16 concurrencia -> **0 vacantes CR** (50s, 0 errores).
+  Resultado: `data/empresas/personio_scan_cr.json`.
+- **Rippling** (864 boards): scan completo HTML -> 10 tableros con "Costa
+  Rica" en el texto; al filtrar de nuevo por REGISTRO (title+locations del
+  mismo jobPost, no texto libre del HTML), **8 tableros con CR real ->
+  43 vacantes**. Guardado en `data/empresas/rippling_scan_cr.json`.
+
+### Patron Rippling decodificado con pruebas y browser
+
+1. Los boards `ats.rippling.com/{slug}/jobs` son Next.js con el listado
+   **SSR en el HTML** (sin XHR visible en el browser: los puestos vienen
+   serializados). Cada jobPost embebe:
+   `"title":"...","url":".../{uuid}","department":{"name":...},"locations":
+   [{"name":"Costa Rica","countryCode":"CR",...}]`.
+2. Trampa pagada: el HTML tambien trae listas de countries del dropdown
+   (Rippling dice que hay "Costa Rica" remoto para el employer) -> filtro
+   SOLO por `countryCode == "CR"` dentro del blob del mismo registro.
+3. Detalle: `/{slug}/jobs/{uuid}` -> `__NEXT_DATA__` ->
+   `apiData.jobPost` con `description.{company, role}` (HTML 2-9 KB),
+   `createdOn` (ISO TZ), `employmentType.label`, `workLocations` ->
+   BS4 limpia la desc.
+
+### Provider
+
+`providers/rippling.py` con boards en `data/empresas/rippling_boards.json`
+(8 activos con CR real). Smoke test: **43 vacantes CR** exactas al scan:
+Aubrant Digital 15 (Escazu/remoto LATAM), CommandLink 8 (CS/Billing/NetOps/
+SWE), Sparq 8 (Senior Devs), Lisinski Law Firm 6 (Salesforce/QA), Pythian 2
+(DevOps/AI-ML Lead), Venn 2 (RevOps), Havenly 1, InAir 1. Integrado
+`main.py` barrido "2j" (RIPPLING_MAX_PAGES), `app.py` SOURCES += rippling.
+
+### Sutherland (SeekOut CareerCompass) - pausado
+
+El front de Sutherland (jobs.sutherlandglobal.com) es un site **Duda
+estatico** (sin XHR de vacantes); el widget de empleo no se monta sin
+interaccion del usuario. La huella era SmartRecruiters (chat winstonchat) y
+el company id `sutherland` en la API tiene 404 postings globales y 0 CR.
+Queda en bloqueados (front propio), igual que Microsoft.
+
+
+## 37. Proveedor ATS ligeros (providers/ats_ligeros.py): Ashby/Lever/Recruitee/Workable (2026-10-19)
+
+Del directorio: plataformas ashby (2,486), lever (163), recruitee (1,043),
+workable (1,875) ya barriereadas con CR en `otros_ats_cr.json` (67 tableros
+incluida workable 46). Faltaba el proveedor que las consuma en la corrida.
+
+### Endpoints publicos (sin key)
+
+- **Ashby**: `GET api.ashbyhq.com/posting-api/job-board/{tok}` ->
+  `{"jobs":[{id,title,location,secondaryLocations,publishedAt (ISO),
+  jobUrl,descriptionHtml,descriptionPlain}]}`. Filtro CR en
+  location/secondary/title (CR-as-multi-loc detectado en MindValley: primary
+  Brazil, CR en secundarias -> etiqueta "Costa Rica (multi-loc)").
+- **Lever**: `GET api.lever.co/v0/postings/{tok}?mode=json` (los boards de
+  jobs.eu.lever.co usan `api.eu.lever.co`) -> lista [{text, country ("CR")
+  o text/hosts, createdAt epoch, hostedUrl, description(tx)}].
+- **Recruitee**: `GET {biz}.recruitee.com/api/offers/` ->
+  `{"offers":[{position, location, published_at "YYYY-MM-DD..." UTC,
+  careers_url, description/requirements}]}` (ojo: `position` es el titulo,
+  a veces trae int -> cast str).
+- **Workable**: POST `apply.workable.com/api/v1/accounts/{tok}/jobs` con
+  header `X-Workable-Shortcode: {tok}` (el shortcode en body JSON da
+  "Not allowed"); paginado de 10/pag con el cursor `nextPage` (header
+  `X-Workable-Page`); detail GET `.../jobs/{shortcode}` trae description
+  (5-10 KB HTML).
+
+### Validado en vivo (smoke test)
+
+**Ashby 10 + Lever 6 + Recruitee 9 = 25 vacantes CR** con fechas frescas
+(ashby-JBS Senior PM/AI-ML dev oct 2026, Owner CS Representative nov 3 2026,
+MindValley sept 24, etc.). 
+
+### Trampa Workable: 429 global por IP
+
+La API de Workable aplica **throttle global por IP** (no per-board): la
+primera corrida completa (huzzle/etc) dio 166 CR, pero con 46 tableros
+rapido llego al 429 y luego responde 200 con results vacios. El provider
+maneja:
+1. cooldown 120s + 1 retry; si persiste -> `self._wk_paused` y **se salta
+   el resto de workable** en la corrida (no sigue castigando el IP);
+2. sleep 1.2s entre tableros;
+3. cadencia de produccion (1 corrida/dia) respeta el throttle.
+El HTML publico del board es una SPA vacia (5 KB) -> no hay ruta alternativa
+sin la API.
+
+### Personio: scan completo -> 0 CR
+
+`{tenant}.jobs.personio.de/xml` (XML publico con todas las posiciones):
+866 tenants escaneados en 50s -> **0 menciones Costa Rica**. Guardado en
+`data/empresas/personio_scan_cr.json`. Personio queda sin proveedor (nada
+que dar en CR).
+
+Integrado `main.py` barrido "2k" (AL_MAX_PAGES default 6), `app.py` SOURCES
++= ats_ligeros.
+
+
+## 38. Reorganizacion: providers/boards y providers/directos + dedupe cross-source (2026-10-19)
+
+**Razon del pedido del usuario**: "lo mas probable es que algunos de los
+puestos se dupliquen en los job boards" — el mismo job posting se publica
+en LinkedIn/Indeed/ANE (agregador) y en el ATS propio de la empresa
+(Workday, Greenhouse, Rippling...). Regla confirmada: **prioridad a los
+providers directos; si el puesto ya esta en ellos, se descarta la copia de
+los job boards**.
+
+### Cambios de codigo
+
+1. **Subpaquetes**: `providers/boards/` (indeed, linkedin, ane, procomer,
+   cinde) y `providers/directos/` (workday, phenom, tp, greenhouse, icims,
+   smartrecruiters, successfactors, rippling, ats_ligeros). `providers/
+   base.py` queda en la raiz (core/ sigue importandolo igual).
+2. **`providers/source_groups.py`**: mapeo canonical `source -> boards|
+   directos` (`GROUP_BOARDS`, `GROUP_DIRECTOS`, `source_group()`); fallback
+   de sources desconocidos = "boards".
+3. **`core/dedupe.py`**: `dedupe_boards_vs_directos()` — registra las keys
+   de TODO lo directo primero y descarta los boards que ya existen con
+   matching conservador:
+   - normalizacion NFKD→ASCII, lowercase, tokens orden-INSENSITIVE ("Engineer,
+     Senior" == "Senior Software Engineer");
+   - ruido de ubicacion/remoto fuera del matching (los agregadores taggean
+     "Costa Rica"/"Remote" en el titulo);
+   - company sin sufijos legales ni tokens <=2 ("Kuehne+Nagel S.A." ==
+     "Kuehne + Nagel (AG & Co.) KG");
+   - matching tambien SIN ubicacion cuando una fuente no la trae;
+   - NUNCA deduplica intra-grupo (eso lo cubre el PK job_id por fuente).
+   Test con casos reales (Workday K+N vs LinkedIn K+N, indeed reordenado,
+   Huzzle board vs ATS directos): descarta los 2 duplicados exactos,
+   conserva variantes legítimas.
+4. **Hook en `main.py`** (paso "2z", antes del gate): `dedupe_boards_vs_
+   directos(raw_offers)` con log "N copias de job boards descartadas por
+   existir ya en providers directos".
+5. Imports actualizados en `main.py` (top-level + inner 2c-2k),
+   `barrido_empresas.py` (providers.boards.ane), `search.py` (SOURCES
+   ampliada a las 14 fuentes) y `app.py` (BOARDS_SOURCES + DIRECTOS_SOURCES
+   separados; SOURCES = union para el dropdown).
+
+Todo compila e importa (py_compile + `import main`).
+
+
+## 30. Caza ATS ronda 2 (URLs alternativas + navegador) (2026-10-19)
+
+**Objetivo**: resolver las ~25 empresas grandes que en ronda 1 quedaron
+"sin firma" (403/404/DNS) o con 200 sin marcadores.
+
+**Herramienta**: `caza_ats_grandes.py` actualizado (ronda 2) con paths
+alternativos: `/us/en/search-results` (patron Phenom SSR), `/c/en/search-results`
+(patron iCIMS), endpoints myworkday directos; y probe con **navegador** para
+los sites que bloquean httpx (huella sobre el HTML final renderizado).
+
+**Nuevos confirmados (validados con API real)**:
+- **J&J = Workday** (tenant `jj.wd5/JJ`): CXS ok, 5+ vacantes CR (Grecia,
+  Alajuela: Finance Senior Supervisor, Produccion/Ortopedia, Facilities, Mfg
+  Engineer B, IT Analyst). Ya estaba en workday_cr.json / TENANT_FALLBACK.
+- **Intel = Workday** (`intel.wd1/External`): CXS ok, CR San Jose (Student
+  Intern Collaboration, IT Intern, SoC Logic Design). Ya integrado.
+- **Concentrix = Workday**: el portal real es `jobs.concentrix.com`
+  (`jobs.concentrixcareers.com` DNS MUERTO) y agrega vacantes de
+  `cnx.wd1.myworkdayjobs.com/external_global`. **RESUELVE el misterio del
+  token "cnx"** del CSV maestro: es Concentrix (vendor, 1680 roles), NO CNX
+  Resources - y el barrido Workday ya trae sus CR (2). Renombrar en el CSV
+  de `cnx` a `Concentrix (tenant workday cnx/external_global)`.
+- **Kimberly-Clark, Medtronic, Autodesk**: sus tenant (wd1/kimberlyclark/GLOBAL,
+  wd1/medtronic/MedtronicCareers, wd1/autodesk/Ext) ya estaban en
+  workday_cr.json; el 403/406 de la caza era pura proteccion del careers-site.
+  CUBIERTAS por el provider Workday.
+- **Nuevas firmas**: DHL = Phenom (careers.dhl.com/global/en/search-results,
+  SSR ok); PayPal = Phenom (careers.pypl.com; SSR 403 por httpx - Cloudflare -
+  pendiente variante); Teleperformance = iCIMS USA
+  (careers-teleperformance.icims.com) + Phenom por pais (jobs.teleperformance.pt).
+
+**ATS nuevos descubiertos (sin provider)**:
+- Dell = **Oracle Recruiting Cloud** (`enterpriseplatform.dell.com/hcmUI/
+  CandidateExperience/`). Primera firma ORC del proyecto.
+- Sutherland = **SeekOut CareerCompass** (careercompass.seekout.io). ATS nuevo.
+- Alorica = funnel propio por pais (`alorica.com/careers` ->
+  `alorica-hire.bling-ai.com` + `recruit-latam.alorica.com`); no CR visible.
+
+**Siguen bloqueados/pending**:
+- Nestle: interstitial Cloudflare ("Un momento...") incluso en navegador.
+- IBM/Deloitte/Koch/CC-FEMSA/Instacart/Walmart/Broadcom/Salesforce: 200 sin
+  firma (SPA propia o front custom); requieren caza de API propia site por site.
+- **Taleo: sigue con 0 empresas confirmadas** (huella .ftl sin hits en 2 rondas).
+- Dominios muertos (DNS, 2 rondas): jobs.concentrixcareers.com,
+  jobs.grupobimbo.com, jobs.teleperformance.com, careers.ncrvoyix.com;
+  medtronic.wd5 (el real es wd1).
+
+**Respaldo**: `data/empresas/caza_ronda2_navegador.json` (hallazgos del probe
+con navegador + validaciones CXS/Phenom). PayPal agregado a `phenom_cr.json`
+como `pendiente-SSR-403`.
+
+**Pendientes de decision**: provider iCIMS (DocuSign/TP); provider
+Oracle-Recruiting (Dell) y SeekOut (Sutherland); re-probar PayPal Phenom con
+headers de browser; variante Phenom /widgets para Cisco/Fiserv/UPS/Snowflake;
+renombrar `cnx` -> Concentrix en el CSV maestro.
+
+
+## 31. Ronda 3 por relevancia (empleos CR): TP resuelto, Dell/Deloitte/DocuSign sondeados (2026-10-19)
+
+**Orden de trabajo pedido**: de mas a menos empleados en CR. Respaldo completo en
+`data/empresas/caza_ronda3_relevancia.json`.
+
+1. **Teleperformance (resuelto, provider trivial)**: el board CR real es
+   `www.jobs-tp.cr` pero es solo formulario WP SIN vacantes; el listing real vive
+   en **tp.com (Umbraco)**: `GET /Umbraco/Api/Careers/GetCareersBase?node=1780
+   &country=Costa%20Rica&culture=en-us&pageSize=50&page=0&accumulated=true`
+   -> JSON `{resultado: [{title, location, description, url, nodeId,
+   opportunityType, source(Umbraco|icims)}], countFirst}` + helpers
+   `GetLocationList/GetCategoryList/GetLanguageList`. Sin Cloudflare (httpx ok).
+   **Verificado**: 2 vacantes CR hoy (Representante de atencion al cliente,
+   Full Time, link /es-cr/...). El `node=1780` sale del constructor
+   `careersFilter` del HTML de `/en-us/careers/job-opportunities/` (el 1er arg es
+   hashCode, trampita).
+2. **Dell (ORC confirmado pero sin CR)**: el board global
+   `enterpriseplatform.dell.com/hcmUI/CandidateExperience` (site CX_1001) da
+   **0 resultados** con keyword "Costa Rica" (verificado en DOM). Provider ORC
+   sin ganancia de momento.
+3. **Deloitte**: board propio server-side
+   `apply.deloitte.com/en_US/careers/SearchJobs` - publico pero el filtro GET
+   `?searchTerms=` no aplica (0 hits): hay que decodificar el POST/form.
+4. **Salesforce**: retry CXS `wd1/salesforce/External_Career_Site` -> HTTP 422
+   (nombre de site equivocado); revisar la fila del directorio.
+5. **DocuSign**: iCIMS multi-board - existe `latamcareers-docusign.icims.com`
+   pero con 0 CR hoy. Provider iCIMS sigue siendo util (DocuSign-LatAm + TP-USA).
+6. **Sutherland/SeekOut, Nestle/Walmart/CC-FEMSA**: pendientes (endpoint
+   publico por verificar / Cloudflare y SPA).
+
+**Siguiente**: provider TP-Umbraco (el mayor empleador CR de todo lo pendiente,
+con API JSON publica ya decodificada) y provider Greenhouse (Smartsheet 7 CR,
+Zuora 2, Fivetran - API board publica).
+
+
+## 39. Modulo providers/login/ para sitios con sesion/Cloudflare + Nestle resuelto por via RSS (2026-10-19)
+
+**Pedido del usuario**: "armar algo para las empresas/paginas que necesitan
+log in" — y luego: "creo que necesito registrarme en las empresas, de lo
+contrario no funcionara en los sitios que necesitan login". Confirmacion del
+flujo: el registro/login lo hace el usuario A MANO, una vez, en su propio
+Brave; el sistema NUNCA guarda credenciales.
+
+### Arquitectura
+
+1. **`providers/login/browser_sites.py`** (`LoginSitesProvider`, source
+   `login_sites`, grupo **directos**): recorre `data/empresas/login_sites.json`
+   con el Brave del usuario por CDP (mismo mecanismo que LinkedIn/ANE/Indeed):
+   - modo **dom**: extraccion generica por selectores CSS del JSON;
+   - modo **page_fetch**: `fetch()` de la API del SPA **dentro de la pagina**
+     (mismo origen, cookies CF incluidas) y mapeo por dot-paths;
+   - interstitial Cloudflare: deteccion por TITULO + body ("Un momento..." solo
+     aparecia en <title>) + **auto-click del Turnstile** (en Brave real cedio
+     solo en las pruebas);
+   - login-wall/sin datos -> registra el pendiente en
+     `data/empresas/pending_login.json` con motivo y SALTA (corrida sigue);
+   - lista vacia legitima = "0 posiciones", NO pendiente.
+2. **`hacer_login.py`** (CLI): abre cada pendiente en el navegador del
+   usuario; tras confirmar "[s]", lo quita de la lista. La sesion queda en el
+   perfil y las corridas la reutilizan.
+
+### Hallazgos por empresa (ronda de sondas en vivo)
+
+- **Nestle**: el front `www.nestle.com/jobs` es Drupal + **SearchStax**
+  (widget JS, country facet "Costa Rica (3)") tras Cloudflare — PERO las URLs
+  de detalle son `jobdetails.nestle.com/job/{slug}/{req}` = huella de
+  **SAP SuccessFactors j2w**. El feed RSS
+  `https://jobdetails.nestle.com/services/rss/job/?keywords=(Costa Rica)`
+  responde **200 por httpx plano** con 3 CR (Mercaderista, Tecnico de Taller,
+  Especialista de Proyectos — Heredia, fechas oct-2026). Solucion: entrada
+  en `successfactors_sites.json`; SF paso de 13 a **16 CR**. Sin login, sin
+  navegador, desc completa. Nestle sale de "bloqueados".
+- **PayPal**: careers.pypl.com es un CMS corporativo (Q4), NO el board. El
+  ATS real es **Eightfold AI** (`paypal.eightfold.ai`): `/api/apply/v2/jobs`
+  da 403 "Not authorized for PCSX" incluso in-page; el endpoint real del SPA
+  (visto por XHR-sniffing) es **`/api/pcsx/search?domain=paypal.com`** que si
+  responde 200 con fetch in-page. Shape decodificado (name, locations[],
+  positionUrl, postedTs epoch). Facets: **PayPal no tiene presencia CR hoy**
+  (solo US/UK/Singapore/Berlin/Bengaluru). Provider queda listo: si PayPal
+  abre CR, las vacantes fluyen sin cambios. (El redirect geo-IP a "Heredia,
+  CR" era solo localizacion por IP, no evidencia de vacantes.)
+- **Alorica**: funnel de hiring = **bling-ai** (`alorica-hire.bling-ai.com/
+  alorica/career`): app de entrevistas AI (bundle de 6.2MB revisado:
+  /api/interview/start, /api/req/detail, /api/candidates/* — **sin endpoint
+  publico de listado**). Los funnels `recruit-latam.alorica.com/*-career`
+  son por campana y solo MX (gdl/leon/pbl; sjo = 404). Queda pendiente
+  documentado hasta hallar el funnel CR vigente.
+
+### Bug de la reorg corregido (regression silenciosa)
+
+Los 9 providers de `providers/directos/` resolvian sus JSON con
+`Path(__file__).parent.parent` — correcto cuando vivian en `providers/`,
+roto tras el Move-Item (apuntaba a `providers/data/...` que no existe) y
+caian **en silencio** a sus constantes SITE_FALLBACK (por eso las corridas
+parecian normales: fallbacks estaban sincronizados con los JSON). Corregido
+a `parent.parent.parent` en los 9 (workday, phenom, tp, greenhouse, icims,
+smartrecruiters, successfactors, rippling, ats_ligeros). Evidencia: al
+corregir, SuccessFactors tomo la entrada nueva de Nestle (16 CR vs 13).
+**Leccion**: todo provider que cargue JSON debe validar que el archivo
+exista y LOGUEAR si usa fallback.
+
+### Estado
+
+- `main.py` paso "2l" (login-sites) integrado tras ats_ligeros, dentro del
+  bloque del navegador (recibe `port`).
+- `app.py`/`search.py`: source `login_sites` en los desplegables/filtros;
+  mapeado a grupo directos en `source_groups.py` (su copia en boards se
+  deduplica igual que los demas ATS).
+- Smoke final: PayPal "0 posiciones (API ok)" sin pendiente; Alorica
+  pendiente con motivo. `py_compile` OK en todo lo tocado.
+
+
+## 40. Definicion del flujo de LOGINS: "tu navegador es la boveda" (2026-10-19)
+
+**Pregunta del usuario**: "tenemos que definir que hace con los login, si me
+das las paginas para hacer log in o creas una pagina de login para yo poner
+las credenciales".
+
+**Decision**: NO se construye formulario de credenciales (opcional B).
+Razones: (1) guardaria contrasenas = responsabilidad de seguridad que el
+proyecto no necesita — hoy es cero credenciales y asi se queda; (2) el login
+automatizado es exactamente lo que Cloudflare/LinkedIn/Indeed mas detectan
+(CAPTCHA, 2FA, bloqueos) — un formulario no lo resuelve, lo empeora; (3) cada
+sitio tiene flujo distinto (2FA, OAuth de Google) → alta fragilidad.
+
+Se implementa la **Opcion A mejorada**: el sistema TE DA los links y
+verifica.
+
+### Piezas nuevas
+
+1. **`core/sesiones.py`** (logica compartida):
+   - `sitios_con_sesion()`: union de BOARDS_SESION (Indeed ⭐, LinkedIn
+     opcional) + `login_sites.json` (PayPal, Alorica) + motivos de
+     `pending_login.json`.
+   - `abrir_en_brave(url)`: abre el sitio en el Brave del usuario (Popen
+     normal, SIN taskkill ni puerto de debug → pestana en la sesion viva;
+     el login cae en el perfil correcto, el mismo que el scraper monta por
+     CDP).
+   - `verificar_sesion(url)`: monta Brave por CDP (flujo normal de corrida)
+     y detecta muro real. Afinado tras falsos positivos: los marcadores de
+     login van en el **titulo** + frases fuertes del body ("inicia sesion
+     para continuar"...), porque el boton "Iniciar sesion" esta SIEMPRE en
+     la homepage (logueado o no). Por eso cada board trae `url_check`
+     (una BUSQUEDA real: es ahi donde salta el muro, no en la homepage).
+2. **Tab "Sesiones" en `app.py`**: lista sitios con estado (⭐ recomendado /
+   🟡 pendiente / 🟢 configurado), boton "Abrir en Brave", boton "Verificar
+   sesion" (Brave se reinicia unos segundos), "Marcar resuelto" que limpia
+   el pendiente de `pending_login.json`.
+3. **`hacer_login.py` v2** (CLI equivalente): recorre sitios, abre en Brave,
+   confirma [s]/[n] y verifica con [v].
+
+### Hallazgo de la verificacion en vivo
+
+El muro de Indeed de la corrida 2026-10-19 ("Iniciar sesion | Cuentas
+Indeed", 0 cards en 4/6 busquedas) es **intermitente por carga**: una
+carga aislada de la busqueda pasa sin muro ("Trabajos de Soporte ... |
+Indeed"), bajo trafico de scraping lo activan. Conclusion: el login en
+Indeed (recomendado, ⭐) blinda las corridas pesadas; la verificacion
+reporta el estado del momento. LinkedIn guest OK.
+
+### Smoke final
+
+- `verificar_sesion` Indeed busqueda → ok (sin muro ahora); LinkedIn → ok.
+- `hacer_login.py --list` muestra los 4 sitios con estado y motivo.
+- `py_compile` OK en core/sesiones.py, app.py, hacer_login.py.
+
+
+### Nota de cierre de sesion (2026-10-19, corrida final)
+
+Corrida completa de cierre con todo integrado: 713 crudas -> dedupe 14 ->
+699 -> gate -> 104 aprobadas -> 10 nuevas; 5 en las ultimas 24h
+(data/report_24h_20261019.csv). jobs_raw: 858 (617 de hoy). Nestle persistida
+via successfactors (3 CR con fecha). Distribucion de hoy: workday 334, ane 90,
+linkedin 47, rippling 42, ats_ligeros 25 (workable en pausa 429), cinde 19,
+greenhouse 17, successfactors 16, indeed 15, phenom 10, tp 1, sr 1.
+
+**Known-issue menor (no bloqueante)**: main.py en corrida de scraping termina
+con exit code 1 en Windows PERO sin traceback y con TODO persistido (los
+reportes son lo ultimo que corre; la base y los CSV quedan bien). `--help`
+y `--refiltrar` salen limpios; el exit no-0 aparece solo tras usar
+Brave/CDP + torch en el mismo proceso — sospechoso: teardown de
+Playwright/greenlet o torch al exit. A investigar en otra sesion (cosmetico:
+no afecta datos; si se agenda por Task Scheduler, ignorar el codigo o
+envolver con `; exit 0`).
+
+---
+
+## 2026-10-19 (tarde) — 4 bugs: credenciales, grupos, GUI primero y progreso en vivo
+
+### Bug 1 — No existía una forma de poner passwords ni una lista de sitios que los piden
+
+- **Solución**: almacén local `core/credenciales.py` sobre
+  `data/empresas/credenciales.json` (escritura atómica, en `.gitignore`:
+  **nunca viaja a git**). Expone `lista_sitios_login()` (la lista),
+  `credencial/upsert/borrar`, `marcar_auto_login()` y
+  `registrar_requerimiento()` que fusiona seed + detecciones runtime +
+  `pending_login.json` + `login_sites.json`.
+- **CLI** `credenciales.py`: sin argumentos imprime la lista (empresa,
+  OBLIGATORIO/opcional, con/sin credencial, auto-login, grupo, motivo);
+  `--set EMPRESA [--user --pass]`, `--borrar`, `--auto EMPRESA on|off`
+  (y `--set X --auto on` para hacer ambas en una tanda).
+- **Auto-login con fallback** (`providers/login/auto_login.py`): solo si el
+  sitio está en `auto_login ON` (opt-in). Intenta 1 paso o 2 pasos
+  (email → password) según el sitio; si hay CAPTCHA/2FA o el selector
+  cambia, se cae a login manual/sesión existente **sin romper la corrida**.
+- Integración: ANE usa el almacén con fallback `ANE_USER/ANE_PASSWORD`;
+  Indeed detecta su muro de login, se registra en la lista e intenta
+  auto-login; `browser_sites.py` reintenta con auto-login antes de dejar
+  el sitio como pendiente.
+- Semilla actual (5 sitios): ANE (obligatorio, credencial vía .env),
+  Indeed (obligatorio), LinkedIn (opcional), Alorica y PayPal (opcionales,
+  detectados). `main.py --preflight` reporta credenciales faltantes.
+
+### Bug 2 — No se distinguía un job board de un portal de empresa
+
+- Toda corrida ahora etiqueta cada fase/vacante con su grupo via
+  `providers/source_groups.py` (boards vs directos). Etiquetas visibles:
+  **Job board (agregador)** (ANE, CINDE, Indeed, LinkedIn) y
+  **Portal de la empresa** (Workday, iCIMS, Greenhouse, Phenom, TP,
+  SmartRecruiters, SuccessFactors, Rippling, ATS ligeros, login sites).
+- `main.py` suma `encontradas.boards` / `encontradas.directos` separados,
+  `job_row()` agrega columna "Grupo" y `app.py` ofrece filtro de grupo en
+  sidebar + columnas en la tabla.
+
+### Bug 3/4 — La GUI cargaba tarde (o nunca) y no mostraba progreso
+
+- **`jobpulse.cmd` reescrito: primero el dashboard.** Arranca Streamlit,
+  espera HTTP 200 (hasta 120 s), abre el navegador y **después** lanza el
+  scraping; pasa argumentos (`jobpulse.cmd --preflight`) y no duplica
+  corridas (chequeo de PID vivo). `timeout` final con fallback a `ping`
+  para que salga 0 en consolas sin stdin.
+- **Pestaña "🚀 Corrida"** en `app.py`: fragmento
+  `@st.fragment(run_every="2s")` que lee `data/corrida_estado.json`
+  (fuente única de verdad, escrita atómica por `core/progreso.py`): estado,
+  barra de progreso `paso/total_fases`, chips de grupo, contadores
+  encontradas/resumen, botones Iniciar/Preflight/Detener/Reindexar y tail de
+  `data/corrida.log`. Funciona aunque la corrida la lance la consola,
+  `jobpulse.cmd` o el propio dashboard (stdout crudo en
+  `data/corrida_stdout.log`).
+- **Pestaña "🔑 Credenciales"**: resumen (total/obligatorios/con
+  credencial/pendientes), tabla de la lista, alta/edición con campo
+  password `type="password"`, toggle auto-login y borrado.
+- `main.py` ganó `--preflight` (sin red ni navegador: plan de corrida,
+  grupos y credenciales faltantes) y el conteo de fases quedó exacto
+  (22/22 reales, calculado después de la expansión semántica).
+
+### Verificación
+
+- Corrida real completa lanzada desde el botón del dashboard: `estado ok`,
+  290 boards + 434 directos crudas, 1 nueva; barra y grupos visibles en vivo.
+- `python main.py --preflight` → exit 0, FASE 22/22 sin pasarse.
+- `cmd /c jobpulse.cmd --preflight` → dashboard primero (reutiliza 8501 si
+  ya corre), navegador, corrida y exit 0.
+- Round-trip CLI `--set/--auto/--borrar` OK y `git check-ignore` confirma
+  `data/empresas/credenciales.json` ignorado (sin password residual tras
+  la prueba). `py_compile` OK en todos los archivos tocados.
