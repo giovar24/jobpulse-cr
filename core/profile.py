@@ -9,12 +9,45 @@ Contrato con el futuro analizador de CV: su unico trabajo es leer un CV y
 escribir/actualizar data/profile.json con este mismo formato.
 """
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_PATH = BASE_DIR / "data" / "profile.json"
 DEFAULT_PROFILE_PATH = DEFAULT_PATH  # alias legible para los entrypoints
+
+
+def guardar_perfil(data: Dict, path=None) -> Optional[Path]:
+    """Escribe el perfil en disco con backup automatico del anterior.
+
+    Unico escritor del perfil (app.py pestaña Editar perfil, cv2profile.py):
+    recibe el dict COMPLETO —asi se conservan las claves que el modelo no toca
+    (_comentario, contacto, filtros, pesos_ats... solo se corrigen las que el
+    usuario editó— y hace backup del archivo que reemplaza, porque borrar un
+    titulo inventado por el extractor no se puede deshacer a mano.
+
+    Devuelve la ruta del backup, o None si no había archivo previo (perfil nuevo).
+    """
+    p = Path(path) if path else DEFAULT_PATH
+    p.parent.mkdir(parents=True, exist_ok=True)
+    bk = None
+    if p.exists():
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        bk = p.with_name(p.stem + f"_backup_{stamp}.json")
+        try:
+            bk.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
+        except OSError:
+            bk = None
+    p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return bk
+
+
+def backups_perfil(path=None) -> List[Path]:
+    """Backups `profile_backup_*.json` del perfil, mas recientes primero."""
+    p = Path(path) if path else DEFAULT_PATH
+    return sorted(p.parent.glob(p.stem + "_backup_*.json"),
+                  key=lambda f: f.stat().st_mtime, reverse=True)
 
 
 class CandidateProfile:

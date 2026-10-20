@@ -19,11 +19,12 @@ from providers.boards.ane import AneProvider
 from providers.boards.cinde import CindeProvider
 from providers.directos.workday import WorkdayProvider
 from providers.base import JobOffer
-from providers.source_groups import (GROUP_BOARDS, GROUP_DIRECTOS, RUN_CHOICES,
+from providers.source_groups import (GROUP_BOARDS, GROUP_DIRECTOS,
+                                     GROUP_ESTATALES, RUN_CHOICES,
                                      RUN_LABEL, RUN_TODOS, run_incluye,
                                      source_group)
 from core.dedupe import dedupe_boards_vs_directos
-from core.progreso import GRUPO_LABEL, iniciar_corrida
+from core.progreso import GRUPO_LABEL, GRUPO_RESTO, iniciar_corrida
 from core import credenciales as creds_store
 
 ensure_workspace()   # crea data/, profile.json (generico) y .env si faltan
@@ -75,13 +76,15 @@ AL_PAGES = int(os.getenv("AL_MAX_PAGES", "6"))
 
 # Orden de los barridos "de un solo tiro" (uno por proveedor, sin termino de
 # busqueda). Lo usa la GUI (pestana Corrida) para la barra de progreso y para
-# diferenciar JOB BOARDS (agregadores: Indeed/LinkedIn/ANE...) de PORTALES DE
-# LA EMPRESA (ATS directo: Workday, iCIMS, Greenhouse...).
-# El grupo tambien define el ALCANCE con --solo: "boards" se corre aparte de
-# "ats", asi que cada corrida puede fallar o reprogramarse sin la otra.
+# diferenciar PORTALES ESTATALES (ANE/CINDE/Procomer) de JOB BOARDS
+# (agregadores: Indeed/LinkedIn) y de PORTALES DE LA EMPRESA (ATS directo:
+# Workday, iCIMS, Greenhouse...). El grupo tambien define el ALCANCE con
+# --solo: "ats" se corre aparte de "boards", y los estatales entran en la
+# corrida de boards (no son ATS de empresa), asi que cada corrida puede
+# fallar o reprogramarse sin la otra.
 BARRIDOS = [
-    ("ANE (barrido por fecha)", "boards"),
-    ("CINDE Jobs", "boards"),
+    ("ANE (barrido por fecha)", "estatales"),
+    ("CINDE Jobs", "estatales"),
     ("Workday", "directos"),
     ("Phenom", "directos"),
     ("TP (Teleperformance)", "directos"),
@@ -119,7 +122,7 @@ def resolve_first(hosts):
 def job_row(j):
     return {
         "Fuente": j.source,
-        "Grupo": GRUPO_LABEL.get(source_group(j.source), "Job board (agregador)"),
+        "Grupo": GRUPO_LABEL.get(source_group(j.source), GRUPO_RESTO),
         "Puesto": j.title,
         "Empresa": j.company,
         "Ubicación": j.location,
@@ -221,8 +224,13 @@ async def refiltrar(db, profile, engine, dias, min_score, prog=None):
     newly, _, _ = await _aplicar_gate(db, profile, engine, offers, dias, min_score)
     _reportes(newly)
     if prog:
-        prog.sumar("boards", sum(1 for o in offers if source_group(o.source) != GROUP_DIRECTOS))
-        prog.sumar("directos", sum(1 for o in offers if source_group(o.source) == GROUP_DIRECTOS))
+        prog.sumar(GROUP_ESTATALES, sum(
+            1 for o in offers if source_group(o.source) == GROUP_ESTATALES))
+        prog.sumar(GROUP_BOARDS, sum(
+            1 for o in offers
+            if source_group(o.source) not in (GROUP_DIRECTOS, GROUP_ESTATALES)))
+        prog.sumar(GROUP_DIRECTOS, sum(
+            1 for o in offers if source_group(o.source) == GROUP_DIRECTOS))
     return _resumen_progreso(prog, len(newly)) if prog else None
 
 
@@ -288,6 +296,7 @@ def _resumen_progreso(prog, nuevas: int) -> dict:
         "nuevas": nuevas,
         "crudas_boards": enc.get("boards", 0),
         "crudas_directos": enc.get("directos", 0),
+        "crudas_estatales": enc.get("estatales", 0),
     }
 
 
@@ -430,7 +439,12 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
                     else:
                         valid = [j for j in res if j.title and j.link]
                         logger.info(f"Provider {name} found {len(valid)} valid jobs")
-                        prog.sumar("boards", len(valid))
+                        # Procomer es portal estatal; LinkedIn/Indeed son
+                        # agregadores. Se cuentan por separado en la GUI.
+                        prog.sumar(GROUP_ESTATALES, sum(
+                            1 for j in valid if source_group(j.source) == GROUP_ESTATALES))
+                        prog.sumar(GROUP_BOARDS, sum(
+                            1 for j in valid if source_group(j.source) != GROUP_ESTATALES))
                         raw_offers.extend(valid)
 
             # --- 2. ANE por barrido de fecha (UNA sola vez, ignora termino) ---
@@ -448,7 +462,7 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
                 )
                 valid_ane = [j for j in ane_jobs if j.title and j.link]
                 logger.info(f"ANE barrido: {len(valid_ane)} vacantes crudas")
-                prog.sumar("boards", len(valid_ane))
+                prog.sumar(GROUP_ESTATALES, len(valid_ane))
                 raw_offers.extend(valid_ane)
             except Exception as e:
                 logger.error(f"ANE barrido error: {e}")
@@ -462,7 +476,7 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
                 )
                 valid_cinde = [j for j in cinde_jobs if j.title and j.link]
                 logger.info(f"CINDE barrido: {len(valid_cinde)} vacantes crudas")
-                prog.sumar("boards", len(valid_cinde))
+                prog.sumar(GROUP_ESTATALES, len(valid_cinde))
                 raw_offers.extend(valid_cinde)
             except Exception as e:
                 logger.error(f"CINDE barrido error: {e}")
@@ -642,10 +656,11 @@ if __name__ == "__main__":
     parser.add_argument("--solo", choices=list(RUN_CHOICES), default=RUN_TODOS,
                         help="Separa la corrida en dos alcances: 'ats' solo "
                              "portales de empresa (Workday, Greenhouse, iCIMS, "
-                             "Rippling...), 'boards' solo job boards (Indeed, "
-                             "LinkedIn, Procomer, ANE/Brete, CINDE), 'todos' "
-                             "(default) ambos como hasta ahora. Sin efecto con "
-                             "--refiltrar, que siempre reconstruye todo jobs_raw")
+                             "Rippling...), 'boards' los job boards (Indeed, "
+                             "LinkedIn) + los 3 portales estatales (ANE/Brete, "
+                             "CINDE, Procomer), 'todos' (default) ambos como "
+                             "hasta ahora. Sin efecto con --refiltrar, que "
+                             "siempre reconstruye todo jobs_raw")
     args = parser.parse_args()
     asyncio.run(main(
         fresh=args.fresh, sin_expand=args.sin_expand,

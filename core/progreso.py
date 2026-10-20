@@ -38,9 +38,15 @@ STDOUT_PATH = DATA / "corrida_stdout.log"
 _LOCK = threading.Lock()
 _INSTANCIA: Optional["Progreso"] = None
 
+# Los grupos PUBLICOS son 2 (ver providers/source_groups.py): el trio
+# estatal y todo lo demas. boards/directos solo existen por dentro (dedupe y
+# alcance de corrida), asi que se rotulan con la misma etiqueta del resto.
+GRUPO_RESTO = "Resto (agregadores + ATS)"
+GRUPO_ESTATALES = "Portal estatal (ANE/CINDE/Procomer)"
 GRUPO_LABEL = {
-    "boards": "Job board (agregador)",
-    "directos": "Portal de la empresa",
+    "boards": GRUPO_RESTO,
+    "directos": GRUPO_RESTO,
+    "estatales": GRUPO_ESTATALES,
 }
 
 
@@ -161,7 +167,7 @@ class Progreso(object):
             "paso": 0,
             "total_fases": 0,
             "fases_completadas": [],
-            "encontradas": {"boards": 0, "directos": 0},
+            "encontradas": {"boards": 0, "directos": 0, "estatales": 0},
             "resumen": {},
             "ultimo_log": "",
         }
@@ -203,7 +209,9 @@ class Progreso(object):
         self._grabar()
 
     def sumar(self, grupo: str, n: int):
-        g = "directos" if grupo == "directos" else "boards"
+        # Los portales estatales tienen su propia cubeta; lo demas (o un
+        # grupo desconocido) sigue contando como "boards".
+        g = grupo if grupo in ("directos", "estatales") else "boards"
         self._estado["encontradas"][g] = self._estado["encontradas"].get(g, 0) + int(n)
         self._grabar()
 

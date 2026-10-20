@@ -33,11 +33,13 @@ System). Sin APIs de pago, sin nube, sin LLMs.
   extracciones, IA local, revisión con evidencia por frase y perfil final).
 - **Dashboard Streamlit** (`app.py`): **Ranking** (desglose ATS), **Búsqueda
   libre**, **🚀 Corrida** (progreso en vivo de un scraping: fase, barra,
-  vacantes por grupo *boards* vs *portales directos*, log y botones
-  Iniciar/Preflight/Detener), **🔑 Credenciales** (sitios que piden password,
-  guardar/borrar, auto-login) y **🔐 Sesiones** (login manual en tu Brave).
+  vacantes por grupo *estatales* / *boards* / *portales directos*, log y
+  botones Iniciar/Preflight/Detener), **🔑 Credenciales** (sitios que piden
+  password, guardar/borrar, auto-login) y **🔐 Sesiones** (login manual en tu
+  Brave).
 - **Grupos de fuente** (`providers/source_groups.py`): cada vacante se
-  etiqueta como *Job board (agregador)* (Indeed, LinkedIn, ANE, CINDE) o
+  etiqueta como *Portal estatal (ANE/CINDE/Procomer)* — los 3 portales
+  oficiales de CR —, *Job board (agregador)* (Indeed, LinkedIn) o
   *Portal de la empresa* (Workday, iCIMS, Greenhouse...), lo que alimenta
   el dedupe cross-source y los contadores de la pestaña Corrida.
 

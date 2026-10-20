@@ -45,9 +45,14 @@ LOGIN_SITES_JSON = EMPRESAS_DIR / "login_sites.json"
 # RLock: `agregar_sitio_login` anida registrar/marcar (mismo hilo reentra)
 _LOCK = threading.RLock()
 
+# Mismos 2 grupos publicos que providers/source_groups.py: el trio estatal y
+# todo lo demas (agregadores + ATS de la empresa).
+GRUPO_RESTO = "Resto (agregadores + ATS)"
+GRUPO_ESTATALES = "Portal estatal (ANE/CINDE/Procomer)"
 GRUPO_LABEL = {
-    "boards": "Job board (agregador)",
-    "directos": "Portal de la empresa",
+    "boards": GRUPO_RESTO,
+    "directos": GRUPO_RESTO,
+    "estatales": GRUPO_ESTATALES,
 }
 
 # Seeds: los sites que se SABEN que piden password/sesion antes de la 1a corrida.
@@ -57,7 +62,7 @@ _SEED = [
         "empresa": "ANE",
         "url": "https://www.ane.cr/Cuenta/Login",
         "url_check": "https://www.ane.cr/Puesto",
-        "grupo": "boards",
+        "grupo": "estatales",
         "obligatorio": True,
         "auto_login": True,
         "motivo": "Cuenta gratuita obligatoria: sin sesion el listado solo "
@@ -141,7 +146,19 @@ def cargar_requeridos() -> List[dict]:
     if not isinstance(data, list):
         _escribir(REQ_JSON, [dict(s, ts=_ahora()) for s in _SEED])
         return [dict(s, ts=_ahora()) for s in _SEED]
-    return [d for d in data if isinstance(d, dict) and d.get("empresa")]
+    items = [d for d in data if isinstance(d, dict) and d.get("empresa")]
+    # Migracion suave de grupo: los seeds fijan el grupo oficial (ANE paso de
+    # "boards" a "estatales" al crear el grupo de portales estatales). Solo se
+    # corrige el grupo de las entradas detectadas como seed, sin pisar lo que
+    # el usuario haya cambiado a mano.
+    _grupos_seed = {_norm(s.get("empresa", "")): s.get("grupo", "")
+                    for s in _SEED if s.get("detectado") == "seed"}
+    for it in items:
+        if it.get("detectado") == "seed":
+            g = _grupos_seed.get(_norm(it.get("empresa", "")))
+            if g:
+                it["grupo"] = g
+    return items
 
 
 def guardar_requeridos(data: List[dict]) -> bool:
