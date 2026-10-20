@@ -17,7 +17,7 @@ Criterio Fecha Y relevancia Y dominio:
   - Fecha dura: date_published dentro de la ventana (dias).
   - Relevancia: score semantico perfil<->vacante >= min_score.
   - Dominio del titulo (veto lexico): el titulo debe contener un token del
-    dominio (soporte / atencion al cliente / TI...). Medido con datos reales,
+    dominio (soporte / atencion al cliente / TI general). Medido con datos reales,
     el embedding del TITULO no separa oficios de soporte ("Mecanico
     Automotriz" obtiene title-score 0.37, mas alto que su propio
     desc-score 0.30): la senal util es lexica, no semantica. Escape: score
@@ -47,13 +47,20 @@ DEFAULT_DIAS = 30
 # Score al que una vacante pasa aunque su titulo no tenga tokens del dominio.
 ESCAPE_SCORE = 0.45
 
-# Tokens del dominio soporte / atencion al cliente (ES+EN). Se aplica sobre el
-# titulo sin acentos y en minuscula. Tokens de ROL ("tecnico", "analista",
-# "representante"...) NO cuentan: "Tecnico de Aire Acondicionado" debe caer.
+# Tokens del dominio soporte / atencion al cliente y TI general (ES+EN). Se
+# aplica sobre el titulo sin acentos y en minuscula. Tokens de ROL ("tecnico",
+# "analista", "representante"...) NO cuentan: "Tecnico de Aire Acondicionado"
+# debe caer.
+# Los tokens TI van SIEMPRE con \b (palabra completa): "software" no debe
+# matchear "softwarez" ni "data" matchear "database" por accidente de subcadena.
+# "engineer"/"ingenier" quedan FUERA a proposito: son de rol, no de dominio, y
+# arrastrarian oficios ("Ingeniero Mecanico", "Ingeniero Industrial").
 _TITLE_TOKENS = re.compile(
     r"(soporte|support|help\s*desk|service\s*desk|helpdesk|"
     r"mesa\s+de\s+(ayuda|asistencia)|customer|cliente|informatic|"
-    r"biling|asistencia\s+tecnica|\bti\b|\bit\b|sistemas|redes)",
+    r"biling|asistencia\s+tecnica|\bti\b|\bit\b|sistemas|redes|"
+    r"\b(software|developer|desarrollador\w*|architect|cloud|data|"
+    r"full\s*stack|devops|sysadmin|dba|qa)\b)",
     re.IGNORECASE)
 
 
