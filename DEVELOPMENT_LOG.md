@@ -2,6 +2,138 @@
 
 Este documento registra el proceso de creación, los desafíos técnicos enfrentados y las soluciones implementadas para el sistema de scraping de empleos JobPulse CR.
 
+## 🤖 GUÍA DEL AGENTE (léela ANTES de tocar código)
+
+> Esta sección es para la IA/agente que trabaje en el repo — **no** es
+> documentación de usuario (eso está en `README.md`) ni historial (eso son
+> las entradas numeradas de esta bitácora).
+>
+> **REGLA DE ORO**: cada vez que cambie el *cómo funciona* el proyecto (flujo,
+> archivos clave, comandos, convenciones, datos), actualiza ESTA sección en
+> el mismo commit, y la entrada de bitácora correspondiente debe mencionar que
+> el nuevo comportamiento quedó reflejado aquí. Si sigues viendo arriba un
+> comportamiento que ya no existe, esta guía está rota: arréglala.
+
+### Qué es
+JobPulse CR (repo PÚBLICO `giovar24/jobpulse-cr`): raspa vacantes de Costa
+Rica de **15 fuentes**, las filtra por fecha **Y** relevancia contra el perfil
+del candidato, y las deja en base local + reportes CSV + dashboard.
+- Perfil del candidato (`data/profile.json`, generado del CV con
+  `cv2profile.py`) define búsquedas y scoring; se expande semánticamente.
+- Embeddings **locales en CPU** (fallback automático al modelo
+  `sentence-transformers/paraphrase-multilingual-mpnet-base-v2` cuando
+  `google/embeddinggemma-300m` responde 401 gated).
+- Salida visible: `data/jobs.db`, `data/report_AAAAMMDD.csv` (día y 24h) y el
+  dashboard Streamlit (pestaña Ranking).
+
+### Cómo funciona una corrida (`python main.py`, botón ▶️ o `jobpulse.cmd`)
+1. **Preparación**: perfil → búsquedas expandidas (`core/search_engine.py`).
+2. **Fases providers** — 15 en 2 grupos (`providers/source_groups.py`):
+   - **boards = 5** (agregadores): indeed, linkedin, ane, procomer, cinde.
+   - **directos = 10** (ATS de la empresa): workday, phenom, tp, greenhouse,
+     icims, smartrecruiters, successfactors, rippling, ats_ligeros, login_sites.
+   Las fases que lo necesitan abren **TU Brave por CDP**
+   (`core/browser_manager.py`) con tu perfil (cookies). Cada fase publica
+   progreso en `data/corrida_estado.json`; la GUI solo observa ese archivo.
+3. **Regla SESIÓN PRIMERO** (Indeed, LinkedIn, portales de `login_sites.json`):
+   la sesión del navegador manda (login manual una vez con
+   `python hacer_login.py`); el auto-login opt-in (credencial local en
+   `data/empresas/credenciales.json`, gitignored; password o SSO Google
+   "Continuar con Google") **solo dispara si NO hay sesión activa** y a lo
+   sumo **1 vez por corrida**; si falla (CAPTCHA/2FA) queda pendiente y la
+   corrida sigue.
+4. **Dedupe cross-source** (`core/dedupe.py`): gana el provider directo (ATS
+   de la empresa) sobre la copia republicada en los boards.
+5. **Gate** (`core/gate.py`): aprueba por fecha (`--dias`, default **30**) **Y**
+   relevancia semántica (`--score-min`, default **0.30**) — son ambas.
+6. **Persistencia** (abajo) + **reportes** CSV del día/24h.
+
+### Qué pasa ENTRE corridas (persistencia)
+- `data/jobs.db` (SQLite, `core/database.py`) con **2 tablas**:
+  - `jobs_raw` = staging: **todo** lo crudo + `gate_score`/`gate_razon`.
+  - `jobs` = solo aprobados por el gate (lo que ve el ranking).
+- **Por defecto NADA se borra: se ACUMULA** vía upsert por `job_id`
+  (`save_jobs`): fila existente → actualiza campos vacíos + gate, **su
+  `created_at` NO cambia** (por eso "vacantes nuevas de 24h" cuenta llegadas,
+  no re-publicaciones); fila nueva → INSERT (esa es la "nueva" del informe).
+- Borrados **solo** en casos explícitos: `--fresh` (vacía ambas tablas al
+  inicio), `--refiltrar` (vacía SOLO `jobs` y la reconstruye desde `jobs_raw`
+  con el gate actual, sin scraping) y `clean_empty_jobs` (filas sin título ni
+  link, cada corrida).
+- **No hay poda por antigüedad**: la DB crece; el dashboard y los informes
+  filtran por fecha (24h/día; la pestaña Ranking permite "todas").
+- Reportes `data/report_AAAAMMDD.csv` y `report_24h_AAAAMMDD.csv`: contienen
+  SOLO las vacantes nuevas de **esa** corrida y se **sobrescriben por fecha de
+  día**; si una corrida posterior del mismo día no tiene nuevas, no escribe
+  (conserva el archivo anterior).
+- `data/corrida.log` y `data/corrida_stdout.log`: se **apendan** (nunca se
+  truncan). `data/corrida_estado.json`: estado atómico de la corrida en curso.
+- `data/empresas/` (credenciales, login_requerido, login_sites,
+  pending_login, catálogos): **sin trackear a propósito** (local +
+  regenerable) — los cambios ahí NO viajan a git.
+
+### Mapa rápido de archivos
+- `main.py` — orquestador (fases, dedupe, gate, guardado, reportes). Flags:
+  `--preflight` (valida el plan **sin red ni navegador**: 22 fases, exit 0),
+  `--fresh`, `--refiltrar`, `--dias`, `--score-min`, `--sin-expand`.
+- `app.py` — dashboard Streamlit, 5 pestañas: Ranking · Búsqueda libre ·
+  🚀 Corrida · 🔑 Credenciales · 🔐 Sesiones (lanza `main.py` como hijo).
+- `jobpulse.cmd` — un clic: **primero** el dashboard, después el scraping.
+- `core/credenciales.py` — LA LISTA de sitios que piden login + store de
+  credenciales; `sitio_en_flujo` / `agregar_sitio_login` / `quitar_sitio_login`
+  (alta/baja de sitios nuevos sin romper el flujo; los seeds no se quitan).
+- `credenciales.py` (raíz) — CLI de esa lista (`--set`, `--sso google`,
+  `--url`, `--quitar-sitio`, `--auto`, `--borrar`).
+- `providers/login/auto_login.py` — motor de login: user/pass y SSO Google
+  (el clic va **dentro del iframe GIS** de Indeed/LinkedIn → popup
+  `accounts.google.com`; si Google pide password → fallback manual).
+- `providers/login/browser_sites.py` — portales de `login_sites.json` (modos
+  `dom` con selectores CSS y `page_fetch` de API in-page; interstitial
+  Cloudflare; sitios de origen `manual` que el usuario da de alta).
+- `providers/boards/indeed.py` — `_hay_sesion` con **evidencia positiva**
+  (en duda = sin sesión) + guard `self._login_intents` (SSO máx. 1/corrida).
+- `providers/boards/linkedin.py` — `_muro_login` (authwall) + `_auto_login`
+  (solo opt-in).
+- `hacer_login.py` — abre portales para login manual (la sesión queda en tu
+  Brave y alimenta todas las corridas).
+- `caza_ats_grandes.py` — caza/registro de ATS grandes (Alorica y PayPal
+  marcados "no re-cazar": 0 vacantes CR).
+- `cv2profile.py` / `reporte_cv.py` — extraen el perfil / diagnostican un CV.
+- Núcleo: `core/gate.py`, `core/dedupe.py`, `core/database.py`,
+  `core/progreso.py`, `core/browser_manager.py`, `providers/source_groups.py`.
+
+### Convenciones y reglas duras
+1. **Bitácora**: entradas `## N. título (fecha, hora)` al final del archivo;
+   la serie crece sin renumerar (al cierre de esta guía la última es **#44**;
+   la siguiente es #45). **Cada entrada debe mencionar que el nuevo
+   comportamiento quedó reflejado en ESTA guía** (y actualizarla si aplica).
+2. **Privacidad**: repo público → nunca subir `.env`, `data/profile.json`,
+   CVs, credenciales ni datos personales (los ejemplos usan placeholders como
+   `yo@x.com`); credenciales SOLO en `data/empresas/*.json` (gitignored).
+   Antes de cada commit, revisar el diff por datos personales.
+3. **Tests al cerrar tarea**: `py_compile` de todos los `.py` (sin `.venv`,
+   sin `data/`), `python main.py --preflight` debe dar exit 0 con 22/22
+   fases, y las pruebas puntuales se hacen con scripts `_tmp_*.py` que se
+   **borran después**.
+4. **Entorno Windows/PowerShell 5.1**: no existe `&&` (usa `;`), el quoting
+   largo de `-c` es frágil → scripts temporales `.py`; acentos mojibake en la
+   consola pero UTF-8 correcto en archivos (ejecutar con `-X utf8`). Venv:
+   `.venv\Scripts\python.exe`.
+5. **Commit/push** al final de cada unidad de trabajo, mensaje estilo
+   `Bitacora N: ...`; el árbol debe quedar limpio salvo `data/empresas/`.
+6. Los semillas de `login_requerido.json` solo se escriben si el archivo NO
+   existe: para actualizar motivos/campos en instalaciones existentes hay que
+   sincronizar el JSON a mano.
+7. Cambio de *cómo funciona* ⇒ actualizar ESTA guía + (si es para humanos)
+   `README.md` + entrada de bitácora, **en el mismo commit**.
+
+### Estado y pendientes
+- No dupliques estado aquí: mira la **última entrada numerada** de esta
+  bitácora y `git log --oneline -5`.
+- Known-issue abierto: exit 1 cosmético al terminar corridas con Brave+CDT +
+  torch, sin traceback y con todo persistido.
+- Últimas verificaciones grandes: #42 (16/16) y #43 (23/23 + preflight 22/22).
+
 ## 🎯 Objetivo del Proyecto
 Crear un sistema eficiente de scraping de empleos para Costa Rica que consolide múltiples fuentes (LinkedIn, Indeed, ANE, PROCOMER), evite la detección de bots y genere reportes diarios de vacantes nuevas utilizando una base de datos persistente.
 
@@ -1483,6 +1615,36 @@ rompería el flujo** si no hay método adecuado.
 ### Pendientes
 - Ejercitar el SSO completo en vivo contra el Brave del usuario (clic → popup
   → Google está validado headless; el chooser con la cuenta real no).
-- Refinar `card_sel`/`loc_sel` de los sitios manales que devuelvan 0 vacantes
+- Refinar `card_sel`/`loc_sel` de los sitios manuales que devuelvan 0 vacantes
   (revisar en la próxima corrida).
 - (known-issue) exit 1 cosmético tras corridas Brave+CDT+torch.
+
+## 44. Guía del agente en la bitácora: características y funcionamiento (2026-10-19, noche)
+
+Contexto: el usuario pidió un apartado que describa las **características y el
+funcionamiento básico del proyecto para la IA/agente** (no para el usuario —
+eso es el `README.md`), que no se pierda en el historial, y que **cada vez que
+se actualice la bitácora se mencione que el nuevo comportamiento quedó
+reflejado en esa documentación**.
+
+- Se creó la sección **"🤖 GUÍA DEL AGENTE (léela ANTES de tocar código)"** al
+  PRINCIPIO de `DEVELOPMENT_LOG.md` (arriba del Objetivo, primeras líneas del
+  archivo). Contenido: qué es el proyecto (15 fuentes, perfil, embeddings
+  locales), pipeline de una corrida (perfil → 15 providers en 2 grupos
+  boards/directos → regla SESIÓN PRIMERO → dedupe → gate fecha 30d **Y**
+  score ≥0.30 → BD/reportes), **persistencia entre corridas** (`jobs_raw`
+  acumula TODO / `jobs` solo aprobados / upsert por `job_id` con `created_at`
+  intacto / borrados solo con `--fresh`, `--refiltrar` o filas vacías / sin
+  poda por antigüedad / informes CSV por día / logs en append /
+  `data/empresas/` sin trackear), mapa rápido de archivos, convenciones duras
+  (privacidad en repo público, PowerShell 5.1, tests al cerrar, commit) y
+  dónde mirar el estado (última entrada + `git log`).
+- **Nueva convención obligatoria** (asentada en la guía, punto de reglas):
+  todo cambio de *cómo funciona* se refleja en la guía **en el mismo commit**,
+  y la entrada de bitácora correspondiente **menciona explícitamente** ese
+  reflejo. Esta entrada #44 es el primer ejemplo: el nuevo comportamiento (la
+  propia guía) queda reflejado en la guía.
+- `README.md` recibe un puntero de una línea pidiendo a los agentes/IA leer la
+  guía antes de tocar código.
+- Verificación: cambios de documentación solamente (sin código): diff revisado
+  por datos personales; commit + push de `DEVELOPMENT_LOG.md` y `README.md`.

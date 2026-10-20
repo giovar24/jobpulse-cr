@@ -5,6 +5,11 @@ principales portales, las indexa con embeddings en tu propia CPU y las rankea
 contra tu perfil de candidato con un **score tipo ATS** (Applicant Tracking
 System). Sin APIs de pago, sin nube, sin LLMs.
 
+> 🤖 **Agentes/IA**: antes de tocar código, lee la **Guía del agente** al
+> inicio de `DEVELOPMENT_LOG.md` (cómo funciona el proyecto, persistencia
+> entre corridas, mapa de archivos y convenciones). Toda cambio de
+> comportamiento se refleja ahí en el mismo commit.
+
 ## Características
 
 - **Scraper** (`main.py`): Indeed, LinkedIn, ANE, Procomer, CINDE Jobs (cindejobs.com)
