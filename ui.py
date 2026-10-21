@@ -34,7 +34,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import filedialog, messagebox, ttk
 
 from core.ats import rank_with_ats
 from core import credenciales as creds_store
@@ -103,6 +103,7 @@ CORRIDA_TITULO = "JobPulse CR - Scraping"
 COLS_RANK = (
     ("score", "Match", 70, "e"),
     ("ats", "ATS", 58, "e"),
+    ("ia", "IA", 44, "e"),
     ("veredicto", "Veredicto", 132, "w"),
     ("fuente", "Fuente", 105, "w"),
     ("grupo", "Grupo", 48, "center"),
@@ -151,11 +152,20 @@ def cargar():
     if con is None:
         return None, None
     try:
-        filas = con.execute(
-            "SELECT job_id, source, title, company, location, link,"
-            "       date_published, description, requirements, gate_score"
-            " FROM jobs"
-        ).fetchall()
+        try:
+            filas = con.execute(
+                "SELECT job_id, source, title, company, location, link,"
+                "       date_published, description, requirements, gate_score,"
+                "       ia_score, ia_razon"
+                " FROM jobs"
+            ).fetchall()
+        except sqlite3.OperationalError:
+            # BD creada antes de la migracion IA: la UI sigue leyendo igual.
+            filas = con.execute(
+                "SELECT job_id, source, title, company, location, link,"
+                "       date_published, description, requirements, gate_score"
+                " FROM jobs"
+            ).fetchall()
         ultima = con.execute("SELECT MAX(created_at) FROM jobs_raw").fetchone()[0]
     finally:
         con.close()
@@ -165,9 +175,13 @@ def cargar():
         sc = f["gate_score"]
         src = f["source"] or ""
         g = grupo_publico(src)
+        tiene_ia = "ia_score" in f.keys()
+        ia = f["ia_score"] if tiene_ia else None
         out.append({
             "job_id": f["job_id"],
             "score": None if sc is None else round(sc * 100, 1),
+            "ia": None if ia is None else round(float(ia)),
+            "ia_razon": (f["ia_razon"] if tiene_ia else "") or "",
             "fuente": src,
             "grupo_int": g,                    # clave publica: estatales|otros
             "grupo": "EST" if g == "estatales" else "RESTO",
@@ -604,6 +618,7 @@ class App(tk.Tk):
     def _valores_rank(self, f):
         return ("" if f["score"] is None else f"{f['score']:.1f}",
                 "" if f["ats"] is None else f"{f['ats']:.0f}",
+                "" if f.get("ia") is None else f"{f['ia']:.0f}",
                 f["veredicto"],
                 f["fuente"], f["grupo"], f["puesto"], f["empresa"],
                 f["ubicacion"], f["publicada"])
@@ -755,7 +770,12 @@ class App(tk.Tk):
                           f"semántico {f['sem']:.0f}%)  ·  {f['veredicto']}")
             else:
                 linea += f"  ·  Match {f.get('score')}%"
-            t.insert("end", linea + "\n\n")
+            if f.get("ia") is not None:
+                linea += f"  ·  IA {f['ia']:.0f}/100"
+            t.insert("end", linea + "\n")
+            if f.get("ia_razon"):
+                t.insert("end", f"IA: {f['ia_razon']}\n", "rot")
+            t.insert("end", "\n")
             t.insert("end", (f.get("link") or "") + "\n\n")
             if f.get("faltantes"):
                 t.insert("end", "Keywords ATS que te faltan\n", "rot")
@@ -1055,6 +1075,26 @@ class App(tk.Tk):
                        "corrida sigue; si cierras la ventana verde, se detiene."
                   ).pack(side="left", padx=8)
 
+        barra_ia = ttk.Frame(tab, padding=(10, 0))
+        barra_ia.pack(fill="x", pady=(6, 0))
+        self._btn_ia = ttk.Button(
+            barra_ia, text="Re-evaluar crudo con IA",
+            command=lambda: self._corrida_arrancar(extra="--ia"))
+        self._btn_ia.pack(side="left")
+        self._btn_ia_cv = ttk.Button(
+            barra_ia, text="Evaluar CV con IA", command=self._ia_cv)
+        self._btn_ia_cv.pack(side="left", padx=6)
+        self._btn_ia_rep = ttk.Button(
+            barra_ia, text="Calibrar IA local",
+            command=lambda: self._corrida_arrancar(extra="--ia-reporte"))
+        self._btn_ia_rep.pack(side="left")
+        ttk.Label(barra_ia, foreground="#666", wraplength=1000,
+                  text="IA externa (Gemini/NVIDIA, requiere IA_API_KEY en "
+                       ".env): re-puntúa el crudo (no cambia qué entra a "
+                       "jobs), evalúa/crea el perfil desde un CV, o mide el "
+                       "acuerdo de la IA local. Consumen cuota gratuita."
+                  ).pack(side="left", padx=8)
+
         panel = ttk.LabelFrame(tab, text="Estado de la corrida", padding=10)
         panel.pack(fill="x", padx=10, pady=8)
         negr = ("Segoe UI", 9, "bold")
@@ -1098,7 +1138,8 @@ class App(tk.Tk):
 
         self.nb.add(tab, text="  Corrida  ")
 
-    def _corrida_arrancar(self, preflight: bool = False, solo: str = "todos"):
+    def _corrida_arrancar(self, preflight: bool = False, solo: str = "todos",
+                          extra: str = ""):
         """Lanza `python main.py` en su PROPIA ventana de consola VERDE.
 
         El scraping SOLO empieza con estos botones: esta UI nunca scrapea
@@ -1111,6 +1152,7 @@ class App(tk.Tk):
         `solo` separa el alcance (ats | boards | todos). El candado de
         iniciar_corrida() es exclusivo: si hay una viva, main.py se niega
         solo; aqui tambien se re-chequea antes de gastar proceso.
+        `extra` agrega flags tal cual (--ia, --ia-reporte, --ia-cv ...).
         """
         if corriendo():
             messagebox.showinfo("Corrida en curso",
@@ -1122,6 +1164,8 @@ class App(tk.Tk):
             args += " --preflight"
         if solo and solo != "todos":
             args += f" --solo {solo}"
+        if extra:
+            args += f" {extra}"
         # La UI corre bajo pythonw (sin consola): la corrida necesita
         # python.exe para tener donde escribir su salida.
         py = Path(sys.executable)
@@ -1137,6 +1181,25 @@ class App(tk.Tk):
             f'cmd /d /c start "{CORRIDA_TITULO}" cmd /d /s /c "{verde}"',
             cwd=str(BASE), stdin=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NO_WINDOW)
+
+    def _ia_cv(self):
+        """Elige un CV y lanza --ia-cv; pregunta si aplicar el perfil."""
+        ruta = filedialog.askopenfilename(
+            title="Elegí tu CV (PDF, DOCX, TXT o MD)",
+            filetypes=[("CV", "*.pdf *.docx *.txt *.md"),
+                       ("Todos los archivos", "*.*")])
+        if not ruta:
+            return
+        guardar = messagebox.askyesno(
+            "Perfil desde el CV",
+            "¿Querés que la IA además actualice data/profile.json con el "
+            "perfil propuesto?\n\nSe guarda un backup del perfil actual y "
+            "podés revisarlo en la pestaña Perfil. Si elegís No, solo se "
+            "genera el informe (data/cv_ia.md).")
+        extra = f'--ia-cv "{ruta}"'
+        if guardar:
+            extra += " --ia-guardar"
+        self._corrida_arrancar(extra=extra)
 
     def _corrida_detener(self):
         if not detener():

@@ -1,5 +1,7 @@
 import argparse
 import asyncio
+import csv
+import json
 import logging
 import os
 import re
@@ -11,7 +13,10 @@ from dotenv import load_dotenv
 from core.bootstrap import ensure_workspace
 from core.database import JobDatabase
 from core.browser_manager import BraveManager
-from core.gate import gate_jobs, DEFAULT_DIAS, DEFAULT_MIN_SCORE
+from core.gate import (gate_jobs, es_reciente, es_vigente, DEFAULT_DIAS,
+                       DEFAULT_MIN_SCORE)
+from core.ia_api import (IAClient, IAError, DEFAULT_IA_MIN, cv_a_markdown,
+                         perfil_hash)
 from providers.boards.procomer import ProcomerProvider
 from providers.boards.linkedin import LinkedInProvider
 from providers.boards.indeed import IndeedProvider
@@ -131,6 +136,8 @@ def job_row(j):
         "Vence": j.expires_at or "",
         "Salario": j.salary or "",
         "Gate": (f"{j.gate_score:.2f}" if j.gate_score is not None else ""),
+        "IA": (f"{j.ia_score:.0f}"
+               if getattr(j, "ia_score", None) is not None else ""),
         "Descripción": resume_text(j.description),
         "Requisitos": resume_text(j.requirements),
     }
@@ -238,6 +245,360 @@ async def refiltrar(db, profile, engine, dias, min_score, prog=None):
     return _resumen_progreso(prog, len(newly)) if prog else None
 
 
+# ---------------------------------------------------------------------------
+# IA externa (a demanda): segunda opinion fuerte sobre el crudo y el CV.
+# NUNCA se ejecuta dentro de una corrida normal de scraping; solo con --ia,
+# --ia-cv o --ia-reporte. La cuota se controla en core/ia_api.py.
+# ---------------------------------------------------------------------------
+
+def _ventana_ia(raw: list, dias: int) -> list:
+    """Crudo con descripcion, vigente y dentro de la ventana de fechas."""
+    return [
+        r for r in raw
+        if (r.get("description") or "").strip()
+        and es_vigente(r.get("expires_at"))
+        and es_reciente(r.get("date_published"), dias)
+    ]
+
+
+async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
+                      ia_max: int = 0, forzar: bool = False, prog=None) -> dict:
+    """Evalua el crudo (jobs_raw) con la IA fuerte, a demanda.
+
+    No cambia la membresia del gate: `jobs` sigue decidiendose con embeddings.
+    Solo anota score/razon en jobs_raw y jobs, guarda el historial en
+    `ia_evals` (para calibrar/destilar) y deja un CSV revisable del dia.
+    """
+    client = IAClient()
+    if not client.disponible:
+        logger.error("IA: %s", client.motivo_no_disponible())
+        return {"_estado": "error", "motivo": "IA sin clave (IA_API_KEY)"}
+    if ia_max and ia_max > 0:
+        client.max_vacantes = ia_max
+    if profile is None:
+        logger.warning("IA: no hay data/profile.json; la evaluación será "
+                       "genérica (sin títulos ni skills del candidato).")
+
+    raw = await db.get_raw_jobs()
+    ventana = _ventana_ia(raw, dias)
+    ventana.sort(key=lambda r: r.get("date_published") or "", reverse=True)
+    por_id = {r.get("job_id"): r for r in ventana}
+    p_hash = perfil_hash(profile)
+    modelo = f"{client.proveedor}/{client.modelo}"
+
+    pendientes = []
+    for r in ventana:
+        h = client.hash_vacante(r, p_hash)
+        r["_ia_hash"] = h
+        cacheada = (r.get("ia_hash") == h and r.get("ia_score") is not None)
+        if cacheada and not forzar:
+            continue
+        pendientes.append(r)
+
+    logger.info("IA: %d en ventana (%d días) · %d ya evaluadas · %d pendientes "
+                "· modelo %s", len(ventana), dias, len(ventana) - len(pendientes),
+                len(pendientes), modelo)
+    if prog:
+        prog.fase(f"IA: evaluando {len(pendientes)} vacantes", "IA",
+                  f"{modelo} · lotes de {client.lote}")
+
+    resultados, errores = {}, {}
+    if pendientes:
+        resultados, errores = client.puntuar_vacantes(
+            pendientes, profile,
+            progreso=(lambda msg: prog.nota(msg)) if prog else None)
+        for jid, res in resultados.items():
+            v = por_id.get(jid) or {}
+            res["hash"] = v.get("_ia_hash") or ""
+        await db.save_ia_latest(resultados, modelo)
+        ts = datetime.now().isoformat(timespec="seconds")
+        registros = []
+        for jid, res in resultados.items():
+            v = por_id.get(jid) or {}
+            registros.append({
+                "ts": ts, "tipo": "vacante", "proveedor": client.proveedor,
+                "modelo": client.modelo, "perfil_hash": p_hash,
+                "job_id": jid, "job_hash": res.get("hash"),
+                "score": res.get("score"),
+                "veredicto": ("aplica" if float(res.get("score") or 0) >= ia_min
+                              else "no"),
+                "razon": res.get("razon"),
+                "payload": json.dumps({
+                    "puesto": v.get("title"), "empresa": v.get("company"),
+                    "fuente": v.get("source"), "score": res.get("score"),
+                    "razon": res.get("razon")}, ensure_ascii=False),
+                "tokens_in": 0, "tokens_out": 0,
+            })
+        await db.registrar_ia(registros)
+
+    if prog:
+        prog.fase("IA: guardando evaluaciones y reporte", "IA")
+
+    ruta_csv = ""
+    if ventana:
+        stamp = datetime.now().strftime("%Y%m%d_%H%M")
+        ruta_csv = f"data/ia_{stamp}.csv"
+        with open(ruta_csv, "w", newline="", encoding="utf-8-sig") as f:
+            w = csv.writer(f)
+            w.writerow(["Job ID", "Fuente", "Puesto", "Empresa", "Ubicación",
+                        "Publicada", "Vence", "IA", "¿Aplica?", "Razón IA",
+                        "Gate", "Link"])
+            for r in ventana:
+                jid = r.get("job_id")
+                nuevo = resultados.get(jid) or {}
+                ia = nuevo.get("score", r.get("ia_score"))
+                razon = nuevo.get("razon", r.get("ia_razon"))
+                gate = r.get("gate_score")
+                w.writerow([
+                    jid, r.get("source"), r.get("title"), r.get("company"),
+                    r.get("location"), (r.get("date_published") or "")[:10],
+                    (r.get("expires_at") or "")[:10],
+                    "" if ia is None else f"{float(ia):.0f}",
+                    "" if ia is None else ("sí" if float(ia) >= ia_min else "no"),
+                    razon or "", "" if gate is None else f"{float(gate):.2f}",
+                    r.get("link") or "",
+                ])
+        logger.info("IA: CSV del día en %s", ruta_csv)
+
+    aprob = 0
+    for r in ventana:
+        ia = resultados.get(r.get("job_id"), {}).get("score", r.get("ia_score"))
+        if ia is not None and float(ia) >= ia_min:
+            aprob += 1
+    logger.info("IA: %d evaluadas ahora · %d desde cache · %d aplican "
+                "(>= %.0f) · %d errores · %s",
+                len(resultados), len(ventana) - len(pendientes), aprob, ia_min,
+                len(errores), client.resumen_uso())
+    for jid, motivo in list(errores.items())[:5]:
+        logger.warning("IA: sin evaluar %s (%s)", jid, motivo)
+    return {
+        "_estado": "ok",
+        "ia_evaluadas": len(resultados),
+        "ia_cache": len(ventana) - len(pendientes),
+        "ia_aplican": aprob,
+        "ia_errores": len(errores),
+        "ia_modelo": modelo,
+        "ia_llamadas": client.llamadas,
+        "ia_csv": ruta_csv,
+    }
+
+
+async def evaluar_cv_ia(db, profile, cv_path: str, puesto: str = "",
+                        guardar: bool = False, forzar: bool = False,
+                        prog=None, dias: int = DEFAULT_DIAS) -> dict:
+    """Crea el perfil desde el CV (como cv2profile.py) y evalua el CV.
+
+    Por defecto NO toca data/profile.json: deja el informe en data/cv_ia.md
+    y el JSON completo en data/cv_ia.json. Con `guardar=True` escribe el
+    perfil (merge + backup) usando el CV como fuente de verdad.
+    """
+    client = IAClient()
+    if not client.disponible:
+        logger.error("IA: %s", client.motivo_no_disponible())
+        return {"_estado": "error", "motivo": "IA sin clave (IA_API_KEY)"}
+
+    from core.cv_analysis import extract_text, merge_profile
+    from core import profile as profile_mod
+    from core.profile import guardar_perfil
+
+    try:
+        cv_texto = extract_text(cv_path)
+    except Exception as exc:                     # PDF/DOCX roto, ruta mala...
+        logger.error("CV: no pude leer %s (%s)", cv_path, exc)
+        return {"_estado": "error", "motivo": f"CV ilegible: {exc}"}
+    if len((cv_texto or "").strip()) < 120:
+        logger.error("CV: el texto extraido es muy corto (%d caracteres); "
+                     "¿es un PDF escaneado sin OCR?", len((cv_texto or "").strip()))
+        return {"_estado": "error", "motivo": "CV sin texto suficiente"}
+
+    p_hash = perfil_hash(profile)
+    c_hash = client.hash_cv(cv_texto, p_hash, puesto)
+    ruta_json, ruta_md = "data/cv_ia.json", "data/cv_ia.md"
+    previo = None
+    if not forzar and os.path.exists(ruta_json):
+        try:
+            with open(ruta_json, encoding="utf-8") as f:
+                previo = json.load(f)
+        except (OSError, ValueError):
+            previo = None
+        if previo and (previo.get("meta") or {}).get("cv_hash") != c_hash:
+            logger.info("CV: cambió el CV, el puesto o el modelo; se reevalúa.")
+            previo = None
+
+    if previo:
+        resultado = previo.get("resultado") or {}
+        meta = previo.get("meta") or {}
+        meta["cache"] = True
+        logger.info("CV: reutilizando evaluación cacheada de %s "
+                    "(usá --ia-forzar para repetirla).", ruta_json)
+    else:
+        if prog:
+            prog.fase("IA: leyendo el CV y creando el perfil", "IA",
+                      f"{client.proveedor}/{client.modelo}")
+        recientes = _ventana_ia(await db.get_raw_jobs(), dias)
+        recientes.sort(key=lambda r: (
+            r.get("ia_score") if r.get("ia_score") is not None
+            else (r.get("gate_score") or 0) * 100), reverse=True)
+        try:
+            resultado = client.evaluar_cv(cv_texto, profile, recientes[:25],
+                                          puesto)
+        except IAError as exc:
+            logger.error("CV: la IA falló: %s", exc)
+            return {"_estado": "error", "motivo": str(exc)}
+        meta = {
+            "ts": datetime.now().isoformat(timespec="seconds"),
+            "proveedor": client.proveedor, "modelo": client.modelo,
+            "cv_path": os.path.abspath(cv_path), "cv_hash": c_hash,
+            "perfil_hash": p_hash, "puesto": puesto,
+            "tokens_in": client.tokens_in, "tokens_out": client.tokens_out,
+            "cache": False,
+        }
+        os.makedirs("data", exist_ok=True)
+        with open(ruta_json, "w", encoding="utf-8") as f:
+            json.dump({"meta": meta, "resultado": resultado}, f,
+                      ensure_ascii=False, indent=2)
+        with open(ruta_md, "w", encoding="utf-8") as f:
+            f.write(cv_a_markdown(resultado, meta))
+        ev = resultado.get("evaluacion") or {}
+        await db.registrar_ia([{
+            "ts": meta["ts"], "tipo": "cv", "proveedor": client.proveedor,
+            "modelo": client.modelo, "perfil_hash": p_hash, "job_id": None,
+            "job_hash": c_hash, "score": ev.get("puntaje"),
+            "veredicto": "cv", "razon": ev.get("resumen"),
+            "payload": json.dumps(resultado, ensure_ascii=False),
+            "tokens_in": client.tokens_in, "tokens_out": client.tokens_out,
+        }])
+
+    if prog:
+        prog.fase("IA: guardando informe y perfil", "IA")
+    if guardar:
+        # Igual que cv2profile.py: se parte del JSON COMPLETO para conservar
+        # claves que CandidateProfile.to_dict() no expone (contacto, filtros,
+        # pesos_ats, _comentario...). El CV solo reemplaza lo suyo.
+        ruta_actual = getattr(profile, "path", None) or profile_mod.DEFAULT_PATH
+        actual = {}
+        try:
+            if ruta_actual.exists():
+                actual = json.loads(ruta_actual.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            logger.warning("CV: perfil actual ilegible (%s); se parte de cero.",
+                           exc)
+        if not actual and profile is not None:
+            actual = profile.to_dict()
+        perfil_ia = dict(resultado.get("perfil") or {})
+        # Completar con los extractores locales (contacto, fechas, idiomas...)
+        # lo que el LLM no haya devuelto: el perfil queda usable por el ATS.
+        try:
+            from core.cv_analysis import (detect_certifications, detect_contact,
+                                          detect_education_level,
+                                          detect_experience_years,
+                                          detect_languages_struct,
+                                          detect_seniority)
+            contacto = detect_contact(cv_texto)
+            if contacto:
+                perfil_ia["contacto"] = contacto
+            if not perfil_ia.get("experiencia_anios"):
+                perfil_ia["experiencia_anios"] = detect_experience_years(cv_texto)
+            if not perfil_ia.get("educacion_nivel"):
+                perfil_ia["educacion_nivel"] = detect_education_level(cv_texto)
+            if not perfil_ia.get("certificaciones"):
+                perfil_ia["certificaciones"] = detect_certifications(cv_texto)
+            if not perfil_ia.get("idiomas"):
+                perfil_ia["idiomas"] = detect_languages_struct(cv_texto)
+            if not perfil_ia.get("seniority"):
+                perfil_ia["seniority"] = detect_seniority(cv_texto)
+        except Exception as exc:
+            logger.debug("CV: extractores locales no disponibles (%s).", exc)
+        nuevo = merge_profile(actual, perfil_ia, replace=True)
+        nuevo["_comentario"] = (
+            "Perfil del candidato. Títulos/skills/temas creados por la IA "
+            f"desde {os.path.basename(cv_path)} "
+            f"({datetime.now():%Y-%m-%d}). Revisalo en la pestaña Perfil.")
+        bk = guardar_perfil(nuevo)
+        logger.info("CV: perfil actualizado%s. Revisalo en la pestaña Perfil.",
+                    f" (backup: {bk.name})" if bk else "")
+        # El perfil viejo sigue en memoria; este proceso termina acá.
+
+    ev = resultado.get("evaluacion") or {}
+    logger.info("CV: puntaje %.0f/100 · informe en %s",
+                float(ev.get("puntaje") or 0), ruta_md)
+    if ev.get("resumen"):
+        logger.info("CV: %s", ev["resumen"])
+    for s in (ev.get("sugerencias") or [])[:5]:
+        logger.info("CV: sugerencia — %s: %s", s.get("donde"),
+                    s.get("cambio"))
+    return {
+        "_estado": "ok",
+        "ia_cv_puntaje": ev.get("puntaje"),
+        "ia_cv_informe": ruta_md,
+        "ia_cv_json": ruta_json,
+        "ia_cv_cache": bool(meta.get("cache")),
+        "ia_cv_perfil_guardado": bool(guardar),
+        "ia_cv_llamadas": client.llamadas,
+        "ia_cv_modelo": f"{meta.get('proveedor')}/{meta.get('modelo')}",
+    }
+
+
+async def reporte_ia(db, min_score: float = DEFAULT_MIN_SCORE,
+                     ia_min: float = DEFAULT_IA_MIN) -> dict:
+    """Calibra el gate local contra las evaluaciones IA ya guardadas.
+
+    Solo mide y sugiere; no cambia umbrales ni la membresia de `jobs`.
+    """
+    from core.ia_calibracion import calcular, render_md
+
+    evals = await db.get_ia_evals()
+    ultimo = {}
+    for e in evals:
+        if e.get("tipo") == "vacante" and e.get("job_id"):
+            ultimo[e["job_id"]] = e            # el historial viene en orden
+    raw = {r.get("job_id"): r for r in await db.get_raw_jobs()}
+    pares = []
+    for jid, e in ultimo.items():
+        r = raw.get(jid)
+        if not r or r.get("gate_score") is None:
+            continue
+        pares.append({
+            "job_id": jid, "source": r.get("source"),
+            "gate": float(r["gate_score"]), "ia": float(e.get("score") or 0),
+            "puesto": r.get("title"), "ia_razon": e.get("razon"),
+            "gate_razon": r.get("gate_razon"),
+        })
+    cvs = {}
+    for e in evals:
+        if e.get("tipo") == "cv":
+            cvs[e.get("job_hash") or str(e.get("id"))] = e
+    rep = calcular(pares, ia_min=ia_min, score_min=min_score)
+    md = render_md(rep, list(cvs.values()))
+    os.makedirs("data", exist_ok=True)
+    with open("data/ia_calibracion.md", "w", encoding="utf-8") as f:
+        f.write(md)
+    with open("data/ia_calibracion.json", "w", encoding="utf-8") as f:
+        json.dump({"generado": datetime.now().isoformat(timespec="seconds"),
+                   "reporte": rep}, f, ensure_ascii=False, indent=2)
+
+    if not pares:
+        logger.warning("IA calibración: no hay vacantes evaluadas por la IA "
+                       "todavía. Corré `python main.py --ia` primero.")
+        return {"_estado": "ok", "ia_pares": 0,
+                "ia_informe": "data/ia_calibracion.md"}
+    u = rep.get("umbral_recomendado") or {}
+    logger.info("IA calibración: %d pares · r=%s · MAE=%s · exactitud=%.1f%% "
+                "con --score-min %.2f", rep["n"], rep.get("correlacion"),
+                rep.get("mae"), 100 * rep.get("exactitud", 0), min_score)
+    if u:
+        logger.info("IA calibración: umbral sugerido --score-min %.2f "
+                    "(F1 %.2f, exactitud %.1f%%). Es una sugerencia: aplicalo "
+                    "y después corré --refiltrar.",
+                    u["score_min"], u["f1"], 100 * u["exactitud"])
+    logger.info("IA calibración: informe en data/ia_calibracion.md")
+    return {"_estado": "ok", "ia_pares": rep["n"],
+            "ia_correlacion": rep.get("correlacion"),
+            "ia_mae": rep.get("mae"),
+            "ia_umbral_sugerido": u.get("score_min"),
+            "ia_informe": "data/ia_calibracion.md"}
+
+
 def _fases_totales(searches: list, re_filtrar: bool, solo: str = RUN_TODOS) -> int:
     """Numero EXACTO de fases (para la barra de la GUI).
 
@@ -267,7 +628,10 @@ def _barrido_cfg(nombre: str):
 async def main(fresh: bool = False, searches: list = None, sin_expand: bool = False,
                dias: int = DEFAULT_DIAS, min_score: float = DEFAULT_MIN_SCORE,
                re_filtrar: bool = False, preflight: bool = False,
-               solo: str = RUN_TODOS):
+               solo: str = RUN_TODOS, ia: bool = False, ia_cv: str = "",
+               ia_puesto: str = "", ia_guardar: bool = False,
+               ia_forzar: bool = False, ia_min: float = DEFAULT_IA_MIN,
+               ia_max: int = 0, ia_reporte: bool = False):
     """Entrada: bloquea corridas dobles y publica el estado de progreso ANTES
     de tocar la red, para que la GUI (pestana Corrida) muestre que paso.
 
@@ -275,15 +639,29 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
     los ATS de empresa por un lado, los job boards (Indeed/LinkedIn/Procomer/
     ANE-Brete/CINDE) por el otro. El candado sigue siendo exclusivo, asi que
     las dos se lanzan una tras otra, no en paralelo.
+
+    `ia` / `ia_cv` / `ia_reporte` son modos a demanda: no scrapean ni abren
+    Brave. La corrida normal (sin esos flags) NUNCA llama a la IA externa.
     """
-    alcance = RUN_LABEL.get(solo, solo)
+    if ia_cv:
+        alcance = "IA · CV"
+    elif ia_reporte:
+        alcance = "IA · calibración"
+    elif ia:
+        alcance = "IA · crudo"
+    else:
+        alcance = RUN_LABEL.get(solo, solo)
     prog = iniciar_corrida(
         ("preflight" if preflight else "corrida") + f" · {alcance}")
     if not prog:
         return                      # ya hay una corrida viva (PID en uso)
     try:
         resumen = await _corrida(prog, fresh, searches, sin_expand, dias,
-                                 min_score, re_filtrar, preflight, solo) or {}
+                                 min_score, re_filtrar, preflight, solo,
+                                 ia=ia, ia_cv=ia_cv, ia_puesto=ia_puesto,
+                                 ia_guardar=ia_guardar, ia_forzar=ia_forzar,
+                                 ia_min=ia_min, ia_max=ia_max,
+                                 ia_reporte=ia_reporte) or {}
         estado = resumen.pop("_estado",
                              "preflight" if preflight else "ok")
         resumen.setdefault("alcance", alcance)
@@ -338,7 +716,14 @@ def _preflight(prog, profile, searches: list, solo: str = RUN_TODOS) -> dict:
 
 async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
                    dias: int, min_score: float, re_filtrar: bool,
-                   preflight: bool, solo: str = RUN_TODOS):
+                   preflight: bool, solo: str = RUN_TODOS,
+                   ia: bool = False, ia_cv: str = "", ia_puesto: str = "",
+                   ia_guardar: bool = False, ia_forzar: bool = False,
+                   ia_min: float = DEFAULT_IA_MIN, ia_max: int = 0,
+                   ia_reporte: bool = False):
+    modo_ia = ia or bool(ia_cv) or ia_reporte
+    if modo_ia:
+        prog.total(3)       # preparación + consulta + guardado
     # Perfil del candidato: fuente unica de verdad de las tematicas.
     from core.profile import CandidateProfile
     prog.fase(f"Preparación (perfil + base de datos)",
@@ -347,6 +732,19 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
 
     db = JobDatabase()
     await db.init_db()
+
+    # --- Modos IA: a demanda, sin navegador ni scraping ---
+    if modo_ia:
+        if ia_reporte:
+            prog.fase("IA: calibrando el gate local", "IA")
+            resumen = await reporte_ia(db, min_score, ia_min)
+            prog.fase("IA: informe de calibración", "IA")
+            return resumen
+        if ia_cv:
+            return await evaluar_cv_ia(db, profile, ia_cv, ia_puesto,
+                                       ia_guardar, ia_forzar, prog, dias)
+        return await procesar_ia(db, profile, dias, ia_min, ia_max,
+                                 ia_forzar, prog)
 
     # Alcance elegido con --solo (los dos bloques de scraping de abajo).
     correr_boards = run_incluye(solo, GROUP_BOARDS)
@@ -671,9 +1069,43 @@ if __name__ == "__main__":
                              "CINDE, Procomer), 'todos' (default) ambos como "
                              "hasta ahora. Sin efecto con --refiltrar, que "
                              "siempre reconstruye todo jobs_raw")
+    # --- IA externa (a demanda; nunca dentro de una corrida normal) ---
+    parser.add_argument("--ia", action="store_true",
+                        help="Re-evalúa el crudo (jobs_raw) con la IA fuerte "
+                             "(Gemini/NVIDIA). No cambia qué entra a jobs: "
+                             "anota score+razón y guarda el historial.")
+    parser.add_argument("--ia-cv", metavar="RUTA", default="",
+                        help="Lee un CV (pdf/docx/txt/md), crea el perfil "
+                             "propuesto y evalúa/adapta el CV. Deja el informe "
+                             "en data/cv_ia.md (no toca el perfil sin --ia-guardar).")
+    parser.add_argument("--ia-puesto", default="",
+                        help="Puesto objetivo para --ia-cv (ej. \"Soporte Técnico\")")
+    parser.add_argument("--ia-guardar", action="store_true",
+                        help="Con --ia-cv: escribe data/profile.json (con backup) "
+                             "usando el CV como fuente de verdad.")
+    parser.add_argument("--ia-forzar", action="store_true",
+                        help="Ignora la caché de la IA y repite las consultas "
+                             "(consume cuota).")
+    parser.add_argument("--ia-min", type=float, default=DEFAULT_IA_MIN,
+                        help=f"Score IA (0-100) desde el cual una vacante "
+                             f"'aplica' (default: {DEFAULT_IA_MIN:.0f}).")
+    parser.add_argument("--ia-max", type=int, default=0,
+                        help="Tope de vacantes a evaluar en esta ejecución "
+                             "(0 = IA_MAX_VACANTES del .env).")
+    parser.add_argument("--ia-reporte", action="store_true",
+                        help="Calibra la IA local contra las evaluaciones IA "
+                             "guardadas y sugiere --score-min (no aplica cambios).")
     args = parser.parse_args()
+    if args.ia and args.ia_cv:
+        parser.error("--ia y --ia-cv son modos distintos; elegí uno.")
+    if args.ia_guardar and not args.ia_cv:
+        parser.error("--ia-guardar solo tiene sentido con --ia-cv RUTA.")
     asyncio.run(main(
         fresh=args.fresh, sin_expand=args.sin_expand,
         dias=args.dias, min_score=args.score_min, re_filtrar=args.refiltrar,
         preflight=args.preflight, solo=args.solo,
+        ia=args.ia, ia_cv=args.ia_cv, ia_puesto=args.ia_puesto,
+        ia_guardar=args.ia_guardar, ia_forzar=args.ia_forzar,
+        ia_min=args.ia_min, ia_max=args.ia_max,
+        ia_reporte=args.ia_reporte,
     ))

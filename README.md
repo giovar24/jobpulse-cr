@@ -63,6 +63,9 @@ python -m venv .venv
 - La plantilla `data/profile.example.json` solo contiene datos de ejemplo (`juan.perez@example.com`).
 - Para generar tu perfil real desde tu CV: `python cv2profile.py "MiCV.pdf" --save`
   (queda solo en tu máquina).
+- La IA externa (`--ia`, `--ia-cv`) es lo ÚNICO que envía texto fuera de tu
+  máquina, y solo cuando la invocás: vacantes del crudo y/o tu CV van al
+  proveedor configurado en `IA_PROVEEDOR`.
 
 ## Uso
 
@@ -104,6 +107,47 @@ python reporte_cv.py "MiCV.pdf"
 # 9. Benchmark de modelos de embeddings (compara candidatos locales)
 python bench_modelos.py
 ```
+
+### IA externa (opcional, SOLO a demanda)
+
+La IA local (embeddings + gate) es gratis y rápida; un LLM externo fuerte
+(Gemini / NVIDIA NIM, free tier) sirve como **segunda opinión** para el crudo,
+para medir el gate y para crear/evaluar el CV. **Nunca corre dentro de una
+corrida normal**: solo con estos flags (y con `IA_API_KEY` en `.env`).
+
+```powershell
+# Re-puntúa el crudo (jobs_raw) 0-100 + razón. No cambia qué entra a `jobs`:
+# el gate sigue decidiendo; solo anota la columna IA y guarda historial.
+python main.py --ia
+
+# Gastar menos cuota: tope de vacantes / ignorar caché / modelo
+python main.py --ia --ia-max 30
+python main.py --ia --ia-forzar
+
+# Calibra la IA local contra las respuestas IA y sugiere --score-min
+python main.py --ia-reporte
+
+# CV: crea el perfil propuesto + evaluación/adaptación (no toca profile.json)
+python main.py --ia-cv "MiCV.pdf" --ia-puesto "Soporte Técnico"
+
+# CV + escribir data/profile.json (con backup) usando el CV como verdad
+python main.py --ia-cv "MiCV.pdf" --ia-puesto "Soporte Técnico" --ia-guardar
+```
+
+- **Salidas**: `data/ia_AAAAMMDD_HHMM.csv` (crudo de la ventana con score IA),
+  `data/cv_ia.md` / `data/cv_ia.json` (informe + perfil propuesto + CV
+  adaptado) y `data/ia_calibracion.md` (acuerdo gate ↔ IA, umbral sugerido).
+- **Historial**: cada respuesta queda en la tabla append-only `ia_evals`
+  (modelo, perfil, hash, score, razón, tokens). Sirve para calibrar y, más
+  adelante, destilar un reranker local; nada se descarta.
+- **UI**: pestaña *Corrida* → **Re-evaluar crudo con IA**, **Evaluar CV con IA**
+  y **Calibrar IA local** (misma lógica, en la ventana verde).
+- **Privacidad**: en estos modos el texto de las vacantes y/o tu CV viaja al
+  proveedor que elijas (Google/NVIDIA). El resto del tiempo nada sale de tu
+  máquina. `data/cv_ia.*` e `data/ia_*` están en `.gitignore`.
+- **Cuota**: `IA_LOTE` (vacantes por request), `IA_MAX_VACANTES`,
+  `IA_MAX_LLAMADAS`, `IA_RPM` y `IA_TIMEOUT` en `.env`; un 429 corta con aviso
+  y conserva lo ya evaluado. Ver `.env.example`.
 
 ### Corrida con un clic y recordatorio (Windows)
 
@@ -218,6 +262,11 @@ core/
   cv_analysis.py     # extractores de CV (regex + embeddings)
   profile.py         # CandidateProfile (fuente única de verdad)
   database.py        # SQLite de vacantes
+  ia_api.py          # cliente IA externa OpenAI-compatible (Gemini/NVIDIA/
+                     # custom): prompts, lotes, caché por hash, cuota 429,
+                     # perfil desde CV + evaluación + CV adaptado
+  ia_calibracion.py  # acuerdo gate local ↔ IA (Pearson/Spearman/MAE/matriz),
+                     # umbral --score-min sugerido y discrepancias a revisar
 providers/           # scrapers por fuente, en DOS grupos (razon: dedupe
                      # cross-source — los boards republican puestos del ATS
                      # propio: core/dedupe.py descarta la copia del board

@@ -22,6 +22,13 @@ data/report*.csv
 data/*_backup_*.json
 data/recordatorio_estado.json
 
+# --- IA externa: informes y evaluaciones (pueden derivarse del CV real) ---
+data/ia_*.csv
+data/ia_calibracion.json
+data/ia_calibracion.md
+data/cv_ia.json
+data/cv_ia.md
+
 # --- CVs personales: el CV real del candidato nunca viaja a git ---
 # Patrones globales (cualquier carpeta del repo incluida la raiz). El demo
 # sintetico (data/demo_cv.docx) ya esta trackeado y no se ve afectado

@@ -99,6 +99,10 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 - `main.py` — orquestador (fases, dedupe, gate, guardado, reportes). Flags:
   `--preflight` (valida el plan **sin red ni navegador**: 22 fases, exit 0),
   `--fresh`, `--refiltrar`, `--dias`, `--score-min`, `--sin-expand`.
+  Modos IA **a demanda** (nunca dentro de una corrida normal): `--ia`
+  (re-puntúa `jobs_raw` con la IA fuerte), `--ia-cv RUTA [--ia-guardar]`
+  (crea el perfil desde el CV y evalúa/adapta el CV), `--ia-reporte`
+  (calibra el gate local contra la IA), `--ia-forzar`, `--ia-min`, `--ia-max`.
 - `ui.py` — **UI de escritorio Tkinter** (la actual): 6 pestañas — Ranking ·
   Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones. El scraping
   SOLO se lanza desde sus botones (la UI nunca scrapea sola): abre la
@@ -108,7 +112,9 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   cerrar la ventana verde, sí). Corre bajo `pythonw` sin consola
   (stdout/stderr a devnull). Lectura pura de SQLite (URI `mode=ro`); el
   ranking (embeddings + ATS) y la verificación de sesiones corren en
-  hilos secundarios que solo encolan.
+  hilos secundarios que solo encolan. La pestaña Corrida tiene además los
+  botones IA: **Re-evaluar crudo con IA**, **Evaluar CV con IA** (file
+  dialog + pregunta si aplicar el perfil) y **Calibrar IA local**.
 - `app.py` — dashboard Streamlit (**LEGADO**, aún funciona con
   `streamlit run app.py`). Reemplazado por `ui.py`: Streamlit vive dentro
   de una pestaña del navegador — cerrar Brave mataba la UI y dejaba
@@ -137,13 +143,18 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 - `caza_ats_grandes.py` — caza/registro de ATS grandes (Alorica y PayPal
   marcados "no re-cazar": 0 vacantes CR).
 - `cv2profile.py` / `reporte_cv.py` — extraen el perfil / diagnostican un CV.
+- `core/ia_api.py` — cliente IA externa (OpenAI-compatible: `google`,
+  `nvidia`, `openai`, `custom`) + prompts de vacantes/CV, lotes, caché por
+  hash (incluye proveedor+modelo+`PROMPT_VERSION`), ritmo y topes de cuota.
+- `core/ia_calibracion.py` — Pearson/Spearman/MAE/matriz + barrido de umbral
+  `--score-min` y discrepancias; solo mide y sugiere.
 - Núcleo: `core/gate.py`, `core/dedupe.py`, `core/database.py`,
   `core/progreso.py`, `core/browser_manager.py`, `providers/source_groups.py`.
 
 ### Convenciones y reglas duras
 1. **Bitácora**: entradas `## N. título (fecha, hora)` al final del archivo;
-   la serie crece sin renumerar (al cierre de esta guía la última es **#49**;
-   la siguiente es #50). **Cada entrada debe mencionar que el nuevo
+   la serie crece sin renumerar (al cierre de esta guía la última es **#50**;
+   la siguiente es #51). **Cada entrada debe mencionar que el nuevo
    comportamiento quedó reflejado en ESTA guía** (y actualizarla si aplica).
 2. **Privacidad**: repo público → nunca subir `.env`, `data/profile.json`,
    CVs, credenciales ni datos personales (los ejemplos usan placeholders como
@@ -1997,3 +2008,75 @@ decodificación. UI y Brave cerrados tras la prueba.
 **El nuevo comportamiento quedó reflejado en la guía del agente** (fase 1:
 cierre verificado de Brave y por qué no se lanza una segunda instancia) en
 este mismo commit, como manda la regla de oro de la #44.
+
+## 50. IA externa a demanda: segunda opinion del crudo, perfil desde el CV y calibracion (2026-10-21, tarde)
+
+Objetivo: sumar una IA mas fuerte que la local (embeddings + gate) **sin**
+gastar cuota en cada corrida y **sin** tirar ninguna respuesta. La IA local
+sigue decidiendo que entra a `jobs`; la externa opina, deja etiquetas y sirve
+para calibrar/destilar. Todo es opcional y solo corre con flags explicitos.
+
+**Cliente (`core/ia_api.py`).** Endpoint `/chat/completions` compatible con
+OpenAI y presets `google` (Gemini, `gemini-2.5-flash`), `nvidia` (NIM,
+`meta/llama-3.3-70b-instruct`), `openai` y `custom` (`IA_BASE_URL`+`IA_MODEL`).
+La clave sale de `.env` (`IA_API_KEY`, o `GEMINI_API_KEY`/`NVIDIA_API_KEY`),
+nunca del codigo. Control de cuota: cache por hash (proveedor+modelo+
+`PROMPT_VERSION`+contenido), lotes `IA_LOTE=8`, topes `IA_MAX_VACANTES=60` /
+`IA_MAX_LLAMADAS=12`, ritmo `IA_RPM=8`, timeout `IA_TIMEOUT=120`; 429/5xx
+espera y reintenta una vez y, si persiste, corta conservando lo evaluado. Si
+un lote devuelve JSON invalido se parte por mitades (hasta 1 vacante) antes de
+darla por perdida.
+
+**Modos (`main.py`, sin navegador ni scraping):**
+- `--ia`: evalua `jobs_raw` en ventana (vigente + `--dias`), anota
+  `ia_score`/`ia_razon` en `jobs_raw` y `jobs` y deja un CSV
+  `data/ia_AAAAMMDD_HHMM.csv`. **No cambia la membresia del gate**;
+  `--ia-min` (default 70) solo clasifica el informe.
+- `--ia-cv RUTA [--ia-puesto "..."] [--ia-guardar]`: extrae el texto con
+  `core.cv_analysis.extract_text`, pide al LLM un **perfil estructurado**
+  (nombre/titulos/skills/temas/experiencia/educacion/certificaciones/idiomas/
+  seniority) + evaluacion (puntaje, fortalezas, debilidades, keywords
+  faltantes, sugerencias) + `cv_adaptado_markdown`. Reglas del prompt: no
+  inventar experiencia ni skills; el CV adaptado solo reordena/aclara/cuantifica
+  lo que ya existe. Sin `--ia-guardar` NO toca el perfil: deja
+  `data/cv_ia.md` y `data/cv_ia.json`. Con `--ia-guardar`, `merge_profile(...,
+  replace=True)` (el CV es la fuente de verdad) + `guardar_perfil` (backup).
+  El hash del CV excluye el perfil para que guardar no invalide la cache.
+- `--ia-reporte`: `core/ia_calibracion.py` compara el ultimo score IA por
+  vacante con `gate_score` (Pearson, Spearman, MAE, sesgo, matriz, acuerdo
+  por fuente, mayores discrepancias) y barre umbrales 0.10-0.80 para sugerir
+  `--score-min`. Solo sugiere: no aplica cambios. Escribe
+  `data/ia_calibracion.md`/`.json`.
+- `--ia-forzar` ignora la cache (consume cuota); `--ia-max` baja el tope de
+  vacantes de esa ejecucion.
+
+**Persistencia (`core/database.py`).** Columnas `ia_score`, `ia_razon`,
+`ia_model`, `ia_hash`, `ia_ts` en `jobs` y `jobs_raw` (migracion automatica),
+mas tabla **append-only** `ia_evals` (ts, tipo, proveedor, modelo, perfil_hash,
+job_id, job_hash, score, veredicto, razon, payload JSON, tokens). El historial
+nunca se actualiza: es el corpus para medir y, cuando haya cientos de pares
+(embedding, score IA), entrenar un reranker ridge local (distilacion). El
+`gate_score` sigue mandando en `jobs`; las columnas IA son anotaciones.
+
+**UI (`ui.py`).** La tabla de Ranking muestra la columna **IA** (vacia si no
+se corrio `--ia`) y el detalle agrega `IA N/100` + razon. En Corrida:
+**Re-evaluar crudo con IA**, **Evaluar CV con IA** (file dialog; pregunta si
+aplicar el perfil a `data/profile.json`) y **Calibrar IA local**; todos abren
+la ventana verde como el resto. Si la BD es vieja, `cargar()` cae al SELECT
+sin columnas IA en vez de romper.
+
+**Privacidad.** Solo estos modos mandan texto afuera (vacantes y/o CV al
+proveedor elegido). `data/cv_ia.*`, `data/ia_*.csv` e `ia_calibracion.*` se
+agregaron a `.gitignore`; `.env.example` documenta `IA_*` sin claves reales.
+
+**Verificacion.** `py_compile` de main/ui/core; prueba de humo con un servidor
+OpenAI-compatible falso (script temporal ya borrado): 4 vacantes evaluadas
+(incluye un lote que falla y se parte), vencida excluida, cache en la segunda
+corrida (0 llamadas), `ia_evals` con 4 filas, calibracion con 4 pares, CV con
+puntaje 78 + perfil guardado con backup, y `--ia` sin clave devuelve error
+claro sin llamadas. Falta la corrida real: el usuario todavia no configuro
+`IA_API_KEY` de Google/NVIDIA.
+
+**El nuevo comportamiento quedo reflejado en la guia del agente** (mapa de
+archivos, flags de `main.py` y botones de la UI) en este mismo commit, como
+manda la regla #44.

@@ -1,6 +1,6 @@
 import aiosqlite
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import List, Dict, Optional
 from providers.base import JobOffer
 
@@ -35,6 +35,11 @@ class JobDatabase:
                         salary TEXT,
                         gate_score REAL,
                         gate_razon TEXT,
+                        ia_score REAL,
+                        ia_razon TEXT,
+                        ia_model TEXT,
+                        ia_hash TEXT,
+                        ia_ts TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
@@ -43,10 +48,37 @@ class JobDatabase:
                 cursor = await db.execute(f"PRAGMA table_info({tabla})")
                 existentes = {row[1] for row in await cursor.fetchall()}
                 for col, tipo in (("gate_score", "REAL"), ("gate_razon", "TEXT"),
-                                  ("expires_at", "TEXT")):
+                                  ("expires_at", "TEXT"), ("ia_score", "REAL"),
+                                  ("ia_razon", "TEXT"), ("ia_model", "TEXT"),
+                                  ("ia_hash", "TEXT"), ("ia_ts", "TEXT")):
                     if col not in existentes:
                         await db.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} {tipo}")
                         logger.info(f"Migracion: +{col} en {tabla}")
+            # Historial append-only: NUNCA se actualiza ni se borra. Cada
+            # evaluacion del LLM queda como etiqueta para calibrar/destilar la
+            # IA local (core/ia_calibracion.py).
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS ia_evals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ts TEXT NOT NULL,
+                    tipo TEXT NOT NULL,
+                    proveedor TEXT,
+                    modelo TEXT,
+                    perfil_hash TEXT,
+                    job_id TEXT,
+                    job_hash TEXT,
+                    score REAL,
+                    veredicto TEXT,
+                    razon TEXT,
+                    payload TEXT,
+                    tokens_in INTEGER DEFAULT 0,
+                    tokens_out INTEGER DEFAULT 0
+                )
+            """)
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_ia_evals_job "
+                             "ON ia_evals(job_id, ts)")
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_ia_evals_tipo "
+                             "ON ia_evals(tipo, ts)")
             await db.commit()
 
     async def clean_empty_jobs(self) -> int:
@@ -186,6 +218,63 @@ class JobDatabase:
                 (score, razon, job_id)
             )
             await db.commit()
+
+    async def save_ia_latest(self, resultados: Dict[str, dict], modelo: str) -> int:
+        """Guarda la ULTIMA evaluacion de IA en jobs_raw y (si existe) en jobs.
+
+        `resultados` = {job_id: {"score","razon","hash"}}. El historial
+        completo vive aparte en `ia_evals` (append-only).
+        """
+        if not resultados:
+            return 0
+        ts = datetime.now().isoformat(timespec="seconds")
+        n = 0
+        async with aiosqlite.connect(self.db_path) as db:
+            for jid, r in resultados.items():
+                for tabla in ("jobs_raw", "jobs"):
+                    cur = await db.execute(
+                        f"""UPDATE {tabla} SET ia_score=?, ia_razon=?, ia_model=?,
+                             ia_hash=?, ia_ts=? WHERE job_id=?""",
+                        (r.get("score"), r.get("razon"), modelo,
+                         r.get("hash"), ts, jid))
+                    n += cur.rowcount
+            await db.commit()
+        return n
+
+    async def registrar_ia(self, registros: List[Dict]) -> int:
+        """Inserta evaluaciones en el historial append-only `ia_evals`."""
+        if not registros:
+            return 0
+        filas = [(
+            r.get("ts") or datetime.now().isoformat(timespec="seconds"),
+            r.get("tipo") or "vacante", r.get("proveedor"), r.get("modelo"),
+            r.get("perfil_hash"), r.get("job_id"), r.get("job_hash"),
+            r.get("score"), r.get("veredicto"), r.get("razon"),
+            r.get("payload"), int(r.get("tokens_in") or 0),
+            int(r.get("tokens_out") or 0),
+        ) for r in registros]
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.executemany(
+                """INSERT INTO ia_evals (ts, tipo, proveedor, modelo, perfil_hash,
+                     job_id, job_hash, score, veredicto, razon, payload,
+                     tokens_in, tokens_out)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                filas)
+            await db.commit()
+        return len(filas)
+
+    async def get_ia_evals(self, tipo: Optional[str] = None) -> List[Dict]:
+        """Historial completo de evaluaciones IA (mas viejo primero)."""
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            q = "SELECT * FROM ia_evals"
+            params: list = []
+            if tipo:
+                q += " WHERE tipo = ?"
+                params.append(tipo)
+            q += " ORDER BY ts ASC, id ASC"
+            cursor = await db.execute(q, params)
+            return [dict(r) for r in await cursor.fetchall()]
 
     async def get_recent_jobs(self, hours: int = 24) -> List[Dict]:
         async with aiosqlite.connect(self.db_path) as db:
