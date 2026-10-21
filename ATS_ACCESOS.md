@@ -291,7 +291,7 @@ Trampas conocidas (lecciones ya pagadas):
   `startswith("HTTP 429")`.
 - PowerShell 5.1 no soporta `&&` ni comillas complejas inline: para consultas
   multi-línea (p. ej. sqlite), escribir un `.py` temporal en
-  `C:\Users\giova\AppData\Local\Temp\opencode\` y correrlo.
+  `%TEMP%\opencode\` y correrlo.
 - Se verifica el ATS real de cada empresa siempre (no se asume).
 
 ---
