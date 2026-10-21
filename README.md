@@ -120,9 +120,13 @@ corrida normal**: solo con estos flags (y con `IA_API_KEY` en `.env`).
 # el gate sigue decidiendo; solo anota la columna IA y guarda historial.
 python main.py --ia
 
-# Gastar menos cuota: tope de vacantes / ignorar caché / modelo
+# Gastar menos cuota: tope de vacantes / ignorar caché
 python main.py --ia --ia-max 30
 python main.py --ia --ia-forzar
+
+# Los modelos cambian: lista la oferta VIVA del proveedor y elegí uno
+python main.py --ia-listar-modelos
+python main.py --ia --ia-modelo "openai/gpt-oss-20b" --ia-max 30
 
 # Calibra la IA local contra las respuestas IA y sugiere --score-min
 python main.py --ia-reporte
@@ -141,7 +145,18 @@ python main.py --ia-cv "MiCV.pdf" --ia-puesto "Soporte Técnico" --ia-guardar
   (modelo, perfil, hash, score, razón, tokens). Sirve para calibrar y, más
   adelante, destilar un reranker local; nada se descarta.
 - **UI**: pestaña *Corrida* → **Re-evaluar crudo con IA**, **Evaluar CV con IA**
-  y **Calibrar IA local** (misma lógica, en la ventana verde).
+  y **Calibrar IA local** (misma lógica, en la ventana verde). Arriba hay un
+  **selector manual de modelo**: la lista se pide en vivo al proveedor
+  (`GET /models`, botón *Actualizar lista*) y la elección se recuerda en
+  `data/ia_modelo.txt` (gitignored). `--ia-modelo` pisa a `IA_MODEL` del `.env`.
+- **Modelos**: la lista de `/models` no garantiza que tu cuenta pueda usar el
+  modelo (NVIDIA devuelve 404/410 en varios). Si pasa, elegí otro con el
+  selector y listo. Para el CV conviene un modelo que no gaste toda la salida
+  razonando: `openai/gpt-oss-20b` completó perfil + evaluación + CV adaptado
+  en ~77 s; `z-ai/glm-5.3` gastó los tokens en razonamiento. La Gemma
+  recomendada es `google/gemma-4-31b-it` (CV válido en ~60-82 s; 38 s para 6
+  vacantes, la más rápida de las probadas). `google/gemma-3-12b-it` figura en
+  la lista pero da 404 en esta cuenta.
 - **Privacidad**: en estos modos el texto de las vacantes y/o tu CV viaja al
   proveedor que elijas (Google/NVIDIA). El resto del tiempo nada sale de tu
   máquina. `data/cv_ia.*` e `data/ia_*` están en `.gitignore`.

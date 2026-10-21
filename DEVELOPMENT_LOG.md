@@ -102,7 +102,9 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   Modos IA **a demanda** (nunca dentro de una corrida normal): `--ia`
   (re-puntúa `jobs_raw` con la IA fuerte), `--ia-cv RUTA [--ia-guardar]`
   (crea el perfil desde el CV y evalúa/adapta el CV), `--ia-reporte`
-  (calibra el gate local contra la IA), `--ia-forzar`, `--ia-min`, `--ia-max`.
+  (calibra el gate local contra la IA), `--ia-forzar`, `--ia-min`, `--ia-max`,
+  `--ia-modelo MODELO` (pisa `IA_MODEL` de esa corrida) y
+  `--ia-listar-modelos` (lista viva de `GET /models` y sale).
 - `ui.py` — **UI de escritorio Tkinter** (la actual): 6 pestañas — Ranking ·
   Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones. El scraping
   SOLO se lanza desde sus botones (la UI nunca scrapea sola): abre la
@@ -114,7 +116,10 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   ranking (embeddings + ATS) y la verificación de sesiones corren en
   hilos secundarios que solo encolan. La pestaña Corrida tiene además los
   botones IA: **Re-evaluar crudo con IA**, **Evaluar CV con IA** (file
-  dialog + pregunta si aplicar el perfil) y **Calibrar IA local**.
+  dialog + pregunta si aplicar el perfil) y **Calibrar IA local**, más un
+  **selector manual de modelo** (combobox + *Actualizar lista*): pide
+  `GET /models` en un hilo y lo pasa como `--ia-modelo`; recuerda la
+  elección en `data/ia_modelo.txt` (gitignored).
 - `app.py` — dashboard Streamlit (**LEGADO**, aún funciona con
   `streamlit run app.py`). Reemplazado por `ui.py`: Streamlit vive dentro
   de una pestaña del navegador — cerrar Brave mataba la UI y dejaba
@@ -146,6 +151,10 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 - `core/ia_api.py` — cliente IA externa (OpenAI-compatible: `google`,
   `nvidia`, `openai`, `custom`) + prompts de vacantes/CV, lotes, caché por
   hash (incluye proveedor+modelo+`PROMPT_VERSION`), ritmo y topes de cuota.
+  `listar_modelos()` consulta `GET /models` (sin hardcodear); un 404/410 del
+  modelo lanza `IAModeloError` (fatal: no parte el lote) y el mensaje pide
+  elegir otro. Tolera JSON con texto extra y `reasoning_content`, pero no
+  acepta perfiles/evaluaciones vacíos de modelos que gastan todo en razonar.
 - `core/ia_calibracion.py` — Pearson/Spearman/MAE/matriz + barrido de umbral
   `--score-min` y discrepancias; solo mide y sugiere.
 - Núcleo: `core/gate.py`, `core/dedupe.py`, `core/database.py`,
@@ -153,8 +162,8 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 
 ### Convenciones y reglas duras
 1. **Bitácora**: entradas `## N. título (fecha, hora)` al final del archivo;
-   la serie crece sin renumerar (al cierre de esta guía la última es **#50**;
-   la siguiente es #51). **Cada entrada debe mencionar que el nuevo
+   la serie crece sin renumerar (al cierre de esta guía la última es **#51**;
+   la siguiente es #52). **Cada entrada debe mencionar que el nuevo
    comportamiento quedó reflejado en ESTA guía** (y actualizarla si aplica).
 2. **Privacidad**: repo público → nunca subir `.env`, `data/profile.json`,
    CVs, credenciales ni datos personales (los ejemplos usan placeholders como
@@ -2080,3 +2089,77 @@ claro sin llamadas. Falta la corrida real: el usuario todavia no configuro
 **El nuevo comportamiento quedo reflejado en la guia del agente** (mapa de
 archivos, flags de `main.py` y botones de la UI) en este mismo commit, como
 manda la regla #44.
+
+
+## 51. Selector manual de modelo IA, primer uso real y fin del parpadeo de consola (2026-10-21, tarde)
+
+**Problema.** NVIDIA NIM (free tier) lista 83 modelos en `GET /v1/models`,
+pero varios dan **404** ("not found for account") o **410** ("end of life")
+aunque aparezcan en la lista. Los modelos cambian seguido, así que hardcodear
+un default (o un fallback automático) envejece mal y confunde: el usuario
+eligió `z-ai/glm-5.3` (funcionó), pero es un modelo de razonamiento que para
+el CV gastó los 4000 tokens en `reasoning_tokens` y devolvió un esqueleto
+vacío. `openai/gpt-oss-20b` completó perfil + evaluación + CV adaptado en
+~76 s (1577 tokens de salida).
+
+**Selector manual (decisión).**
+- `IAClient.listar_modelos()` consulta `GET /models` en vivo (sin hardcodear
+  familias ni versiones). `--ia-listar-modelos` la imprime y sale; la UI la
+  pide en un hilo y llena un **combobox** con botón *Actualizar lista*.
+- `--ia-modelo MODELO` pisa `IA_MODEL` solo para esa corrida. La UI pasa la
+  selección como flag y recuerda la última en `data/ia_modelo.txt`
+  (gitignored); precedencia: flag > `IA_MODEL` del `.env` > preset.
+- Un **404/410** del modelo lanza `IAModeloError` (subtipo de `IAError`):
+  es fatal y **no** se parte el lote (partirlo solo gastaría cuota en el
+  mismo error). El mensaje pide elegir otro modelo en el selector.
+- Default del preset NVIDIA y del `.env`: `openai/gpt-oss-20b`. `z-ai/glm-5.3`
+  queda disponible en el selector pero no se recomienda para el CV.
+
+**Robustez del JSON.** `_json_de_texto` ahora usa `raw_decode` y acepta texto
+alrededor, ```json``` o un segundo objeto después del JSON (GLM devolvía
+"Extra data"); prefiere el objeto con `resultados`/`perfil`/`evaluacion`. Si
+`content` viene vacío se prueba `reasoning_content`, pero `_normalizar_cv`
+**rechaza** perfiles/evaluaciones vacíos (modelo que solo razonó) con un
+mensaje que sugiere cambiar de modelo. `max_tokens` del CV bajó de 8000 a
+4000 (alcanza y evita esperas de 5+ minutos). `PROMPT_VERSION` subió a `v2`
+al aclarar que `titulos` son cargos (no empresas) y que `puesto_en` es el
+MISMO cargo traducido al inglés, nunca la empresa; la caché vieja se invalida
+a propósito.
+
+**Comparativa de modelos (6 vacantes, mismo prompt).** `google/gemma-4-31b-it`
+38.3 s, 304 tokens de salida, 6/6, MAE 20.3 vs gate; `openai/gpt-oss-20b`
+58.0 s, 939 tokens, 6/6, MAE 22.0 y la mejor correlación (r 0.40, rho 0.41);
+`z-ai/glm-5.3` 41.9 s, 1397 tokens, 6/6, MAE 26.3. Los tres coinciden entre
+sí (MAE 8-9 puntos). `google/gemma-3-12b-it` aparece en `/models` pero da 404
+para la cuenta; `openai/gpt-oss-20b` sigue siendo el default por su
+consistencia, y `google/gemma-4-31b-it` es la alternativa más rápida (y la
+Gemma recomendada). En CV v2, Gemma 4 31B dio 72/100 en 82 s, 967 tokens,
+`titulos` y `puesto_en` correctos; gpt-oss dio 75/100 en 77 s, 1577 tokens.
+
+**Bug de la ventana que parpadea.** La UI lee `data/corrida_estado.json`
+cada 2 s; si decía `corriendo`, `core.progreso.pid_vivo()` ejecutaba
+`tasklist` **sin** `CREATE_NO_WINDOW` → una consola negra abría/cerraba cada
+2 s. Además, al detectar un PID muerto solo corregía el estado en memoria,
+así que un estado huérfano seguía disparando `tasklist` para siempre. Ahora
+`tasklist`/`taskkill`/PowerShell corren ocultos y `leer_estado()` **persiste**
+`interrumpida` + `fin_ts`; el parpadeo desaparece también con estados viejos.
+De paso, `errors="replace"` evita el `UnicodeDecodeError` de `tasklist` en
+consolas cp1252.
+
+**Verificación real.**
+- `--ia-listar-modelos`: 83 modelos, con `*` en el actual.
+- `--ia --ia-max 2`: 1067 en ventana, 2 evaluadas, 0 errores, 1 llamada,
+  1258/923 tokens, CSV `data/ia_20261021_1309.csv` (modelo GLM 5.3).
+- `--ia-reporte`: 2 pares, MAE 29.1, exactitud 50%, F1 0.67, matriz 1/1/0/0;
+  `data/ia_calibracion.md` con las 2 discrepancias.
+- `--ia-cv data/demo_cv.docx --ia-puesto "Soporte Técnico"` con
+  `openai/gpt-oss-20b`: puntaje 75/100, 5 años, perfil con skills/temas,
+  CV adaptado de 925 caracteres, 4 sugerencias, ~76 s, 2278/1845 tokens.
+  Sin `--ia-guardar` no tocó `data/profile.json`; los artefactos del CV demo
+  (`data/cv_ia.*`) y su fila de prueba en `ia_evals` se borraron después.
+- `py_compile` de `main.py`, `ui.py` y `core/*` OK. Pendiente: correr
+  `--ia` completo y `--ia-cv` con el CV real del usuario.
+
+**El nuevo comportamiento quedó reflejado en la guía del agente** (mapa de
+archivos, flags de `main.py`, selector de la UI y notas de modelos) en este
+mismo commit, como manda la regla #44.

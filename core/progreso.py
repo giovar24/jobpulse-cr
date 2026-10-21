@@ -29,6 +29,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
 
+# La UI consulta el estado cada 2 s: tasklist/taskkill deben correr SIN
+# consola o Windows hace parpadear una ventana negra en cada consulta.
+SIN_VENTANA = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 RAIZ = Path(__file__).resolve().parent.parent
 DATA = RAIZ / "data"
 ESTADO_JSON = DATA / "corrida_estado.json"
@@ -83,7 +87,8 @@ def pid_vivo(pid) -> bool:
         return False
     try:
         r = subprocess.run(["tasklist", "/FI", f"PID eq {int(pid)}", "/NH"],
-                           capture_output=True, text=True, timeout=10)
+                           capture_output=True, text=True, errors="replace",
+                           timeout=10, creationflags=SIN_VENTANA)
         out = (r.stdout or "")
         return "No tasks" not in out and str(pid) in out
     except Exception:
@@ -95,9 +100,13 @@ def leer_estado() -> dict:
     est.setdefault("estado", "nunca")
     est.setdefault("encontradas", {})
     est.setdefault("fases_completadas", [])
-    # una corrida cuyo proceso ya no existe esta "interrumpida", no "corriendo"
+    # una corrida cuyo proceso ya no existe esta "interrumpida", no "corriendo".
+    # Se PERSISTE: si no, cada lectura (la UI cada 2 s) vuelve a ver "corriendo"
+    # y relanza tasklist para siempre (parpadeo de consola).
     if est["estado"] == "corriendo" and not pid_vivo(est.get("pid")):
         est["estado"] = "interrumpida"
+        est["fin_ts"] = est.get("fin_ts") or _ahora()
+        _escribir(ESTADO_JSON, est)
     return est
 
 
@@ -127,7 +136,8 @@ def detener() -> bool:
     if not pid:
         return False
     ok = subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
-                        capture_output=True).returncode == 0
+                        capture_output=True,
+                        creationflags=SIN_VENTANA).returncode == 0
     if ok:
         _escribir(ESTADO_JSON, dict(est, estado="detenida", fin_ts=_ahora()))
     return ok

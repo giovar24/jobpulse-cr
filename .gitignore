@@ -28,6 +28,7 @@ data/ia_calibracion.json
 data/ia_calibracion.md
 data/cv_ia.json
 data/cv_ia.md
+data/ia_modelo.txt
 
 # --- CVs personales: el CV real del candidato nunca viaja a git ---
 # Patrones globales (cualquier carpeta del repo incluida la raiz). El demo

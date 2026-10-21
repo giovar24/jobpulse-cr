@@ -91,7 +91,8 @@ def programar_diferida(hh: int, mm: int):
     )
     r = subprocess.run(
         ["powershell", "-NoProfile", "-Command", ps],
-        capture_output=True, text=True, timeout=60)
+        capture_output=True, text=True, timeout=60,
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout or "").strip()[:200])
     return objetivo

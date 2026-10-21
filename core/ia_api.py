@@ -46,7 +46,7 @@ PRESETS = {
     },
     "nvidia": {
         "base": "https://integrate.api.nvidia.com/v1",
-        "modelo": "meta/llama-3.3-70b-instruct",
+        "modelo": "openai/gpt-oss-20b",
         "key_env": ("IA_API_KEY", "NVIDIA_API_KEY"),
     },
     "openai": {
@@ -84,7 +84,7 @@ _SENIORITY_MAP = {
 }
 # Subir esto invalida la cache de evaluaciones (cambio de prompt = nueva
 # pregunta; las respuestas viejas quedan en ia_evals como historial).
-PROMPT_VERSION = "v1"
+PROMPT_VERSION = "v2"
 
 
 class IAError(Exception):
@@ -97,6 +97,15 @@ class IAError(Exception):
 
 class IACuotaError(IAError):
     """Cuota agotada (429 o tope local de llamadas)."""
+
+
+class IAModeloError(IAError):
+    """El modelo elegido no existe o no esta habilitado para la cuenta.
+
+    No se reintenta partiendo el lote: es un problema de configuracion, no
+    del prompt. El usuario debe elegir otro modelo en el selector o con
+    `--ia-modelo`.
+    """
 
 
 def _entero(nombre: str, default: int) -> int:
@@ -148,18 +157,40 @@ def perfil_hash(profile) -> str:
 
 
 def _json_de_texto(texto: str) -> dict:
-    """Parsea JSON tolerando ```json ... ``` o texto alrededor."""
+    """Parsea JSON tolerando ```json ... ```, texto alrededor o varios objetos.
+
+    Algunos modelos (p. ej. GLM) agregan un segundo objeto o comentarios
+    después del JSON: cortar del primer '{' al último '}' falla con
+    "Extra data". Acá se decodifica el primer objeto COMPLETO y se ignoran
+    los restos; si hay varios, se prefiere el que trae las claves esperadas.
+    """
     t = (texto or "").strip()
     if t.startswith("```"):
         t = re.sub(r"^```(?:json)?\s*", "", t)
         t = re.sub(r"\s*```$", "", t)
+    if not t:
+        raise IAError("la IA devolvio una respuesta vacia")
     try:
         return json.loads(t)
     except json.JSONDecodeError:
-        i, j = t.find("{"), t.rfind("}")
-        if i >= 0 and j > i:
-            return json.loads(t[i:j + 1])
-        raise
+        pass
+    dec = json.JSONDecoder()
+    encontrados = []
+    for i, ch in enumerate(t):
+        if ch not in "{[":
+            continue
+        try:
+            obj, _ = dec.raw_decode(t[i:])
+        except ValueError:
+            continue
+        encontrados.append(obj)
+    for obj in encontrados:
+        if isinstance(obj, dict) and any(
+                k in obj for k in ("resultados", "perfil", "evaluacion")):
+            return obj
+    if encontrados:
+        return encontrados[0]
+    raise IAError("la IA no devolvio JSON reconocible")
 
 
 def _retry_after(resp) -> Optional[float]:
@@ -230,6 +261,34 @@ class IAClient:
     def resumen_uso(self) -> str:
         return (f"{self.llamadas} llamada(s), "
                 f"tokens entrada={self.tokens_in} salida={self.tokens_out}")
+
+    def listar_modelos(self) -> List[str]:
+        """Lista viva de modelos del proveedor (GET /models).
+
+        No se hardcodea nada: NVIDIA/Google agregan, retiran y deshabilitan
+        modelos por cuenta. La UI y `--ia-listar-modelos` usan esto.
+        """
+        if not self.disponible:
+            raise IAError(self.motivo_no_disponible())
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        try:
+            r = httpx.get(f"{self.base_url}/models", headers=headers,
+                          timeout=self.timeout)
+        except httpx.HTTPError as exc:
+            raise IAError(f"error de red listando modelos: {exc}") from exc
+        if r.status_code >= 400:
+            raise IAError(
+                f"HTTP {r.status_code} al listar modelos: "
+                f"{_texto_plano(r.text, 240)}", status=r.status_code)
+        try:
+            data = r.json()
+        except ValueError as exc:
+            raise IAError("la lista de modelos no vino en JSON") from exc
+        filas = data.get("data") if isinstance(data, dict) else data
+        if not isinstance(filas, list):
+            raise IAError("respuesta de /models sin lista 'data'")
+        return sorted({str(f.get("id")) for f in filas
+                       if isinstance(f, dict) and f.get("id")})
 
     # -------------------------------------------------------------- hashes
     def hash_vacante(self, vacante: dict, p_hash: str) -> str:
@@ -304,6 +363,14 @@ class IAClient:
             if r.status_code >= 500 and intento <= 2:
                 time.sleep(2 * intento)
                 continue
+            if r.status_code in (404, 410):
+                detalle = _texto_plano(r.text, 240)
+                raise IAModeloError(
+                    f"el modelo '{payload.get('model')}' no esta disponible "
+                    f"para tu cuenta (HTTP {r.status_code}). Elegi otro en el "
+                    f"selector de la UI o con --ia-modelo "
+                    f"(--ia-listar-modelos muestra la lista). Detalle: {detalle}",
+                    status=r.status_code)
             if r.status_code >= 400:
                 cuerpo = _texto_plano(r.text, 300)
                 raise IAError(f"HTTP {r.status_code}: {cuerpo}",
@@ -346,9 +413,33 @@ class IAClient:
         self.tokens_in += int(uso.get("prompt_tokens") or 0)
         self.tokens_out += int(uso.get("completion_tokens") or 0)
         try:
-            contenido = data["choices"][0]["message"]["content"]
+            eleccion = data["choices"][0]
+            mensaje = eleccion.get("message") or {}
         except (KeyError, IndexError, TypeError) as exc:
-            raise IAError("respuesta de la IA sin 'choices[0].message.content'") from exc
+            raise IAError("respuesta de la IA sin 'choices[0].message'") from exc
+        contenido = mensaje.get("content")
+        razon = mensaje.get("reasoning_content")
+        fin = eleccion.get("finish_reason")
+        if not contenido and razon:
+            # Modelos de razonamiento (Nemotron Lightning, GLM, etc.) a veces
+            # mandan todo en reasoning_content y dejan content vacio.
+            logger.info("IA: 'content' vacio; uso reasoning_content.")
+            contenido = razon
+        if not contenido:
+            detalle = ""
+            if fin == "length":
+                detalle = " (max_tokens agotado"
+                rt = ((uso.get("completion_tokens_details") or {})
+                      .get("reasoning_tokens"))
+                if rt:
+                    detalle += f", {rt} en razonamiento"
+                detalle += ")"
+            raise IAError(
+                "la IA devolvio una respuesta vacia" + detalle + ". Elegi otro "
+                "modelo en el selector (p. ej. openai/gpt-oss-20b).")
+        if fin == "length":
+            logger.warning("IA: respuesta truncada por max_tokens; puede faltar "
+                           "parte del JSON (si pasa, elegi otro modelo).")
         try:
             return _json_de_texto(contenido), uso
         except (ValueError, TypeError) as exc:
@@ -444,6 +535,10 @@ class IAClient:
         for n, bloque in enumerate(bloques, 1):
             try:
                 res, faltan = self._puntuar_bloque(bloque, perfil_txt)
+            except IAModeloError as exc:
+                logger.error("IA: %s", exc)
+                errores.update({v["job_id"]: str(exc) for v in bloque})
+                break
             except IACuotaError as exc:
                 logger.error("IA: %s", exc)
                 errores.update({v["job_id"]: str(exc) for v in bloque})
@@ -482,6 +577,8 @@ class IAClient:
                 res.update(r2)
                 err.update(e2)
             return res, err
+        except IAModeloError as exc:
+            return {}, {v["job_id"]: str(exc) for v in bloque}
         except IACuotaError as exc:
             return {}, {v["job_id"]: str(exc) for v in bloque}
         except IAError as exc:
@@ -514,6 +611,10 @@ class IAClient:
             "del CV (reordenar, aclarar, cuantificar lo que ya dice), en "
             "espanol, con secciones: Perfil, Experiencia, Habilidades, "
             "Educacion. No agregues experiencia ni logros inventados.\n"
+            "En 'titulos' pon los cargos/titulos profesionales que el CV "
+            "evidencia (p. ej. 'Analista de Soporte N2'), nunca la empresa. "
+            "En 'temas', 'puesto' es el cargo en espanol y 'puesto_en' el "
+            "MISMO cargo traducido al ingles (nunca la empresa).\n"
             "Responde SOLO JSON valido, sin markdown alrededor, con este esquema:\n"
             '{"perfil":{"nombre":"","titulos":[],"skills":[],'
             '"temas":[{"puesto":"","puesto_en":"","ubicacion":"Costa Rica"}],'
@@ -578,6 +679,15 @@ class IAClient:
         ev = data.get("evaluacion")
         if not isinstance(ev, dict):
             raise IAError("la respuesta no trae 'evaluacion'")
+        # Un modelo de razonamiento puede devolver el esqueleto del JSON con
+        # todo vacio tras gastar max_tokens "pensando": no lo damos por bueno.
+        if not any((perfil.get("nombre"), perfil.get("skills"),
+                    perfil.get("temas"), ev.get("resumen"),
+                    data.get("cv_adaptado_markdown"))):
+            raise IAError(
+                "la IA devolvio un perfil/evaluacion vacios (probablemente un "
+                "modelo de razonamiento que gasto max_tokens pensando). Elegi "
+                "otro modelo en el selector (p. ej. openai/gpt-oss-20b).")
 
         temas = []
         for t in (perfil.get("temas") or []):
@@ -640,10 +750,12 @@ class IAClient:
 
     def evaluar_cv(self, cv_texto: str, perfil, vacantes: Optional[List[dict]] = None,
                    puesto: str = "") -> dict:
+        # 4000 alcanza para perfil + evaluacion + CV adaptado (~1600 tokens
+        # reales con gpt-oss-20b) y evita esperas de 5+ minutos.
         data, _ = self._chat_json(
             self._system_cv(),
             self._user_cv(cv_texto, perfil_texto(perfil), vacantes, puesto),
-            max_tokens=8000,
+            max_tokens=4000,
         )
         return self._normalizar_cv(data)
 

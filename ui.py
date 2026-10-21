@@ -1079,7 +1079,8 @@ class App(tk.Tk):
         barra_ia.pack(fill="x", pady=(6, 0))
         self._btn_ia = ttk.Button(
             barra_ia, text="Re-evaluar crudo con IA",
-            command=lambda: self._corrida_arrancar(extra="--ia"))
+            command=lambda: self._corrida_arrancar(
+                extra=("--ia " + self._ia_args()).strip()))
         self._btn_ia.pack(side="left")
         self._btn_ia_cv = ttk.Button(
             barra_ia, text="Evaluar CV con IA", command=self._ia_cv)
@@ -1094,6 +1095,26 @@ class App(tk.Tk):
                        "jobs), evalúa/crea el perfil desde un CV, o mide el "
                        "acuerdo de la IA local. Consumen cuota gratuita."
                   ).pack(side="left", padx=8)
+
+        barra_mod = ttk.Frame(tab, padding=(10, 4))
+        barra_mod.pack(fill="x")
+        ttk.Label(barra_mod, text="Modelo IA:").pack(side="left")
+        self._ia_modelo_var = tk.StringVar(value=self._ia_modelo_guardado())
+        self._ia_modelo_cb = ttk.Combobox(
+            barra_mod, textvariable=self._ia_modelo_var, state="readonly",
+            width=54)
+        self._ia_modelo_cb.pack(side="left", padx=(6, 6))
+        ttk.Button(barra_mod, text="Actualizar lista",
+                   command=self._ia_cargar_modelos).pack(side="left")
+        self._ia_modelos_estado = ttk.Label(barra_mod, text="",
+                                            foreground="#666")
+        self._ia_modelos_estado.pack(side="left", padx=8)
+        ttk.Label(barra_mod, foreground="#666",
+                  text="(la lista la da el proveedor; cambia con el tiempo)"
+                  ).pack(side="left", padx=4)
+        self._ia_modelos_cola = queue.Queue()
+        self._ia_cargando = False
+        self._ia_cargar_modelos()
 
         panel = ttk.LabelFrame(tab, text="Estado de la corrida", padding=10)
         panel.pack(fill="x", padx=10, pady=8)
@@ -1137,6 +1158,83 @@ class App(tk.Tk):
         sb.pack(side="right", fill="y")
 
         self.nb.add(tab, text="  Corrida  ")
+
+    # --------------------------------------------------- selector de modelo IA
+    def _ia_modelo_guardado(self) -> str:
+        """Ultimo modelo elegido en la UI; si no hay, IA_MODEL del .env."""
+        try:
+            ruta = BASE / "data" / "ia_modelo.txt"
+            if ruta.exists():
+                modelo = ruta.read_text(encoding="utf-8").strip()
+                if modelo:
+                    return modelo
+        except OSError:
+            pass
+        return (os.getenv("IA_MODEL") or "").strip()
+
+    def _ia_args(self) -> str:
+        """Flag --ia-modelo para la corrida y memoria para la proxima apertura."""
+        var = getattr(self, "_ia_modelo_var", None)
+        modelo = ((var.get() if var else "") or "").strip().replace('"', "")
+        if not modelo:
+            return ""
+        try:
+            ruta = BASE / "data" / "ia_modelo.txt"
+            ruta.parent.mkdir(parents=True, exist_ok=True)
+            ruta.write_text(modelo, encoding="utf-8")
+        except OSError:
+            pass
+        return f'--ia-modelo "{modelo}"'
+
+    def _ia_cargar_modelos(self):
+        """Pide la lista VIVA al proveedor en segundo plano (no bloquea la UI)."""
+        if getattr(self, "_ia_cargando", False):
+            return
+        self._ia_cargando = True
+        self._ia_modelos_estado.configure(text="consultando modelos…",
+                                          foreground="#666")
+
+        def trabajo():
+            try:
+                from core.ia_api import IAClient
+                modelos = IAClient().listar_modelos()
+                self._ia_modelos_cola.put((modelos, ""))
+            except Exception as exc:
+                self._ia_modelos_cola.put(([], str(exc)))
+
+        threading.Thread(target=trabajo, daemon=True).start()
+        self.after(300, self._ia_modelos_poll)
+
+    def _ia_modelos_poll(self):
+        try:
+            modelos, error = self._ia_modelos_cola.get_nowait()
+        except queue.Empty:
+            if getattr(self, "_ia_cargando", False):
+                self.after(300, self._ia_modelos_poll)
+            return
+        self._ia_cargando = False
+        self._ia_modelos_listos(modelos, error)
+
+    def _ia_modelos_listos(self, modelos, error):
+        actual = (self._ia_modelo_var.get() or "").strip()
+        if not modelos:
+            self._ia_modelos_estado.configure(
+                text=f"No se pudo cargar la lista: {(error or 'sin modelos')[:140]}",
+                foreground="#a00000")
+            return
+        valores = list(modelos)
+        no_listado = bool(actual) and actual not in valores
+        if no_listado:
+            valores.insert(0, actual)     # que siga visible aunque haya cambiado
+        self._ia_modelo_cb.configure(values=valores)
+        if no_listado:
+            self._ia_modelos_estado.configure(
+                text=f"{len(modelos)} modelos · el actual no aparece "
+                     "(¿retirado?); elegí otro",
+                foreground="#a05a00")
+        else:
+            self._ia_modelos_estado.configure(
+                text=f"{len(modelos)} modelos disponibles", foreground="#666")
 
     def _corrida_arrancar(self, preflight: bool = False, solo: str = "todos",
                           extra: str = ""):
@@ -1199,6 +1297,9 @@ class App(tk.Tk):
         extra = f'--ia-cv "{ruta}"'
         if guardar:
             extra += " --ia-guardar"
+        args_modelo = self._ia_args()
+        if args_modelo:
+            extra += f" {args_modelo}"
         self._corrida_arrancar(extra=extra)
 
     def _corrida_detener(self):

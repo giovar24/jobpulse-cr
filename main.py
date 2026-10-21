@@ -261,15 +261,41 @@ def _ventana_ia(raw: list, dias: int) -> list:
     ]
 
 
+def listar_modelos_ia(modelo: str = "") -> None:
+    """Imprime la lista VIVA de modelos del proveedor (no hardcodeada).
+
+    NVIDIA/Google agregan y retiran modelos, y algunos aparecen en /models
+    pero no estan habilitados para la cuenta. El selector de la UI y este
+    comando usan la misma lista.
+    """
+    client = IAClient({"modelo": modelo} if modelo else None)
+    try:
+        modelos = client.listar_modelos()
+    except IAError as exc:
+        logger.error("IA: %s", exc)
+        return
+    actual = modelo or client.modelo
+    print(f"{len(modelos)} modelo(s) en {client.proveedor} "
+          f"({client.base_url}):")
+    for m in modelos:
+        print(("  * " if m == actual else "    ") + m)
+    if actual not in modelos:
+        print(f"\nOJO: el modelo actual '{actual}' no aparece en la lista; "
+              "puede haber sido retirado. Elegí otro con --ia-modelo.")
+    print("\nUsalo con: python main.py --ia --ia-modelo \"<modelo>\" "
+          "(o el selector de la UI).")
+
+
 async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
-                      ia_max: int = 0, forzar: bool = False, prog=None) -> dict:
+                      ia_max: int = 0, forzar: bool = False, prog=None,
+                      modelo: str = "") -> dict:
     """Evalua el crudo (jobs_raw) con la IA fuerte, a demanda.
 
     No cambia la membresia del gate: `jobs` sigue decidiendose con embeddings.
     Solo anota score/razon en jobs_raw y jobs, guarda el historial en
     `ia_evals` (para calibrar/destilar) y deja un CSV revisable del dia.
     """
-    client = IAClient()
+    client = IAClient({"modelo": modelo} if modelo else None)
     if not client.disponible:
         logger.error("IA: %s", client.motivo_no_disponible())
         return {"_estado": "error", "motivo": "IA sin clave (IA_API_KEY)"}
@@ -385,14 +411,15 @@ async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
 
 async def evaluar_cv_ia(db, profile, cv_path: str, puesto: str = "",
                         guardar: bool = False, forzar: bool = False,
-                        prog=None, dias: int = DEFAULT_DIAS) -> dict:
+                        prog=None, dias: int = DEFAULT_DIAS,
+                        modelo: str = "") -> dict:
     """Crea el perfil desde el CV (como cv2profile.py) y evalua el CV.
 
     Por defecto NO toca data/profile.json: deja el informe en data/cv_ia.md
     y el JSON completo en data/cv_ia.json. Con `guardar=True` escribe el
     perfil (merge + backup) usando el CV como fuente de verdad.
     """
-    client = IAClient()
+    client = IAClient({"modelo": modelo} if modelo else None)
     if not client.disponible:
         logger.error("IA: %s", client.motivo_no_disponible())
         return {"_estado": "error", "motivo": "IA sin clave (IA_API_KEY)"}
@@ -631,7 +658,8 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
                solo: str = RUN_TODOS, ia: bool = False, ia_cv: str = "",
                ia_puesto: str = "", ia_guardar: bool = False,
                ia_forzar: bool = False, ia_min: float = DEFAULT_IA_MIN,
-               ia_max: int = 0, ia_reporte: bool = False):
+               ia_max: int = 0, ia_reporte: bool = False,
+               ia_modelo: str = ""):
     """Entrada: bloquea corridas dobles y publica el estado de progreso ANTES
     de tocar la red, para que la GUI (pestana Corrida) muestre que paso.
 
@@ -661,7 +689,8 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
                                  ia=ia, ia_cv=ia_cv, ia_puesto=ia_puesto,
                                  ia_guardar=ia_guardar, ia_forzar=ia_forzar,
                                  ia_min=ia_min, ia_max=ia_max,
-                                 ia_reporte=ia_reporte) or {}
+                                 ia_reporte=ia_reporte,
+                                 ia_modelo=ia_modelo) or {}
         estado = resumen.pop("_estado",
                              "preflight" if preflight else "ok")
         resumen.setdefault("alcance", alcance)
@@ -720,7 +749,7 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
                    ia: bool = False, ia_cv: str = "", ia_puesto: str = "",
                    ia_guardar: bool = False, ia_forzar: bool = False,
                    ia_min: float = DEFAULT_IA_MIN, ia_max: int = 0,
-                   ia_reporte: bool = False):
+                   ia_reporte: bool = False, ia_modelo: str = ""):
     modo_ia = ia or bool(ia_cv) or ia_reporte
     if modo_ia:
         prog.total(3)       # preparación + consulta + guardado
@@ -742,9 +771,10 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
             return resumen
         if ia_cv:
             return await evaluar_cv_ia(db, profile, ia_cv, ia_puesto,
-                                       ia_guardar, ia_forzar, prog, dias)
+                                       ia_guardar, ia_forzar, prog, dias,
+                                       ia_modelo)
         return await procesar_ia(db, profile, dias, ia_min, ia_max,
-                                 ia_forzar, prog)
+                                 ia_forzar, prog, ia_modelo)
 
     # Alcance elegido con --solo (los dos bloques de scraping de abajo).
     correr_boards = run_incluye(solo, GROUP_BOARDS)
@@ -1092,6 +1122,12 @@ if __name__ == "__main__":
     parser.add_argument("--ia-max", type=int, default=0,
                         help="Tope de vacantes a evaluar en esta ejecución "
                              "(0 = IA_MAX_VACANTES del .env).")
+    parser.add_argument("--ia-modelo", default="", metavar="MODELO",
+                        help="Modelo para esta ejecución (pisa IA_MODEL del "
+                             ".env). Ver --ia-listar-modelos.")
+    parser.add_argument("--ia-listar-modelos", action="store_true",
+                        help="Lista los modelos disponibles del proveedor y "
+                             "sale (no scrapea ni toca la base).")
     parser.add_argument("--ia-reporte", action="store_true",
                         help="Calibra la IA local contra las evaluaciones IA "
                              "guardadas y sugiere --score-min (no aplica cambios).")
@@ -1100,12 +1136,15 @@ if __name__ == "__main__":
         parser.error("--ia y --ia-cv son modos distintos; elegí uno.")
     if args.ia_guardar and not args.ia_cv:
         parser.error("--ia-guardar solo tiene sentido con --ia-cv RUTA.")
-    asyncio.run(main(
-        fresh=args.fresh, sin_expand=args.sin_expand,
-        dias=args.dias, min_score=args.score_min, re_filtrar=args.refiltrar,
-        preflight=args.preflight, solo=args.solo,
-        ia=args.ia, ia_cv=args.ia_cv, ia_puesto=args.ia_puesto,
-        ia_guardar=args.ia_guardar, ia_forzar=args.ia_forzar,
-        ia_min=args.ia_min, ia_max=args.ia_max,
-        ia_reporte=args.ia_reporte,
-    ))
+    if args.ia_listar_modelos:
+        listar_modelos_ia(args.ia_modelo)
+    else:
+        asyncio.run(main(
+            fresh=args.fresh, sin_expand=args.sin_expand,
+            dias=args.dias, min_score=args.score_min, re_filtrar=args.refiltrar,
+            preflight=args.preflight, solo=args.solo,
+            ia=args.ia, ia_cv=args.ia_cv, ia_puesto=args.ia_puesto,
+            ia_guardar=args.ia_guardar, ia_forzar=args.ia_forzar,
+            ia_min=args.ia_min, ia_max=args.ia_max,
+            ia_reporte=args.ia_reporte, ia_modelo=args.ia_modelo,
+        ))
