@@ -35,6 +35,13 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
    Las fases que lo necesitan abren **TU Brave por CDP**
    (`core/browser_manager.py`) con tu perfil (cookies). Cada fase publica
    progreso en `data/corrida_estado.json`; la GUI solo observa ese archivo.
+   Antes de abrirlo, `start_brave()` cierra Brave y **confirma** que no quedó
+   ningún `brave.exe` (`kill_brave`: `taskkill /F /T` + verificación con
+   `tasklist`, 2 intentos). Si no logra cerrarlo (p. ej. Brave iniciado como
+   administrador), **aborta con un mensaje claro** en vez de lanzar una
+   segunda instancia: Chromium se pliega a la que ya existe, ignora el
+   `--remote-debugging-port` y la corrida moría ~45 s después sin causa
+   visible (pasó el 2026-10-21).
    - **ANE** (`providers/boards/ane.py`) barre el listado newest-first por
      fecha, pero con memoria: salta el detalle de las vacantes ya guardadas
      en `jobs_raw` **con descripción**, y corta al encadenar
@@ -135,8 +142,8 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 
 ### Convenciones y reglas duras
 1. **Bitácora**: entradas `## N. título (fecha, hora)` al final del archivo;
-   la serie crece sin renumerar (al cierre de esta guía la última es **#48**;
-   la siguiente es #49). **Cada entrada debe mencionar que el nuevo
+   la serie crece sin renumerar (al cierre de esta guía la última es **#49**;
+   la siguiente es #50). **Cada entrada debe mencionar que el nuevo
    comportamiento quedó reflejado en ESTA guía** (y actualizarla si aplica).
 2. **Privacidad**: repo público → nunca subir `.env`, `data/profile.json`,
    CVs, credenciales ni datos personales (los ejemplos usan placeholders como
@@ -1951,3 +1958,42 @@ en `jobs_raw` y `jobs` (36 curadas). Al mediodía había **4** ya vencidas.
 propagación de ANE con memoria + `expires_at`; persistencia: columna
 `expires_at`, poda de vigencia y qué borra cada cosa) en este mismo commit,
 como manda la regla de oro de la #44.
+
+## 49. Navegador: cierre verificado de Brave (falla de 45 s) (2026-10-21, tarde)
+
+Síntoma: la corrida manual de las 11:55 murió con `Brave failed to start`
+45 s después de lanzar el navegador. No tenía relación con los cambios de
+ANE de la #48 (esas corridas ni siquiera llegaron a scrapear).
+
+**Diagnóstico.** El Brave del usuario seguía vivo: PID **7424**, creado a
+las **10:15:33** (el que tenía abierta la página de ANE). Los procesos
+creados a las 11:55:44 (9932, 16052, 11320) tenían `ParentProcessId=7424`:
+el nuevo `brave.exe --remote-debugging-port=...` **se plegó a la instancia
+existente** (single-instance de Chromium), la instancia vieja no se había
+abierto con depuración y el puerto CDP nunca apareció. El `taskkill /F /IM
+brave.exe` no logró matarla (probablemente elevada; su `Path`/`CommandLine`
+no eran legibles desde el proceso de JobPulse) y el error quedaba oculto en
+`capture_output=True`.
+
+**Cambios (`core/browser_manager.py`):**
+- `wait_for_port(port, timeout=20)`: reloj monotónico (antes el sleep fijo
+  estiraba el timeout real a ~45 s) y `create_connection(timeout=0.5)`.
+- `brave_running()`: consulta `tasklist` (no depende de permisos de
+  `Get-Process`; `errors="replace"` porque la consola responde en cp850).
+- `kill_brave(timeout=12)`: `taskkill /F /T /IM brave.exe` + **verificación**
+  con `brave_running()` hasta que no quede ninguno, 2 intentos.
+- `start_brave()`: si Brave no se puede cerrar, **aborta con mensaje
+  explícito** ("cerralo del todo, si corre como administrador cerralo desde
+  una consola elevada") antes de lanzar una segunda instancia condenada.
+  Si el puerto no abre, distingue **proceso vivo** (no abrió CDP) de
+  **proceso terminado con código N** (el perfil estaba en uso) y limpia el
+  proceso. Se quitó el `time.sleep(1)` fijo.
+
+**Verificación:** `py_compile`; prueba real con el perfil real (dos veces):
+`start_brave()` → puerto CDP en **1,0 s**, `/json/version` responde
+`Chrome/155.0.8059.85`; `kill_brave()` → 0 `brave.exe`; sin excepciones de
+decodificación. UI y Brave cerrados tras la prueba.
+
+**El nuevo comportamiento quedó reflejado en la guía del agente** (fase 1:
+cierre verificado de Brave y por qué no se lanza una segunda instancia) en
+este mismo commit, como manda la regla de oro de la #44.
