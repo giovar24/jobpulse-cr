@@ -9,6 +9,8 @@ Paso 3: cada seccion vive en su propia pestana (ttk.Notebook):
 Paso 4: pestana "Perfil": editor con resumen de cambios y backups.
 Paso 5: pestana "Corrida": lanza el scraping como subproceso y SOLO
 observa data/corrida_estado.json (como hacia Streamlit).
+Paso 6: pestana "Credenciales": LA LISTA de sitios con login, fiel a
+core/credenciales.py (solo ANE es de password; el resto es SSO).
 
 Por que Tkinter: viene con Python (cero dependencias nuevas), corre en un
 proceso unico que tú cierras, y su vida NO depende de ninguna pestana del
@@ -31,6 +33,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 
 from core.ats import rank_with_ats
+from core import credenciales as creds_store
 from core.profile import (CandidateProfile, DEFAULT_PROFILE_PATH,
                           backups_perfil, guardar_perfil)
 from core.progreso import (corriendo, detener, leer_estado,
@@ -430,6 +433,7 @@ class App(tk.Tk):
         self._pestana_libre()
         self._pestana_perfil()
         self._pestana_corrida()
+        self._pestana_credenciales()
         self._detalle_construir()
 
         pie = ttk.Frame(self, padding=(10, 4))
@@ -1203,6 +1207,289 @@ class App(tk.Tk):
         aparte y sigue andando; al reabrir, esta pestaña la vuelve a mostrar."""
         self._corrida_stop.set()
         self.destroy()
+
+    # -------------------------------------------------------- credenciales
+    def _pestana_credenciales(self):
+        tab = ttk.Frame(self.nb)
+
+        ttk.Label(
+            tab, padding=(10, 8), foreground="#555", wraplength=1000,
+            justify="left",
+            text=("La lista de sitios que exigen password/sesión: seeds fijos + "
+                  "lo que los providers detectan. Las credenciales se guardan SOLO "
+                  "en esta máquina, en data/empresas/credenciales.json (.gitignore): "
+                  "nunca viajan a git. Si la cuenta no tiene clave propia (Indeed se "
+                  "entra con tu Gmail), marcá el acceso vía Google/SSO y guardá solo "
+                  "el correo. Equivalente por terminal: python credenciales.py "
+                  "--set \"Empresa\".")
+        ).pack(fill="x")
+
+        met = ttk.Frame(tab, padding=(10, 0))
+        met.pack(fill="x")
+        negr = ("Segoe UI", 9, "bold")
+        ttk.Label(met, text="Sitios en la lista:", font=negr).pack(side="left")
+        self._cred_m_total = ttk.Label(met, text="0")
+        self._cred_m_total.pack(side="left", padx=(4, 18))
+        ttk.Label(met, text="Obligatorios:", font=negr).pack(side="left")
+        self._cred_m_obl = ttk.Label(met, text="0")
+        self._cred_m_obl.pack(side="left", padx=(4, 18))
+        ttk.Label(met, text="Con credencial:", font=negr).pack(side="left")
+        self._cred_m_con = ttk.Label(met, text="0")
+        self._cred_m_con.pack(side="left", padx=(4, 18))
+        ttk.Label(met, text="Pendientes:", font=negr).pack(side="left")
+        self._cred_m_pend = ttk.Label(met, text="0")
+        self._cred_m_pend.pack(side="left", padx=4)
+
+        marco = ttk.LabelFrame(
+            tab, text="LA LISTA — sitios que piden password / sesión", padding=6)
+        marco.pack(fill="both", expand=True, padx=10, pady=(8, 0))
+        self._tabla_cred = Tabla(
+            marco,
+            (("empresa", "Empresa", 140, "w"),
+             ("grupo_label", "Grupo", 165, "w"),
+             ("obligatorio_txt", "Obligatorio", 80, "center"),
+             ("credencial_txt", "Credencial", 210, "w"),
+             ("auto_txt", "Auto-login", 86, "center"),
+             ("pendiente", "Pendiente", 130, "w"),
+             ("motivo", "Motivo", 230, "w")),
+            al_ordenar=self._cred_pintar,
+            al_seleccionar=self._cred_seleccion,
+        )
+        self._tabla_cred.pack(fill="both", expand=True)
+
+        self._cred_aviso = ttk.Label(tab, foreground="#a05a00", padding=(10, 2))
+        self._cred_aviso.pack(fill="x")
+
+        acc = ttk.LabelFrame(tab, text="Acciones sobre el sitio seleccionado",
+                             padding=8)
+        acc.pack(fill="x", padx=10, pady=(4, 0))
+        self._btn_cred_auto = ttk.Button(acc, text="Auto-login: —",
+                                         command=self._cred_toggle_auto)
+        self._btn_cred_auto.pack(side="left")
+        self._btn_cred_borrar = ttk.Button(acc, text="Borrar credencial",
+                                           command=self._cred_borrar)
+        self._btn_cred_borrar.pack(side="left", padx=6)
+        self._btn_cred_quitar = ttk.Button(acc, text="Quitar del flujo",
+                                           command=self._cred_quitar)
+        self._btn_cred_quitar.pack(side="left")
+        self._btn_cred_abrir = ttk.Button(acc, text="Abrir sitio",
+                                          command=self._cred_abrir)
+        self._btn_cred_abrir.pack(side="left", padx=6)
+        ttk.Label(acc, foreground="#666",
+                  text="Quitar del flujo solo aplica a sitios que agregaste a mano."
+                  ).pack(side="left", padx=8)
+
+        # ---- formulario de alta / actualizacion (como el form de app.py)
+        form = ttk.LabelFrame(tab, text="Agregar / actualizar una credencial",
+                              padding=10)
+        form.pack(fill="x", padx=10, pady=(8, 10))
+        self._cred_sel = tk.StringVar()
+        self._cred_otra = tk.StringVar()
+        self._cred_usuario = tk.StringVar()
+        self._cred_password = tk.StringVar()
+        self._cred_sso = tk.BooleanVar(value=False)
+        self._cred_url = tk.StringVar()
+        self._cred_auto = tk.BooleanVar(value=True)
+        self._cred_card = tk.StringVar()
+        self._cred_loc = tk.StringVar()
+
+        ttk.Label(form, text="Sitio:").grid(row=0, column=0, sticky="w", pady=2)
+        self._cb_cred = ttk.Combobox(form, textvariable=self._cred_sel,
+                                     state="readonly", width=30)
+        self._cb_cred.grid(row=0, column=1, sticky="w", pady=2)
+        ttk.Label(form, text="Nombre del otro sitio:").grid(
+            row=0, column=2, sticky="w", pady=2, padx=(16, 0))
+        ttk.Entry(form, textvariable=self._cred_otra, width=24).grid(
+            row=0, column=3, sticky="w", pady=2)
+
+        ttk.Label(form, text="Usuario:").grid(row=1, column=0, sticky="w", pady=2)
+        ttk.Entry(form, textvariable=self._cred_usuario, width=32).grid(
+            row=1, column=1, sticky="w", pady=2)
+        ttk.Label(form, text="Password (opcional si usás SSO):").grid(
+            row=1, column=2, sticky="w", pady=2, padx=(16, 0))
+        ttk.Entry(form, textvariable=self._cred_password, width=24,
+                  show="•").grid(row=1, column=3, sticky="w", pady=2)
+
+        ttk.Checkbutton(
+            form, variable=self._cred_sso,
+            text="Sin clave: entrar vía Google/SSO (Indeed se entra con la cuenta "
+                 "de Gmail; se reutiliza tu sesión en Brave)"
+        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=2)
+        ttk.Checkbutton(
+            form, variable=self._cred_auto,
+            text="Login automático en la corrida (si falla, fallback manual)"
+        ).grid(row=2, column=2, columnspan=2, sticky="w", pady=2)
+
+        ttk.Label(form, text="URL de login:").grid(row=3, column=0,
+                                                   sticky="w", pady=2)
+        ttk.Entry(form, textvariable=self._cred_url, width=56).grid(
+            row=3, column=1, columnspan=3, sticky="w", pady=2)
+        ttk.Label(form, text="Selectores (sitio nuevo): card_sel").grid(
+            row=4, column=0, sticky="w", pady=2)
+        ttk.Entry(form, textvariable=self._cred_card, width=24).grid(
+            row=4, column=1, sticky="w", pady=2)
+        ttk.Label(form, text="loc_sel").grid(row=4, column=2, sticky="w",
+                                             pady=2, padx=(16, 0))
+        ttk.Entry(form, textvariable=self._cred_loc, width=20).grid(
+            row=4, column=3, sticky="w", pady=2)
+
+        pies = ttk.Frame(form)
+        pies.grid(row=5, column=0, columnspan=4, sticky="w", pady=(6, 0))
+        ttk.Button(pies, text="Guardar credencial",
+                   command=self._cred_guardar).pack(side="left")
+        self._cred_estado = ttk.Label(pies, text="", foreground="#0a7f24")
+        self._cred_estado.pack(side="left", padx=10)
+
+        self.nb.add(tab, text="  Credenciales  ")
+        self._cred_pintar()
+
+    @staticmethod
+    def _cred_valores(f):
+        return (f["empresa"], f["grupo_label"], f["obligatorio_txt"],
+                f["credencial_txt"], f["auto_txt"], f["pendiente"], f["motivo"])
+
+    def _cred_pintar(self):
+        sitios = creds_store.lista_sitios_login()
+        r = creds_store.resumen()
+        self._cred_m_total.configure(text=str(r["total"]))
+        self._cred_m_obl.configure(text=str(r["obligatorios"]))
+        self._cred_m_con.configure(text=str(r["con_credencial"]))
+        self._cred_m_pend.configure(text=str(r["pendientes"]))
+
+        filas = []
+        for s in sitios:
+            cred = ((s["usuario"]
+                     + ("" if not s.get("sso") else " · " + s["acceso"])
+                     + (" (.env)" if s.get("password_fuente") == ".env" else ""))
+                    if s["tiene_credencial"] else "— falta —")
+            filas.append({
+                "empresa": s["empresa"],
+                "grupo_label": s.get("grupo_label") or "",
+                "obligatorio_txt": "Sí" if s["obligatorio"] else "No",
+                "credencial_txt": cred,
+                "auto_txt": "ON" if s.get("auto_login") else "off",
+                "pendiente": s.get("pendiente") or "",
+                "motivo": (s.get("motivo") or "")[:120],
+                "_s": s,          # el sitio original, para las acciones
+            })
+        col, asc = self._tabla_cred.orden
+        filas = ordenar(filas, col, asc)
+        self._tabla_cred.llenar(filas, self._cred_valores)
+
+        faltan = [s["empresa"] for s in sitios
+                  if s["obligatorio"] and not s["tiene_credencial"]]
+        self._cred_aviso.configure(
+            text=("⚠ Falta credencial obligatoria en: " + ", ".join(faltan)
+                  + " — sin ella ese proveedor se omite con un aviso."
+                  if faltan else ""))
+
+        valores = [s["empresa"] for s in sitios] + ["Otro (escribir a mano)"]
+        self._cb_cred["values"] = valores
+        if self._cred_sel.get() not in valores:
+            self._cred_sel.set(valores[0])
+        self._cred_seleccion(None)
+
+    def _cred_seleccion(self, fila):
+        """Habilita las acciones segun el sitio seleccionado (mismas reglas
+        de app.py: el toggle exige credencial, quitar exige alta manual)."""
+        s = (fila or {}).get("_s")
+        if not s:
+            for b in (self._btn_cred_auto, self._btn_cred_borrar,
+                      self._btn_cred_quitar, self._btn_cred_abrir):
+                b.configure(state="disabled")
+            return
+        self._btn_cred_auto.configure(
+            text=("Auto-login: ON" if s.get("auto_login") else "Auto-login: OFF"),
+            state=("normal" if (s["tiene_credencial"] or s.get("auto_login"))
+                   else "disabled"))
+        self._btn_cred_borrar.configure(
+            state="normal" if s["tiene_credencial"] else "disabled")
+        self._btn_cred_quitar.configure(
+            state="normal" if s.get("detectado") == "manual" else "disabled")
+        self._btn_cred_abrir.configure(
+            state="normal" if s.get("url") else "disabled")
+
+    def _cred_toggle_auto(self):
+        f = self._tabla_cred.seleccionada()
+        if not f:
+            return
+        s = f["_s"]
+        creds_store.marcar_auto_login(s["empresa"], not s.get("auto_login"))
+        self._cred_pintar()
+
+    def _cred_borrar(self):
+        f = self._tabla_cred.seleccionada()
+        if not f:
+            return
+        s = f["_s"]
+        if not messagebox.askyesno("Borrar credencial",
+                                   f"¿Borrar la credencial de {s['empresa']}?"):
+            return
+        creds_store.borrar_credencial(s["empresa"])
+        self._cred_pintar()
+
+    def _cred_quitar(self):
+        f = self._tabla_cred.seleccionada()
+        if not f:
+            return
+        s = f["_s"]
+        if not messagebox.askyesno(
+                "Quitar del flujo",
+                f"¿Quitar {s['empresa']} de la lista y del barrido?\n"
+                "La credencial se conserva. Los sitios fijos del sistema no se "
+                "pueden quitar."):
+            return
+        creds_store.quitar_sitio_login(s["empresa"])
+        self._cred_pintar()
+
+    def _cred_abrir(self):
+        f = self._tabla_cred.seleccionada()
+        if f and f["_s"].get("url"):
+            webbrowser.open(f["_s"]["url"])
+
+    def _cred_guardar(self):
+        nombre = (self._cred_otra.get() or "").strip() or self._cred_sel.get()
+        usuario = self._cred_usuario.get().strip()
+        password = self._cred_password.get()
+        sso = "google" if self._cred_sso.get() else ""
+        if not nombre:
+            self._cred_estado.configure(
+                text="Elegí un sitio de la lista o escribí el nombre del otro.",
+                foreground="#b01818")
+            return
+        if not usuario or (not password and not sso):
+            self._cred_estado.configure(
+                text="Falta el usuario, o bien la password o el acceso vía SSO "
+                     "(marcá la casilla si la cuenta no tiene clave propia).",
+                foreground="#b01818")
+            return
+        url = self._cred_url.get().strip()
+        nuevo = not creds_store.sitio_en_flujo(nombre)
+        creds_store.upsert_credencial(
+            nombre, usuario, password, url=url,
+            auto_login=self._cred_auto.get(), sso=sso,
+            card_sel=self._cred_card.get().strip(),
+            loc_sel=self._cred_loc.get().strip())
+        if nuevo and url:
+            msg = (f"{nombre} dado de alta en el flujo: credencial guardada, "
+                   "aparece en LA LISTA y entra al barrido de portales (cada "
+                   "corrida lo visita en tu Brave).")
+        elif nuevo:
+            msg = (f"{nombre} en LA LISTA con su credencial. Sin URL no se barre "
+                   "todavía: volvé a guardar con la URL del portal y el scraper "
+                   "lo recorrerá cada corrida.")
+        else:
+            msg = (f"Credencial de {nombre} guardada localmente"
+                   + (" (acceso vía Google, sin clave)" if sso else "") + ".")
+        self._cred_estado.configure(text=msg, foreground="#0a7f24")
+
+        # El form de Streamlit se limpiaba tras guardar (clear_on_submit).
+        for v in (self._cred_usuario, self._cred_password, self._cred_otra,
+                  self._cred_url, self._cred_card, self._cred_loc):
+            v.set("")
+        self._cred_sso.set(False)
+        self._cred_auto.set(True)
+        self._cred_pintar()
 
 
 if __name__ == "__main__":
