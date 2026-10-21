@@ -11,6 +11,8 @@ Paso 5: pestana "Corrida": lanza el scraping como subproceso y SOLO
 observa data/corrida_estado.json (como hacia Streamlit).
 Paso 6: pestana "Credenciales": LA LISTA de sitios con login, fiel a
 core/credenciales.py (solo ANE es de password; el resto es SSO).
+Paso 7: pestana "Sesiones": login manual en Brave (CAPTCHA/2FA) y
+pendientes, via core/sesiones.
 
 Por que Tkinter: viene con Python (cero dependencias nuevas), corre en un
 proceso unico que tú cierras, y su vida NO depende de ninguna pestana del
@@ -39,6 +41,8 @@ from core.profile import (CandidateProfile, DEFAULT_PROFILE_PATH,
 from core.progreso import (corriendo, detener, leer_estado,
                            tail as log_tail, tail_stdout as log_tail_stdout)
 from core.search_engine import SemanticSearchEngine
+from core.sesiones import (abrir_en_brave, quitar_pendiente,
+                           sitios_con_sesion, verificar_sesion)
 from providers.source_groups import grupo_publico, GRUPOS_PUBLICOS
 
 BASE = Path(__file__).resolve().parent
@@ -321,6 +325,15 @@ def _hilo_corrida(q: queue.Queue, stop: threading.Event):
         stop.wait(2.0)
 
 
+def _hilo_verificar(empresa: str, url: str, cola: queue.Queue):
+    """Verificar sesion monta Brave por CDP (cierra y REABRE tu navegador):
+    tarda varios segundos, va SIEMPRE en segundo plano. Nunca toca widgets."""
+    try:
+        cola.put(("sesion", (empresa, verificar_sesion(url))))
+    except Exception as exc:
+        cola.put(("err", exc))
+
+
 # ------------------------------------------------------------ componente
 class Tabla(ttk.Frame):
     """Treeview con scrollbars y encabezados ordenables. Reutilizable por pestana."""
@@ -417,6 +430,7 @@ class App(tk.Tk):
         self._corrida_stop = threading.Event()
         self._cor_log_prev = None
         self._cor_estado_prev = None
+        self._ses_verificando = False
 
         self._grupo_et = tk.StringVar(value="(todas)")
         self._busca = tk.StringVar(value="")
@@ -434,6 +448,7 @@ class App(tk.Tk):
         self._pestana_perfil()
         self._pestana_corrida()
         self._pestana_credenciales()
+        self._pestana_sesiones()
         self._detalle_construir()
 
         pie = ttk.Frame(self, padding=(10, 4))
@@ -698,12 +713,15 @@ class App(tk.Tk):
         try:
             while True:
                 tipo, dato = self._cola.get_nowait()
-                self._corriendo = False
-                self._botones(True)
+                if tipo in ("rank", "libre", "err"):
+                    self._corriendo = False
+                    self._botones(True)
                 if tipo == "rank":
                     self._ranking_listo(dato)
                 elif tipo == "libre":
                     self._libre_listo(*dato)
+                elif tipo == "sesion":
+                    self._sesion_verificada(*dato)
                 else:
                     self._conteo.set(f"Error: {dato}")
         except queue.Empty:
@@ -1490,6 +1508,153 @@ class App(tk.Tk):
         self._cred_sso.set(False)
         self._cred_auto.set(True)
         self._cred_pintar()
+
+    # ------------------------------------------------------------ sesiones
+    def _pestana_sesiones(self):
+        tab = ttk.Frame(self.nb)
+
+        ttk.Label(
+            tab, padding=(10, 8), foreground="#555", wraplength=1000,
+            justify="left",
+            text=("El navegador sigue siendo la bóveda preferida: abrís cada "
+                  "sitio en tu Brave, te logueás una vez (con tu 2FA normal) y "
+                  "la sesión queda en tu perfil — el mismo con el que corre el "
+                  "scraper. Si un sitio exige password, la pestaña Credenciales "
+                  "te deja ponerla localmente y activar el login automático; si "
+                  "ese login falla por CAPTCHA/2FA, el scraper cae aquí al login "
+                  "manual. Los sitios con pendiente saltan en la corrida sin "
+                  "romper nada.")
+        ).pack(fill="x")
+
+        marco = ttk.LabelFrame(
+            tab, text="Sitios que requieren login / sesión de navegador",
+            padding=6)
+        marco.pack(fill="both", expand=True, padx=10)
+        self._tabla_ses = Tabla(
+            marco,
+            (("empresa", "Empresa", 140, "w"),
+             ("grupo", "Grupo", 130, "w"),
+             ("estado_txt", "Estado", 100, "center"),
+             ("pendiente", "Pendiente", 170, "w"),
+             ("porque", "Motivo", 250, "w"),
+             ("url", "URL", 230, "w")),
+            al_ordenar=self._ses_pintar,
+            al_seleccionar=self._ses_seleccion,
+        )
+        self._tabla_ses.pack(fill="both", expand=True)
+
+        acc = ttk.LabelFrame(tab, text="Acciones sobre el sitio seleccionado",
+                             padding=8)
+        acc.pack(fill="x", padx=10, pady=(8, 10))
+        self._btn_ses_abrir = ttk.Button(acc, text="Abrir en Brave",
+                                         command=self._ses_abrir)
+        self._btn_ses_abrir.pack(side="left")
+        self._btn_ses_verificar = ttk.Button(acc, text="Verificar sesión",
+                                             command=self._ses_verificar)
+        self._btn_ses_verificar.pack(side="left", padx=6)
+        self._btn_ses_resuelto = ttk.Button(acc, text="Marcar resuelto",
+                                            command=self._ses_resuelto)
+        self._btn_ses_resuelto.pack(side="left")
+        self._ses_estado = ttk.Label(acc, text="", foreground="#555")
+        self._ses_estado.pack(side="left", padx=12)
+
+        self.nb.add(tab, text="  Sesiones  ")
+        self._ses_pintar()
+
+    @staticmethod
+    def _ses_valores(f):
+        return (f["empresa"], f["grupo"], f["estado_txt"],
+                f["pendiente"], f["porque"], f["url"])
+
+    def _ses_pintar(self):
+        filas = []
+        for s in sitios_con_sesion():
+            estado = ("Pendiente" if s.get("pendiente")
+                      else ("Recomendado" if s.get("recomendado")
+                            else "Configurado"))
+            filas.append({
+                "empresa": s.get("empresa") or "?",
+                "grupo": s.get("grupo") or "",
+                "estado_txt": estado,
+                "pendiente": s.get("pendiente") or "",
+                "porque": (s.get("porque") or "")[:120],
+                "url": s.get("url") or "",
+                "_s": s,
+            })
+        col, asc = self._tabla_ses.orden
+        self._tabla_ses.llenar(ordenar(filas, col, asc), self._ses_valores)
+        self._ses_seleccion(None)
+
+    def _ses_seleccion(self, fila):
+        s = (fila or {}).get("_s")
+        if not s:
+            for b in (self._btn_ses_abrir, self._btn_ses_verificar,
+                      self._btn_ses_resuelto):
+                b.configure(state="disabled")
+            return
+        tiene_url = bool(s.get("url"))
+        self._btn_ses_abrir.configure(state="normal" if tiene_url else "disabled")
+        self._btn_ses_verificar.configure(
+            state=("normal" if tiene_url and not self._ses_verificando
+                   else "disabled"))
+        self._btn_ses_resuelto.configure(
+            state="normal" if s.get("pendiente") else "disabled")
+
+    def _ses_abrir(self):
+        f = self._tabla_ses.seleccionada()
+        if not f or not f["_s"].get("url"):
+            return
+        if abrir_en_brave(f["_s"]["url"]):
+            self._ses_estado.configure(
+                text="Brave abierto. Logueate, cerrás la pestaña y volvés "
+                     "aquí para verificar.", foreground="#555")
+        else:
+            self._ses_estado.configure(
+                text="No encontré brave.exe — configura BRAVE_BIN en .env",
+                foreground="#b01818")
+
+    def _ses_verificar(self):
+        if self._ses_verificando:
+            return
+        f = self._tabla_ses.seleccionada()
+        if not f:
+            return
+        s = f["_s"]
+        url = s.get("url_check") or s.get("url")
+        if not url:
+            return
+        self._ses_verificando = True
+        self._btn_ses_verificar.configure(state="disabled")
+        self._ses_estado.configure(
+            text="Verificando (Brave se reinicia unos segundos)...",
+            foreground="#555")
+        threading.Thread(target=_hilo_verificar,
+                         args=(s["empresa"], url, self._cola),
+                         daemon=True).start()
+
+    def _sesion_verificada(self, empresa, res):
+        self._ses_verificando = False
+        f = self._tabla_ses.seleccionada()
+        self._ses_seleccion(f)          # reevalua el estado del boton
+        if res.get("ok"):
+            self._ses_estado.configure(
+                text=f"Sesión OK — título: {res.get('titulo', '')}",
+                foreground="#0a7f24")
+            if f and f["_s"].get("pendiente"):
+                quitar_pendiente(empresa)   # resuelto: como hacia app.py
+                self._ses_pintar()
+        else:
+            self._ses_estado.configure(
+                text=(f"Sin sesión aún — {res.get('motivo', '')} "
+                      f"(título: {res.get('titulo') or '?'})"),
+                foreground="#b01818")
+
+    def _ses_resuelto(self):
+        f = self._tabla_ses.seleccionada()
+        if not f:
+            return
+        if quitar_pendiente(f["_s"]["empresa"]):
+            self._ses_pintar()
 
 
 if __name__ == "__main__":
