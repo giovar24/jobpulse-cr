@@ -7,6 +7,8 @@ Paso 3: cada seccion vive en su propia pestana (ttk.Notebook):
    - "Ranking": tabla filtrable + ranking del perfil
    - "Busqueda libre": consulta en lenguaje natural sobre la base indexada
 Paso 4: pestana "Perfil": editor con resumen de cambios y backups.
+Paso 5: pestana "Corrida": lanza el scraping como subproceso y SOLO
+observa data/corrida_estado.json (como hacia Streamlit).
 
 Por que Tkinter: viene con Python (cero dependencias nuevas), corre en un
 proceso unico que tú cierras, y su vida NO depende de ninguna pestana del
@@ -18,6 +20,8 @@ import json
 import logging
 import queue
 import sqlite3
+import subprocess
+import sys
 import threading
 import webbrowser
 from datetime import date, datetime, timedelta
@@ -29,6 +33,8 @@ from tkinter import messagebox, ttk
 from core.ats import rank_with_ats
 from core.profile import (CandidateProfile, DEFAULT_PROFILE_PATH,
                           backups_perfil, guardar_perfil)
+from core.progreso import (corriendo, detener, leer_estado,
+                           tail as log_tail, tail_stdout as log_tail_stdout)
 from core.search_engine import SemanticSearchEngine
 from providers.source_groups import grupo_publico, GRUPOS_PUBLICOS
 
@@ -50,6 +56,26 @@ except ImportError:
 GRUPO_TXT = {
     "estatales": "Portal estatal (ANE/CINDE/Procomer)",
     "otros": "Resto (agregadores + ATS)",
+}
+
+# Estado de la corrida (core.progreso) -> texto y color en la pestana Corrida.
+ESTADO_TXT = {
+    "corriendo": "Corriendo",
+    "ok": "Completada",
+    "preflight": "Preflight OK (sin red)",
+    "error": "Error",
+    "detenida": "Detenida a mano",
+    "interrumpida": "Interrumpida (el proceso murió)",
+    "nunca": "Sin corridas",
+}
+ESTADO_COLOR = {
+    "corriendo": "#0a7f24",
+    "ok": "#0a7f24",
+    "preflight": "#555555",
+    "error": "#b01818",
+    "detenida": "#a05a00",
+    "interrumpida": "#a05a00",
+    "nunca": "#555555",
 }
 
 # (id, encabezado, ancho, alineacion)
@@ -278,6 +304,20 @@ def _hilo_buscar(query: str, top: int, filas, cola: queue.Queue):
         cola.put(("err", exc))
 
 
+def _hilo_corrida(q: queue.Queue, stop: threading.Event):
+    """Lector de estado de corrida: nunca toca widgets, solo encola.
+
+    Corre SIEMPRE en segundo plano (2 s): leer_estado() ejecuta tasklist
+    cuando hay corrida viva y eso no puede ir en el hilo de Tkinter.
+    """
+    while not stop.is_set():
+        try:
+            q.put((leer_estado(), log_tail(120), log_tail_stdout(40)))
+        except Exception:
+            pass
+        stop.wait(2.0)
+
+
 # ------------------------------------------------------------ componente
 class Tabla(ttk.Frame):
     """Treeview con scrollbars y encabezados ordenables. Reutilizable por pestana."""
@@ -370,6 +410,10 @@ class App(tk.Tk):
         self._corriendo = False
         self._rank_activo = False    # True tras calcular ranking: la tabla muestra SOLO las rankeadas
         self._cola = queue.Queue()
+        self._cola_corrida = queue.Queue()
+        self._corrida_stop = threading.Event()
+        self._cor_log_prev = None
+        self._cor_estado_prev = None
 
         self._grupo_et = tk.StringVar(value="(todas)")
         self._busca = tk.StringVar(value="")
@@ -385,6 +429,7 @@ class App(tk.Tk):
         self._pestana_rank()
         self._pestana_libre()
         self._pestana_perfil()
+        self._pestana_corrida()
         self._detalle_construir()
 
         pie = ttk.Frame(self, padding=(10, 4))
@@ -401,6 +446,16 @@ class App(tk.Tk):
         for var in (self._busca, self._grupo_et, self._dias):
             var.trace_add("write", lambda *_: self._pintar_rank())
         self.after(120, self._drenar)
+
+        # Observador de corridas: el hilo lee estado+logs cada 2 s y el hilo
+        # de Tkinter solo pinta lo que llega por la cola (leer_estado dispara
+        # tasklist mientras hay corrida viva: no puede congelar la ventana).
+        threading.Thread(target=_hilo_corrida,
+                         args=(self._cola_corrida, self._corrida_stop),
+                         daemon=True).start()
+        self.after(2000, self._corrida_refrescar)
+        self._corrida_pintar(leer_estado(), log_tail(120), log_tail_stdout(40))
+        self.protocol("WM_DELETE_WINDOW", self._al_cerrar)
 
     # ------------------------------------------------------------- pestanas
     def _pestana_rank(self):
@@ -925,6 +980,229 @@ class App(tk.Tk):
             messagebox.showerror("Restaurar", f"No se pudo restaurar: {exc}")
             return
         self._perfil_cargar(aviso=f"Restaurado {bk.name}.")
+
+    # ------------------------------------------------------------ corrida
+    def _pestana_corrida(self):
+        tab = ttk.Frame(self.nb)
+
+        barra = ttk.Frame(tab, padding=(10, 8))
+        barra.pack(fill="x")
+        self._btn_ats = ttk.Button(
+            barra, text="Corrida ATS de empresa",
+            command=lambda: self._corrida_arrancar(solo="ats"))
+        self._btn_ats.pack(side="left")
+        self._btn_boards = ttk.Button(
+            barra, text="Corrida job boards + estatales",
+            command=lambda: self._corrida_arrancar(solo="boards"))
+        self._btn_boards.pack(side="left", padx=6)
+        self._btn_todos = ttk.Button(barra, text="Corrida completa",
+                                     command=self._corrida_arrancar)
+        self._btn_todos.pack(side="left")
+        ttk.Label(barra, foreground="#666",
+                  text="(equivalen a: main.py --solo ats · --solo boards · main.py)"
+                  ).pack(side="left", padx=8)
+
+        barra2 = ttk.Frame(tab, padding=(10, 0))
+        barra2.pack(fill="x")
+        self._btn_preflight = ttk.Button(
+            barra2, text="Preflight (sin red)",
+            command=lambda: self._corrida_arrancar(preflight=True))
+        self._btn_preflight.pack(side="left")
+        self._btn_detener = ttk.Button(barra2, text="Detener",
+                                       command=self._corrida_detener)
+        self._btn_detener.pack(side="left", padx=6)
+        ttk.Label(barra2, foreground="#666",
+                  text="La UI solo observa data/corrida_estado.json: si la cerras,"
+                       " la corrida sigue y se ve al reabrir."
+                  ).pack(side="left", padx=8)
+
+        panel = ttk.LabelFrame(tab, text="Estado de la corrida", padding=10)
+        panel.pack(fill="x", padx=10, pady=8)
+        negr = ("Segoe UI", 9, "bold")
+        ttk.Label(panel, text="Estado:", font=negr).grid(row=0, column=0, sticky="w")
+        self._cor_estado = ttk.Label(panel, text="…")
+        self._cor_estado.grid(row=0, column=1, sticky="w", padx=(4, 20))
+        ttk.Label(panel, text="Inicio:", font=negr).grid(row=0, column=2, sticky="w")
+        self._cor_inicio = ttk.Label(panel, text="—")
+        self._cor_inicio.grid(row=0, column=3, sticky="w", padx=(4, 20))
+        ttk.Label(panel, text="Estatales (crudas):", font=negr).grid(
+            row=0, column=4, sticky="w")
+        self._cor_est = ttk.Label(panel, text="0")
+        self._cor_est.grid(row=0, column=5, sticky="w", padx=(4, 20))
+        ttk.Label(panel, text="Resto (crudas):", font=negr).grid(
+            row=0, column=6, sticky="w")
+        self._cor_resto = ttk.Label(panel, text="0")
+        self._cor_resto.grid(row=0, column=7, sticky="w", padx=4)
+
+        self._cor_paso = ttk.Label(panel, text="—")
+        self._cor_paso.grid(row=1, column=0, sticky="w", pady=(8, 0))
+        self._cor_bar = ttk.Progressbar(panel, length=380, maximum=1)
+        self._cor_bar.grid(row=1, column=1, columnspan=7, sticky="we", pady=(8, 0))
+        panel.columnconfigure(1, weight=1)
+
+        self._cor_fase = ttk.Label(panel, text="Sin corridas todavía",
+                                   font=("Segoe UI", 10, "bold"))
+        self._cor_fase.grid(row=2, column=0, columnspan=8, sticky="w",
+                            pady=(8, 2))
+        self._cor_msg = ttk.Label(panel, text="", wraplength=900, foreground="#444")
+        self._cor_msg.grid(row=3, column=0, columnspan=8, sticky="w")
+
+        logm = ttk.LabelFrame(tab, text="Log de la corrida (últimas líneas)",
+                              padding=6)
+        logm.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self._cor_log = tk.Text(logm, height=10, wrap="none",
+                                font=("Consolas", 9), state="disabled")
+        sb = ttk.Scrollbar(logm, orient="vertical", command=self._cor_log.yview)
+        self._cor_log.configure(yscrollcommand=sb.set)
+        self._cor_log.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+
+        self.nb.add(tab, text="  Corrida  ")
+
+    def _corrida_arrancar(self, preflight: bool = False, solo: str = "todos"):
+        """Lanza `python main.py` como subproceso; la UI solo observa.
+
+        `solo` separa el alcance (ats | boards | todos). El candado de
+        iniciar_corrida() es exclusivo: si hay una viva, main.py se niega
+        solo; aqui tambien se re-chequea antes de gastar proceso.
+        """
+        if corriendo():
+            messagebox.showinfo("Corrida en curso",
+                                "Ya hay una corrida viva: espera a que termine "
+                                "o presiona Detener.")
+            return
+        args = [sys.executable, "-u", "-X", "utf8", "main.py"]
+        if preflight:
+            args.append("--preflight")
+        if solo and solo != "todos":
+            args += ["--solo", solo]
+        out = BASE / "data" / "corrida_stdout.log"
+        try:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            fh = open(out, "ab")
+        except OSError:
+            fh = None
+        subprocess.Popen(args, cwd=str(BASE), stdin=subprocess.DEVNULL,
+                          stdout=(fh if fh is not None else subprocess.DEVNULL),
+                          stderr=subprocess.STDOUT,
+                          creationflags=subprocess.CREATE_NO_WINDOW)
+        if fh:
+            fh.close()
+
+    def _corrida_detener(self):
+        if not detener():
+            messagebox.showinfo("Detener",
+                                "No se pudo detener (quizás ya terminó).")
+
+    def _corrida_refrescar(self):
+        """Drena la cola del lector; pinta solo lo mas reciente."""
+        dato = None
+        try:
+            while True:
+                dato = self._cola_corrida.get_nowait()
+        except queue.Empty:
+            pass
+        if dato is not None:
+            self._corrida_pintar(*dato)
+        self.after(2000, self._corrida_refrescar)
+
+    def _corrida_pintar(self, est, log, crudo):
+        estado = est.get("estado", "nunca")
+        vivo = estado == "corriendo"
+
+        self._cor_estado.configure(
+            text=ESTADO_TXT.get(estado, estado),
+            foreground=ESTADO_COLOR.get(estado, "#000000"))
+        ts = est.get("inicio_ts")
+        self._cor_inicio.configure(text=ts[11:19] if ts else "—")
+        enc = est.get("encontradas") or {}
+        self._cor_est.configure(text=str(enc.get("estatales", 0)))
+        self._cor_resto.configure(
+            text=str(enc.get("boards", 0) + enc.get("directos", 0)))
+
+        total = int(est.get("total_fases") or 0)
+        paso = int(est.get("paso") or 0)
+        self._cor_bar.configure(maximum=total or 1, value=min(paso, total))
+        self._cor_paso.configure(
+            text=f"Paso {min(paso, total)}/{total}" if total else "—")
+
+        # Alcance de la corrida (--solo ats|boards): del resumen final o del
+        # titulo que publica main.py al arrancar (mismo criterio que app.py).
+        r = est.get("resumen") or {}
+        alcance = r.get("alcance") or ""
+        if not alcance:
+            t = est.get("titulo") or ""
+            alcance = t.split(" · ", 1)[1] if " · " in t else ""
+        achip = f"  ·  {alcance}" if alcance else ""
+
+        if estado == "corriendo":
+            self._cor_fase.configure(text=f"▶ {est.get('fase_actual', '')}"
+                                          + achip)
+            self._cor_msg.configure(text=est.get("detalle") or "")
+        elif estado == "ok":
+            self._cor_fase.configure(text=f"Completada{achip}")
+            self._cor_msg.configure(
+                text=f"{(est.get('fin_ts') or '')[11:19]} — "
+                     f"{r.get('crudas_estatales', 0)} en portales estatales, "
+                     f"{r.get('crudas_boards', 0) + r.get('crudas_directos', 0)} "
+                     f"en el resto (agregadores + ATS), "
+                     f"{r.get('nuevas', 0)} vacantes nuevas tras el gate.")
+        elif estado == "error":
+            self._cor_fase.configure(text="Error")
+            self._cor_msg.configure(
+                text=f"La corrida terminó con error: "
+                     f"{r.get('motivo', '') or 'ver log'}")
+        elif estado == "interrumpida":
+            self._cor_fase.configure(text="Interrumpida")
+            self._cor_msg.configure(
+                text="El proceso ya no existe (se cerró o murió). "
+                     "Puedes volver a lanzarla.")
+        elif estado == "detenida":
+            self._cor_fase.configure(text="Detenida")
+            self._cor_msg.configure(text="Corrida detenida a mano.")
+        elif estado == "preflight":
+            self._cor_fase.configure(text=f"Preflight OK{achip}")
+            self._cor_msg.configure(
+                text="Plan de corrida y credenciales reportados sin tocar la "
+                     "red. Revisa el log.")
+        else:
+            self._cor_fase.configure(text="Sin corridas todavía")
+            self._cor_msg.configure(
+                text="Lanza una corrida con los botones de arriba: el progreso "
+                     "aparece aquí en segundos.")
+
+        for b in (self._btn_ats, self._btn_boards, self._btn_todos,
+                  self._btn_preflight):
+            b.configure(state="disabled" if vivo else "normal")
+        self._btn_detener.configure(state="normal" if vivo else "disabled")
+
+        cuerpo = "".join(log or [])
+        if crudo:
+            cuerpo += ("\n— salida cruda (corrida_stdout.log) —\n"
+                       + "".join(crudo[-15:]))
+        if cuerpo != self._cor_log_prev:
+            self._cor_log_prev = cuerpo
+            t = self._cor_log
+            t.configure(state="normal")
+            t.delete("1.0", "end")
+            if cuerpo:
+                t.insert("1.0", cuerpo)
+                t.see("end")
+            t.configure(state="disabled")
+
+        # Transicion corriendo -> terminada: la corrida trajo datos nuevos,
+        # la pestaña Ranking se actualiza sola.
+        prev = self._cor_estado_prev
+        self._cor_estado_prev = estado
+        if prev == "corriendo" and estado in ("ok", "error", "detenida") \
+                and self.todas:
+            self._recargar()
+
+    def _al_cerrar(self):
+        """Cerrar la ventana mata SOLO la UI: una corrida viva es un proceso
+        aparte y sigue andando; al reabrir, esta pestaña la vuelve a mostrar."""
+        self._corrida_stop.set()
+        self.destroy()
 
 
 if __name__ == "__main__":
