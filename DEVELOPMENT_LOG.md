@@ -35,6 +35,15 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
    Las fases que lo necesitan abren **TU Brave por CDP**
    (`core/browser_manager.py`) con tu perfil (cookies). Cada fase publica
    progreso en `data/corrida_estado.json`; la GUI solo observa ese archivo.
+   - **ANE** (`providers/boards/ane.py`) barre el listado newest-first por
+     fecha, pero con memoria: salta el detalle de las vacantes ya guardadas
+     en `jobs_raw` **con descripción**, y corta al encadenar
+     `ANE_KNOWN_STREAK` (15) seguidas conocidas; si una página no trae
+     fechas legibles, corta con aviso (evita bajar detalles a ciegas si ANE
+     cambia el markup). `ANE_MAX_PAGES` (15) queda como tope duro de la
+     primera corrida (DB vacía). De cada detalle extrae además `expires_at`
+     ("Fecha de vencimiento de la vacante"), la fecha que usa la poda de
+     vigencia.
 3. **Regla SESIÓN PRIMERO** (Indeed, LinkedIn, portales de `login_sites.json`):
    la sesión del navegador manda (login manual una vez con
    `python hacer_login.py`); el auto-login opt-in (credencial local en
@@ -52,16 +61,23 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 - `data/jobs.db` (SQLite, `core/database.py`) con **2 tablas**:
   - `jobs_raw` = staging: **todo** lo crudo + `gate_score`/`gate_razon`.
   - `jobs` = solo aprobados por el gate (lo que ve el ranking).
+  - Ambas traen `expires_at` (fecha de vencimiento ISO que publica el portal:
+    ANE la trae en el detalle como "Fecha de vencimiento de la vacante";
+    LinkedIn/Indeed/Workday y compañía normalmente no la exponen).
 - **Por defecto NADA se borra: se ACUMULA** vía upsert por `job_id`
   (`save_jobs`): fila existente → actualiza campos vacíos + gate, **su
   `created_at` NO cambia** (por eso "vacantes nuevas de 24h" cuenta llegadas,
   no re-publicaciones); fila nueva → INSERT (esa es la "nueva" del informe).
-- Borrados **solo** en casos explícitos: `--fresh` (vacía ambas tablas al
+- **Vigencia (poda)**: `JobDatabase.purge_expired(dias)` corre al cerrar la
+  corrida (y también en `--refiltrar`). Borra de `jobs` y `jobs_raw` las filas
+  **vencidas**: `expires_at` < hoy; si la fila no trae vencimiento, las que
+  tienen `date_published` fuera de la ventana (`--dias`). Las filas sin
+  ninguna fecha legible NO se tocan (CINDE no publica fecha). Reemplaza la
+  regla anterior "no hay poda por antigüedad".
+- Otros borrados **explícitos**: `--fresh` (vacía ambas tablas al
   inicio), `--refiltrar` (vacía SOLO `jobs` y la reconstruye desde `jobs_raw`
   con el gate actual, sin scraping) y `clean_empty_jobs` (filas sin título ni
   link, cada corrida).
-- **No hay poda por antigüedad**: la DB crece; la UI y los informes
-  filtran por fecha (24h/día; la pestaña Ranking deja ver todas con Días=0).
 - Reportes `data/report_AAAAMMDD.csv` y `report_24h_AAAAMMDD.csv`: contienen
   SOLO las vacantes nuevas de **esa** corrida y se **sobrescriben por fecha de
   día**; si una corrida posterior del mismo día no tiene nuevas, no escribe
@@ -119,8 +135,8 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 
 ### Convenciones y reglas duras
 1. **Bitácora**: entradas `## N. título (fecha, hora)` al final del archivo;
-   la serie crece sin renumerar (al cierre de esta guía la última es **#46**;
-   la siguiente es #47). **Cada entrada debe mencionar que el nuevo
+   la serie crece sin renumerar (al cierre de esta guía la última es **#48**;
+   la siguiente es #49). **Cada entrada debe mencionar que el nuevo
    comportamiento quedó reflejado en ESTA guía** (y actualizarla si aplica).
 2. **Privacidad**: repo público → nunca subir `.env`, `data/profile.json`,
    CVs, credenciales ni datos personales (los ejemplos usan placeholders como
@@ -1846,3 +1862,92 @@ procesos colgados después.
 **El nuevo comportamiento quedó reflejado en la guía del agente** (mapa:
 líneas de `ui.py` y `jobpulse.cmd`; encabezado de "Cómo funciona una
 corrida") en este mismo commit, como manda la regla de oro de la #44.
+
+## 48. ANE: barrido incremental, fecha de vencimiento y poda de vencidas (2026-10-21, mediodía)
+
+Pedido del dueño en dos pasos: (1) "el scraping de ANE descarga muchos
+registros, se hace porque no se ha podido localizar la fecha"; (2) "que los
+datos de ANE tengan fecha de publicación, y si la fecha límite se ha
+sobrepasado, eliminar ese registro". Adjuntó una captura del listado.
+
+**Diagnóstico (con datos, no con la hipótesis).** La fecha SÍ está en el
+HTML de la tarjeta y SÍ se parsea:
+
+```
+<small class="job-listing-description">
+  Publicado el miércoles, 21 de octubre del 2026
+</small>
+```
+
+`_fecha_iso` sobre ese texto exacto devuelve `2026-10-21`, y la base tenía
+**370 vacantes ANE en `jobs_raw` y 0 sin fecha**. El problema real era otro,
+medido en vivo (páginas 1–17 del listado, sin tocar la cuenta):
+
+- ANE publica **~130 vacantes por día**: las 17 páginas seguidas seguían en
+  10-20/10-21. Con 8 tarjetas por página el tope de 15 páginas cubre
+  ~1,5 días, así que el corte por ventana de 30 días **nunca se alcanza**.
+- Cada corrida **volvía a bajar el detalle de TODAS las tarjetas** (120 =
+  15 páginas × 8, no 15 × 10: el listado autenticado trae 8 por página, no
+  se pierde ninguna). El descarte por duplicado ocurre después, en
+  `save_jobs` → el request ya se gastó.
+- El detalle de ANE **sí publica fecha de vencimiento** ("Fecha de
+  vencimiento de la vacante: viernes, 20 de noviembre del 2026") y no se
+  estaba capturando: era la "fecha límite" que pedía el dueño.
+
+**Cambios:**
+
+- `providers/boards/ane.py`:
+  - `_conocidos()` lee `jobs_raw` (source='ane' **y descripción no vacía**;
+    las que quedaron sin descripción se reintentan porque `save_jobs`
+    rellena vacíos) y el barrido **salta el detalle** de esas tarjetas.
+  - Corte por racha: `ANE_KNOWN_STREAK` (15, env) tarjetas conocidas
+    **seguidas** (la racha se mantiene entre páginas; una nueva la reinicia)
+    → el listado ya entró en zona de corridas anteriores.
+  - Si una página no trae **ninguna** fecha legible, se corta con aviso
+    ("revisar `small.job-listing-description`"): sin orden no se puede
+    verificar la ventana y bajar detalles a ciegas es justo lo que se evita.
+  - `_parse_detalle` extrae `vence` y `_sweep` lo pasa a `expires_at`; el log
+    final informa nuevas / saltadas / páginas / detalles / motivo del corte.
+- `providers/base.py`: `JobOffer.expires_at` (opcional, ISO).
+- `core/database.py`:
+  - columna `expires_at TEXT` en `jobs` y `jobs_raw` + migración automática
+    en `init_db` (igual que las de gate); `save_jobs` la inserta y la
+    actualiza cuando llega un valor nuevo (permite que el portal extienda el
+    vencimiento).
+  - `purge_expired(dias)`: borra de **ambas** tablas (a) `expires_at` < hoy,
+    (b) sin vencimiento y `date_published` fuera de la ventana (`--dias`).
+    Las filas sin ninguna fecha legible **no** se tocan (CINDE no publica
+    fecha). Reemplaza la regla vieja "no hay poda por antigüedad".
+- `core/gate.py`: `es_vigente()` veta lo vencido **antes** del filtro de
+  ventana (razón "vacante vencida (vence …)"); sin vencimiento o texto raro
+  no se descarta. `es_reciente` queda igual (una fecha no parseable sigue
+  dando beneficio de la duda).
+- `main.py`: `AneProvider(db_path=db.db_path)`; `job_row` agrega la columna
+  **Vence** al CSV; `dict_a_offer` arrastra `expires_at` (para
+  `--refiltrar`); `db.purge_expired(dias)` después del gate en la corrida
+  normal **y** en `--refiltrar`.
+
+**Migración de datos existentes** (script temporal, ya borrado): respaldo
+`data/jobs.db.bak-vence-20261021` + login httpx + 1 GET por detalle ANE sin
+vencimiento. Resultado: **370/370** actualizadas (0 sin campo, 0 fallos),
+en `jobs_raw` y `jobs` (36 curadas). Al mediodía había **4** ya vencidas.
+
+**Verificación:**
+- Simulación de `_sweep` con Playwright falso (sin Brave): corte por fecha
+  fuera de ventana (8 detalles y para), corte por racha con memoria (2
+  nuevas, 2 páginas, corta a las 15 conocidas), página sin fechas (1 página,
+  aviso y corta), tope de páginas, `_conocidos` (solo ANE con descripción) y
+  sin `db_path` (sin memoria, sin romper).
+- Listado real autenticado: 8 `div.job-listing` = 8 enlaces `/Puesto/Detalles`
+  = 8 parseadas por página (confirma 120 = 15×8).
+- Detalle real: `_parse_detalle(...)["vence"] == "2026-11-21"`.
+- `purge_expired` sobre una **copia** de `jobs.db`: 280 filas (2 de `jobs`,
+  278 de `jobs_raw`; el grueso son fuentes sin vencimiento publicadas hace
+  >30 días), 0 vencidas restantes, sin tocar CINDE. La primera corrida manual
+  hará esa poda en la base real (el respaldo queda en `data/`).
+- `py_compile` de los 53 `.py` y `python main.py --preflight` 22/22, exit 0.
+
+**El nuevo comportamiento quedó reflejado en la guía del agente** (fases:
+propagación de ANE con memoria + `expires_at`; persistencia: columna
+`expires_at`, poda de vigencia y qué borra cada cosa) en este mismo commit,
+como manda la regla de oro de la #44.

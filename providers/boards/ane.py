@@ -7,15 +7,36 @@ primero, y se corta cuando las fechas caen fuera de la ventana (o se llega al
 tope de paginas). El detalle se lee por HTTP sobre la sesion de Brave
 (`ctx.request`), que es rapido y no navega a cada puesto.
 
+CORTE EFECTIVO (2026-10-21). Medido en vivo: ANE publica ~130 vacantes por
+dia, asi que el tope de 15 paginas (~120 tarjetas) cubre ~1,5 dias y el corte
+por ventana de 30 dias NUNCA se alcanza. Lo que hacia "descargar de mas" era
+otra cosa: cada corrida volvia a bajar el detalle de TODAS las tarjetas,
+aunque ya estuvieran en `jobs_raw` (el descarte por duplicado ocurre despues,
+en `save_jobs`). Por eso ahora:
+
+  1. Las tarjetas cuyo job_id YA esta guardado con descripcion (fuente='ane')
+     no se descargan: se saltan. Sin descripcion se reintentan, porque la
+     corrida anterior pudo fallar el parseo y `save_jobs` rellena vacios.
+  2. Si se encadenan `ANE_KNOWN_STREAK` (15) tarjetas ya guardadas, el
+     listado ya entro en territorio de corridas anteriores -> se corta.
+  3. Si una pagina no trae NINGUNA fecha legible se corta con un aviso: sin
+     orden de fechas no se puede verificar la ventana y bajar detalles a
+     ciegas es justo lo que se quiere evitar.
+
+El tope `ANE_MAX_PAGES` sigue como limite duro de primera corrida (DB vacia)
+o de corridas muy espaciadas.
+
 Solo se extraen los campos que JobPulse persiste: titulo, empresa, ubicacion,
-fecha, link, descripcion, requisitos y salario. El resto del scraper
-standalone (checkpoints, CSV, historial, campos extra como plazas/nivel/
-correo) NO se porto a proposito: aqui lo que interesa es lo crudo para que el
-gate de relevancia (core/gate.py) decida que queda.
+fecha, fecha de vencimiento, link, descripcion, requisitos y salario. El resto
+del scraper standalone (checkpoints, CSV, historial, campos extra como
+plazas/nivel/correo) NO se porto a proposito: aqui lo que interesa es lo crudo
+para que el gate de relevancia (core/gate.py) decida que queda.
 """
 import asyncio
 import logging
+import os
 import re
+import sqlite3
 import time
 import unicodedata
 from datetime import date, timedelta
@@ -29,6 +50,12 @@ from core.dates import parse_date
 logger = logging.getLogger("jobpulse.ane")
 
 BASE = "https://www.ane.cr"
+
+# Tarjetas ya guardadas encadenadas que hacen cortar el barrido. Una pagina
+# autenticada trae 8, asi que 15 obliga a cruzar mas de una pagina de historial
+# antes de confiar en que ya estamos en zona vieja (una vacante nueva
+# intercalada reinicia la racha).
+CONOCIDOS_SEGUIDOS = int(os.getenv("ANE_KNOWN_STREAK", "15"))
 
 
 def _limpiar(t: str) -> str:
@@ -67,6 +94,9 @@ class AneProvider(BaseProvider):
         self.jobs_url = f"{BASE}/Puesto"
         self.user = config.get("username")
         self.password = config.get("password")
+        # Ruta de jobs.db para saber que vacantes ANE ya estan guardadas.
+        # Sin ella el barrido funciona igual, solo que sin memoria (re-baja).
+        self.db_path = config.get("db_path")
 
     async def fetch(self, search_term: str, location: str, pages: int, port: int,
                     dias: int = 30) -> List[JobOffer]:
@@ -83,6 +113,10 @@ class AneProvider(BaseProvider):
 
         jobs: List[JobOffer] = []
         corte = date.today() - timedelta(days=dias)
+        conocidos = self._conocidos()
+        paginas_leidas = detalles = saltadas = 0
+        motivo = ""
+
         try:
             with sync_playwright() as p:
                 browser = p.chromium.connect_over_cdp(f"http://localhost:{port}")
@@ -93,25 +127,44 @@ class AneProvider(BaseProvider):
                     return []
 
                 pagina, vacias = 1, 0
+                seguidos = 0  # racha de conocidas, se mantiene entre paginas
                 while pagina <= max(1, pages):
                     html = self._obtener(ctx, f"{self.jobs_url}?Pagina={pagina}")
                     cards = self._parse_listado(html) if html else []
                     if not cards:
                         vacias += 1
                         if vacias >= 2:
+                            motivo = "dos paginas sin tarjetas"
                             break
                         pagina += 1
                         continue
                     vacias = 0
+                    paginas_leidas += 1
 
                     cortar = False
+                    con_fecha = 0
                     for c in cards:
                         iso = self._fecha_iso(c["fecha_raw"])
-                        # Listado orden descendente: una fecha fuera de ventana
-                        # significa que todo lo que sigue es mas viejo -> corta.
-                        if iso and date.fromisoformat(iso) < corte:
-                            cortar = True
-                            break
+                        if iso:
+                            con_fecha += 1
+                            # Listado orden descendente: una fecha fuera de
+                            # ventana significa que todo lo que sigue es mas
+                            # viejo -> corta.
+                            if date.fromisoformat(iso) < corte:
+                                cortar, motivo = True, "fecha fuera de ventana"
+                                break
+
+                        # Ya guardada con descripcion: su detalle no aporta
+                        # nada nuevo (save_jobs solo rellenaria vacios).
+                        if c["pid"] in conocidos:
+                            saltadas += 1
+                            seguidos += 1
+                            if seguidos >= CONOCIDOS_SEGUIDOS:
+                                cortar = True
+                                motivo = f"{CONOCIDOS_SEGUIDOS} seguidas ya guardadas"
+                                break
+                            continue
+                        seguidos = 0
 
                         detalle = self._obtener(ctx, c["url"], requiere_sesion=True)
                         det = self._parse_detalle(detalle, c) if detalle else None
@@ -127,22 +180,64 @@ class AneProvider(BaseProvider):
                             location=det.get("ubicacion") or c["ubicacion"] or location,
                             link=c["url"],
                             date_published=iso,
+                            expires_at=det.get("vence") or "",
                             description=det.get("descripcion") or "",
                             requirements=det.get("requisitos") or "",
                             salary=det.get("salario") or "",
                         ))
+                        detalles += 1
                         time.sleep(0.5)
+
+                    if not con_fecha:
+                        # Sin fechas no se puede verificar el orden ni la
+                        # ventana: bajar detalles a ciegas es lo que se evita.
+                        logger.warning(
+                            "ANE: pagina %d sin fechas legibles (ej: %r); se "
+                            "corta el barrido. Revisar el selector de fecha "
+                            "(small.job-listing-description).",
+                            pagina, cards[0]["fecha_raw"])
+                        cortar = True
+                        motivo = motivo or "pagina sin fecha"
 
                     if cortar:
                         break
                     pagina += 1
                     time.sleep(0.6)
+                else:
+                    motivo = "tope de paginas"
         except Exception as e:
             logger.error(f"ANE barrido fallido: {e}")
+            motivo = motivo or f"error: {e}"
 
-        logger.info("ANE barrido: %d vacantes (<=%d paginas, ventana %d dias).",
-                    len(jobs), pages, dias)
+        logger.info(
+            "ANE barrido: %d nuevas, %d ya guardadas saltadas, %d paginas "
+            "leidas, %d detalles (tope %d paginas, ventana %d dias; corte: %s).",
+            len(jobs), saltadas, paginas_leidas, detalles, pages, dias,
+            motivo or "fin")
         return jobs
+
+    def _conocidos(self) -> set:
+        """job_ids ANE ya guardados CON descripcion (los que no hay que bajar).
+
+        Los que estan pero sin descripcion se dejan fuera a proposito: se
+        reintentan, porque `save_jobs` rellena campos vacios y la corrida
+        anterior pudo fallar el parseo del detalle.
+        """
+        if not self.db_path or not os.path.exists(self.db_path):
+            return set()
+        try:
+            con = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True,
+                                  timeout=5)
+            try:
+                return {str(r[0]) for r in con.execute(
+                    "SELECT job_id FROM jobs_raw WHERE source = 'ane' "
+                    "AND description IS NOT NULL AND description <> ''")}
+            finally:
+                con.close()
+        except Exception as e:
+            logger.warning("ANE: no se pudo leer jobs_raw (%s); barrido sin "
+                           "memoria (se re-bajan los detalles).", e)
+            return set()
 
     # ------------------------------------------------------------ sesion
     def _asegurar_sesion(self, ctx) -> bool:
@@ -225,6 +320,8 @@ class AneProvider(BaseProvider):
 
         Cambia ' del ' por ' de ' para que parse_date capture el anio explicito
         (evita que 'diciembre del 2025' herede el anio actual al borde de anio).
+        Sirve igual para la fecha de vencimiento del detalle
+        ('viernes, 20 de noviembre del 2026').
         """
         if not txt:
             return ""
@@ -361,4 +458,9 @@ class AneProvider(BaseProvider):
             "descripcion": desc,
             "requisitos": ". ".join(reqs),
             "salario": self._campo(der, "Salario"),
+            # ANE publica en el detalle "Fecha de vencimiento de la vacante"
+            # (ej. "viernes, 20 de noviembre del 2026"). Es la fecha real de
+            # vigencia: con ella se poda la vacante aunque tenga < 30 dias.
+            "vence": self._fecha_iso(
+                self._campo(der, "Fecha de vencimiento de la vacante")),
         }

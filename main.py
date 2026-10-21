@@ -128,6 +128,7 @@ def job_row(j):
         "Ubicación": j.location,
         "Link": j.link,
         "Fecha": j.date_published or "",
+        "Vence": j.expires_at or "",
         "Salario": j.salary or "",
         "Gate": (f"{j.gate_score:.2f}" if j.gate_score is not None else ""),
         "Descripción": resume_text(j.description),
@@ -142,6 +143,7 @@ def dict_a_offer(d: dict) -> JobOffer:
         job_id=d.get("job_id", ""), title=d.get("title", ""),
         company=d.get("company", ""), location=d.get("location", ""),
         link=d.get("link", ""), date_published=d.get("date_published"),
+        expires_at=d.get("expires_at"),
         description=d.get("description"), requirements=d.get("requirements"),
         salary=d.get("salary"),
     )
@@ -222,6 +224,8 @@ async def refiltrar(db, profile, engine, dias, min_score, prog=None):
     if prog:
         prog.fase("Gate + reportes")
     newly, _, _ = await _aplicar_gate(db, profile, engine, offers, dias, min_score)
+    # Misma regla de vigencia que la corrida normal: lo vencido no se conserva.
+    await db.purge_expired(dias)
     _reportes(newly)
     if prog:
         prog.sumar(GROUP_ESTATALES, sum(
@@ -455,6 +459,8 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
             ane = AneProvider({
                 "username": _cred_ane.get("usuario"),
                 "password": _cred_ane.get("password"),
+                # Para no re-descargar el detalle de vacantes ya guardadas.
+                "db_path": db.db_path,
             })
             try:
                 ane_jobs = await ane.fetch(
@@ -634,6 +640,10 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
     # --- 3. Gate (Fecha Y relevancia) -> staging + curado ---
     prog.fase("Gate (fecha + relevancia) y reportes")
     newly, _, _ = await _aplicar_gate(db, profile, engine, raw_offers, dias, min_score)
+    # Vigencia: lo vencido no se acumula (fecha de vencimiento del portal o,
+    # si no la publica, ventana de publicacion). Va despues del gate para
+    # cubrir tambien lo descartado que acaba de entrar a jobs_raw.
+    await db.purge_expired(dias)
     # sufijo de alcance: dos corridas del mismo dia no pisan su CSV.
     _reportes(newly, "" if solo == RUN_TODOS else f"_{solo}")
     return _resumen_progreso(prog, len(newly))

@@ -8,13 +8,18 @@ Filosofia (decision del usuario):
      `jobs` (la tabla que leen search.py y app.py).
   3. Lo descartado NO se borra: queda en `jobs_raw` con su `gate_razon`, y es
      re-filtrable sin re-scrapear (cambiar umbral, ventana o perfil y
-     re-ejecutar el modo --refiltrar).
+     re-ejecutar el modo --refiltrar). EXCEPCION: lo ya VENCIDO (fecha de
+     vencimiento pasada, o publicacion fuera de la ventana cuando el portal no
+     publica vencimiento) lo elimina `JobDatabase.purge_expired` al cerrar la
+     corrida: una vacante vencida no se conserva ni se re-filtra.
 
 El buscador de ANE esta roto (devuelve 0 incluso a mano), por eso su provider
 barre por fecha; aqui es donde, por fin, se filtra por contenido de verdad.
 
 Criterio Fecha Y relevancia Y dominio:
-  - Fecha dura: date_published dentro de la ventana (dias).
+  - Fecha dura: date_published dentro de la ventana (dias) Y, si el portal
+    publica fecha de vencimiento (`expires_at`, ej. ANE), que no haya pasado.
+    Las vencidas se descartan (y luego `purge_expired` las borra de la base).
   - Relevancia: score semantico perfil<->vacante >= min_score.
   - Dominio del titulo (veto lexico): el titulo debe contener un token del
     dominio (soporte / atencion al cliente / TI general). Medido con datos reales,
@@ -84,6 +89,18 @@ def es_reciente(date_published: Optional[str], dias: int) -> bool:
     return d >= date.today() - timedelta(days=dias)
 
 
+def es_vigente(expires_at: Optional[str]) -> bool:
+    """False solo si `expires_at` es una fecha ISO ya pasada.
+
+    Sin fecha de vencimiento ('' / None / texto raro) => True: el portal no
+    la publica o no se pudo parsear, y no se puede afirmar que vencio.
+    """
+    try:
+        return date.fromisoformat((expires_at or "")[:10]) >= date.today()
+    except (ValueError, TypeError):
+        return True
+
+
 def _a_dict(o: JobOffer) -> dict:
     return {
         "job_id": o.job_id, "source": o.source, "search_term": o.search_term,
@@ -109,7 +126,11 @@ def gate_jobs(offers: List[JobOffer], profile, engine,
     recientes: List[JobOffer] = []
     viejos: List[JobOffer] = []
     for o in offers:
-        if es_reciente(o.date_published, dias):
+        if not es_vigente(o.expires_at):
+            o.gate_score = None
+            o.gate_razon = f"vacante vencida (vence {o.expires_at})"
+            viejos.append(o)
+        elif es_reciente(o.date_published, dias):
             recientes.append(o)
         else:
             o.gate_score = None
@@ -151,7 +172,7 @@ def gate_jobs(offers: List[JobOffer], profile, engine,
             aprobados.append(o)
 
     logger.info(
-        "Gate: %d crudas -> %d en ventana (%d dias) -> %d aprobadas "
+        "Gate: %d crudas -> %d vigentes/en ventana (%d dias) -> %d aprobadas "
         "(score >= %.2f); %d descartadas.",
         len(offers), len(recientes), dias, len(aprobados), min_score, len(descartados),
     )

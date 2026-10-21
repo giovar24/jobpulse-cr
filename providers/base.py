@@ -12,6 +12,9 @@ class JobOffer:
     location: str
     link: str
     date_published: Optional[str] = None
+    # Fecha de vencimiento/cierre que publica el portal (ISO). Vacio si el
+    # portal no la expone (ej. CINDE) o si el scraper no la encontro.
+    expires_at: Optional[str] = None
     description: Optional[str] = None
     requirements: Optional[str] = None
     salary: Optional[str] = None

@@ -1,5 +1,6 @@
 import aiosqlite
 import logging
+from datetime import date, timedelta
 from typing import List, Dict, Optional
 from providers.base import JobOffer
 
@@ -28,6 +29,7 @@ class JobDatabase:
                         location TEXT,
                         link TEXT,
                         date_published TEXT,
+                        expires_at TEXT,
                         description TEXT,
                         requirements TEXT,
                         salary TEXT,
@@ -40,7 +42,8 @@ class JobDatabase:
             for tabla in ("jobs", "jobs_raw"):
                 cursor = await db.execute(f"PRAGMA table_info({tabla})")
                 existentes = {row[1] for row in await cursor.fetchall()}
-                for col, tipo in (("gate_score", "REAL"), ("gate_razon", "TEXT")):
+                for col, tipo in (("gate_score", "REAL"), ("gate_razon", "TEXT"),
+                                  ("expires_at", "TEXT")):
                     if col not in existentes:
                         await db.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} {tipo}")
                         logger.info(f"Migracion: +{col} en {tabla}")
@@ -100,22 +103,25 @@ class JobDatabase:
                              location=CASE WHEN location = '' OR location IS NULL THEN ? ELSE location END,
                              link=CASE WHEN link = '' OR link IS NULL THEN ? ELSE link END,
                              date_published=CASE WHEN date_published = '' OR date_published IS NULL THEN ? ELSE date_published END,
+                             expires_at=CASE WHEN ? <> '' THEN ? ELSE expires_at END,
                              description=CASE WHEN description = '' OR description IS NULL THEN ? ELSE description END,
                              requirements=CASE WHEN requirements = '' OR requirements IS NULL THEN ? ELSE requirements END,
                              salary=CASE WHEN salary = '' OR salary IS NULL THEN ? ELSE salary END,
                              gate_score=?, gate_razon=?
                            WHERE job_id = ?""",
                         (job.title, job.company, job.location, job.link,
-                         job.date_published, job.description, job.requirements,
+                         job.date_published, job.expires_at or "",
+                         job.expires_at or "", job.description, job.requirements,
                          job.salary, job.gate_score, job.gate_razon, job.job_id)
                     )
                 else:
                     try:
                         await db.execute(
-                            f"""INSERT INTO {tabla} (job_id, source, search_term, title, company, location, link, date_published, description, requirements, salary, gate_score, gate_razon)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            f"""INSERT INTO {tabla} (job_id, source, search_term, title, company, location, link, date_published, expires_at, description, requirements, salary, gate_score, gate_razon)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                             (job.job_id, job.source, job.search_term, job.title, job.company,
-                             job.location, job.link, job.date_published, job.description,
+                             job.location, job.link, job.date_published,
+                             job.expires_at or "", job.description,
                              job.requirements, job.salary, job.gate_score, job.gate_razon)
                         )
                         new_jobs.append(job)
@@ -123,6 +129,40 @@ class JobDatabase:
                         continue
             await db.commit()
         return new_jobs
+
+    async def purge_expired(self, dias: int = 30) -> int:
+        """Borra las vacantes vencidas de `jobs` y `jobs_raw`.
+
+        - Si la fila trae `expires_at` (ej. ANE publica "Fecha de vencimiento
+          de la vacante"), se compara ESA fecha con hoy: vencida = se borra.
+        - Si no trae vencimiento (CINDE no publica fecha, otros portales no
+          exponen cierre), se usa la ventana de publicacion (`dias`), igual
+          que el gate.
+        - Las filas sin ninguna fecha legible NO se tocan: sin dato no se
+          puede afirmar que vencieron.
+        """
+        hoy = date.today().isoformat()
+        corte = (date.today() - timedelta(days=dias)).isoformat()
+        total = 0
+        async with aiosqlite.connect(self.db_path) as db:
+            for tabla in ("jobs", "jobs_raw"):
+                cursor = await db.execute(
+                    f"""DELETE FROM {tabla} WHERE
+                        (expires_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+                         AND expires_at < ?)
+                        OR (trim(coalesce(expires_at, '')) = ''
+                            AND date_published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+                            AND date_published < ?)""",
+                    (hoy, corte))
+                total += cursor.rowcount
+            await db.commit()
+        if total:
+            logger.info("Vigencia: %d filas vencidas borradas (vence < %s; "
+                        "sin vencimiento, publicada < %s).", total, hoy, corte)
+        else:
+            logger.info("Vigencia: 0 filas vencidas (vence < %s; sin "
+                        "vencimiento, publicada < %s).", hoy, corte)
+        return total
 
     async def save_raw_jobs(self, jobs: List[JobOffer]) -> List[JobOffer]:
         """Guarda lo crudo en la tabla de staging jobs_raw."""
