@@ -6,6 +6,7 @@ Paso 2: ranking semantico del perfil (SemanticSearchEngine + rank_with_ats).
 Paso 3: cada seccion vive en su propia pestana (ttk.Notebook):
    - "Ranking": tabla filtrable + ranking del perfil
    - "Busqueda libre": consulta en lenguaje natural sobre la base indexada
+Paso 4: pestana "Perfil": editor con resumen de cambios y backups.
 
 Por que Tkinter: viene con Python (cero dependencias nuevas), corre en un
 proceso unico que tú cierras, y su vida NO depende de ninguna pestana del
@@ -13,6 +14,7 @@ navegador (el problema con Streamlit: cerrar Brave mataba la UI).
 
 Ejecutar:  python ui.py
 """
+import json
 import logging
 import queue
 import sqlite3
@@ -22,10 +24,11 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from core.ats import rank_with_ats
-from core.profile import CandidateProfile
+from core.profile import (CandidateProfile, DEFAULT_PROFILE_PATH,
+                          backups_perfil, guardar_perfil)
 from core.search_engine import SemanticSearchEngine
 from providers.source_groups import grupo_publico, GRUPOS_PUBLICOS
 
@@ -169,6 +172,81 @@ def ordenar(filas, clave, asc):
     return con + nulos
 
 
+# ------------------------------------------------------------ perfil
+def _lineas(texto: str):
+    """Items no vacios de un Text, uno por linea."""
+    return [l.strip() for l in texto.splitlines() if l.strip()]
+
+
+def _temas_de_lineas(lineas):
+    """"puesto | puesto_en | ubicacion" -> un dict por linea (como _temas_de_df)."""
+    out = []
+    for l in lineas:
+        p = [x.strip() for x in l.split("|")]
+        while len(p) < 3:
+            p.append("")
+        if p[0]:
+            out.append({"puesto": p[0], "puesto_en": p[1], "ubicacion": p[2]})
+    return out
+
+
+def _idiomas_de_lineas(lineas):
+    """"idioma | nivel" -> un dict por linea (como _idiomas_de_df)."""
+    out = []
+    for l in lineas:
+        p = [x.strip() for x in l.split("|")]
+        while len(p) < 2:
+            p.append("")
+        if p[0]:
+            out.append({"idioma": p[0], "nivel": p[1]})
+    return out
+
+
+def _escalar(v):
+    """Normaliza un escalar para comparar cambios (el de app.py, casi literal).
+
+    Sin esto, una clave ausente (None) contra un campo vacio ("") se lee como
+    "cambio" y el guardado "sin cambios" reescribe el perfil: con el perfil
+    actual sin clave `seniority`, aparecia el fantasma "Seniority: None -> ''"
+    en cuanto se abria la pestaña. Tambien evita 5.0 vs 5.
+    """
+    if v is None:
+        return ""
+    if isinstance(v, str):
+        return v.strip()
+    if isinstance(v, float) and v.is_integer():
+        return int(v)
+    return v
+
+
+def _perfil_vacio(datos: dict) -> bool:
+    """Sin titulos/skills/temas no sirve ni para puntuar ni para buscar."""
+    return not (datos.get("titulos") or datos.get("skills") or datos.get("temas"))
+
+
+def _resumen_cambios(viejo: dict, nuevo: dict):
+    """Diferencias legibles antes de guardar (el panel de Streamlit, en dialogo)."""
+    def rep(i):
+        return i.get("puesto", i.get("idioma", i)) if isinstance(i, dict) else i
+
+    lineas = []
+    for k, et in [("titulos", "Títulos"), ("skills", "Skills"), ("temas", "Temas"),
+                  ("idiomas", "Idiomas"), ("certificaciones", "Certificaciones")]:
+        v = [str(rep(x)).strip() for x in (viejo.get(k) or [])]
+        n = [str(rep(x)).strip() for x in (nuevo.get(k) or [])]
+        for xs, verbo in (([x for x in v if x not in n], "se quitan"),
+                          ([x for x in n if x not in v], "se agregan")):
+            if xs:
+                lista = ", ".join(xs[:8]) + ("..." if len(xs) > 8 else "")
+                lineas.append(f"- {et}: {verbo} {len(xs)} — {lista}")
+    for k, et in [("nombre", "Nombre"), ("experiencia_anios", "Experiencia"),
+                  ("educacion_nivel", "Educación"), ("seniority", "Seniority"),
+                  ("pesos", "Pesos")]:
+        if _escalar(viejo.get(k)) != _escalar(nuevo.get(k)):
+            lineas.append(f"- {et}: {viejo.get(k)!r} → {nuevo.get(k)!r}")
+    return lineas
+
+
 # ------------------------------------------------------------------ hilos
 # Tkinter no es multihilo: los hilos NUNCA tocan un widget. Solo encolan y
 # el hilo principal drena con `after`.
@@ -300,11 +378,13 @@ class App(tk.Tk):
         self._top = tk.StringVar(value="40")
         self._conteo = tk.StringVar(value="Cargando...")
         self._frescura = tk.StringVar(value="")
+        self._perfil_estado = tk.StringVar(value="")
 
         self.nb = ttk.Notebook(self)
 
         self._pestana_rank()
         self._pestana_libre()
+        self._pestana_perfil()
         self._detalle_construir()
 
         pie = ttk.Frame(self, padding=(10, 4))
@@ -599,6 +679,252 @@ class App(tk.Tk):
     def _abrir_link(self, f):
         if f and f.get("link"):
             webbrowser.open(f["link"])
+
+    # ------------------------------------------------------------- perfil
+    def _pestana_perfil(self):
+        tab = ttk.Frame(self.nb)
+
+        barra = ttk.Frame(tab, padding=(10, 8))
+        barra.pack(fill="x")
+        ttk.Button(barra, text="Guardar perfil",
+                   command=self._perfil_guardar).pack(side="left")
+        ttk.Button(barra, text="Descartar cambios",
+                   command=self._perfil_descartar).pack(side="left", padx=6)
+        ttk.Label(barra, textvariable=self._perfil_estado,
+                  foreground="#666").pack(side="left", padx=(12, 0))
+
+        cuerpo = ttk.Frame(tab)
+        cuerpo.pack(fill="both", expand=True, padx=10, pady=(0, 8))
+        izq = ttk.Frame(cuerpo)
+        izq.pack(side="left", fill="y", padx=(0, 12))
+        der = ttk.Frame(cuerpo)
+        der.pack(side="left", fill="both", expand=True)
+
+        # --- escalares
+        ats = ttk.LabelFrame(izq, text="Datos ATS", padding=10)
+        ats.pack(fill="x")
+        ttk.Label(ats, text="Nombre:").grid(row=0, column=0, sticky="w", pady=2)
+        self._e_nombre = ttk.Entry(ats, width=32)
+        self._e_nombre.grid(row=0, column=1, sticky="we", pady=2)
+        ttk.Label(ats, text="Experiencia (años):").grid(row=1, column=0,
+                                                        sticky="w", pady=2)
+        self._v_exp = tk.StringVar(value="0")
+        ttk.Spinbox(ats, from_=0.0, to=40.0, increment=0.5, width=8,
+                    textvariable=self._v_exp).grid(row=1, column=1,
+                                                  sticky="w", pady=2)
+        ttk.Label(ats, text="Educación:").grid(row=2, column=0, sticky="w", pady=2)
+        self._e_edu = ttk.Entry(ats, width=32)
+        self._e_edu.grid(row=2, column=1, sticky="we", pady=2)
+        ttk.Label(ats, text="Seniority:").grid(row=3, column=0, sticky="w", pady=2)
+        self._e_sen = ttk.Entry(ats, width=32)
+        self._e_sen.grid(row=3, column=1, sticky="we", pady=2)
+        ats.columnconfigure(1, weight=1)
+
+        pes = ttk.LabelFrame(izq, text="Pesos de cada sección", padding=10)
+        pes.pack(fill="x", pady=(8, 0))
+        self._v_pesos = {}
+        for i, (et, clave, defecto) in enumerate((
+                ("Título", "titulo", 1.0), ("Skills", "skills", 0.7),
+                ("Tema", "tema", 0.5))):
+            v = tk.StringVar(value=str(defecto))
+            self._v_pesos[clave] = v
+            ttk.Label(pes, text=et + ":").grid(row=i, column=0, sticky="w", pady=2)
+            ttk.Spinbox(pes, from_=0.0, to=2.0, increment=0.05, width=6,
+                        textvariable=v).grid(row=i, column=1, sticky="w", pady=2)
+        self._l_pats = ttk.Label(pes, foreground="#666", wraplength=250,
+                                 text="Score ATS: —")
+        self._l_pats.grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 0))
+
+        # --- listas editables (una por linea)
+        self._t_titulos = self._caja_texto(
+            der, "Títulos / palabras clave del puesto (uno por línea)", 5)
+        self._t_skills = self._caja_texto(der, "Skills (uno por línea)", 7)
+        self._t_temas = self._caja_texto(
+            der, "Temas de búsqueda — puesto | puesto (EN) | ubicación", 4)
+        self._t_idiomas = self._caja_texto(der, "Idiomas — idioma | nivel", 3)
+        self._t_certs = self._caja_texto(der, "Certificaciones (una por línea)", 3)
+
+        # --- backups
+        bkm = ttk.LabelFrame(
+            tab, text="Backups (se crean solos en cada guardado)", padding=8)
+        bkm.pack(fill="x", padx=10, pady=(0, 10))
+        self._tree_bk = ttk.Treeview(bkm, columns=("archivo", "fecha"),
+                                     show="headings", height=4,
+                                     selectmode="browse")
+        self._tree_bk.heading("archivo", text="Archivo")
+        self._tree_bk.heading("fecha", text="Fecha")
+        self._tree_bk.column("archivo", width=340, anchor="w")
+        self._tree_bk.column("fecha", width=150, anchor="center")
+        self._tree_bk.pack(side="left", fill="both", expand=True)
+        ttk.Button(bkm, text="Restaurar seleccionado",
+                    command=self._perfil_restaurar).pack(side="left", padx=(10, 0),
+                                                         anchor="n")
+
+        self.nb.add(tab, text="  Perfil  ")
+        self._perfil_cargar()
+
+    def _caja_texto(self, parent, titulo, alto):
+        """LabelFrame con un Text multilinea + scrollbar (lista editable)."""
+        marco = ttk.LabelFrame(parent, text=titulo, padding=6)
+        marco.pack(fill="x", pady=(0, 8))
+        t = tk.Text(marco, height=alto, wrap="word", undo=True,
+                    font=("Segoe UI", 10))
+        sb = ttk.Scrollbar(marco, orient="vertical", command=t.yview)
+        t.configure(yscrollcommand=sb.set)
+        t.pack(side="left", fill="both", expand=True)
+        sb.pack(side="right", fill="y")
+        return t
+
+    def _perfil_cargar(self, aviso: str = ""):
+        """(Re)lee profile.json y llena los widgets con lo que hay en disco."""
+        ruta = DEFAULT_PROFILE_PATH
+        for t in (self._t_titulos, self._t_skills, self._t_temas,
+                  self._t_idiomas, self._t_certs):
+            t.delete("1.0", "end")
+        self._e_nombre.delete(0, "end")
+        self._e_edu.delete(0, "end")
+        self._e_sen.delete(0, "end")
+
+        if not ruta.exists():
+            self._perfil_datos = {}
+            self._perfil_estado.set(
+                "No existe profile.json todavía: al Guardar se crea uno nuevo "
+                "(o usá cv2profile.py para generarlo desde tu CV).")
+            self._perfil_backups_pintar()
+            return
+        try:
+            datos = json.loads(ruta.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            self._perfil_datos = {}
+            self._perfil_estado.set(f"Perfil ilegible ({ruta.name}): {exc}")
+            return
+        self._perfil_datos = datos
+
+        self._e_nombre.insert(0, str(datos.get("nombre") or ""))
+        self._v_exp.set(str(float(datos.get("experiencia_anios") or 0)))
+        self._e_edu.insert(0, str(datos.get("educacion_nivel") or ""))
+        self._e_sen.insert(0, str(datos.get("seniority") or ""))
+        pesos = datos.get("pesos") or {}
+        for clave, defecto in (("titulo", 1.0), ("skills", 0.7), ("tema", 0.5)):
+            self._v_pesos[clave].set(str(float(pesos.get(clave, defecto))))
+        pa = datos.get("pesos_ats") or {}
+        self._l_pats.configure(
+            text="Score ATS: "
+                 + (" · ".join(f"{k} {float(v):g}" for k, v in pa.items()) or "—"))
+
+        self._llenar_texto(self._t_titulos,
+                          [str(x) for x in (datos.get("titulos") or [])])
+        self._llenar_texto(self._t_skills,
+                           [str(x) for x in (datos.get("skills") or [])])
+        self._llenar_texto(
+            self._t_temas,
+            [" | ".join(p for p in (t.get("puesto", ""), t.get("puesto_en", ""),
+                                    t.get("ubicacion", "")) if p)
+             for t in (datos.get("temas") or []) if isinstance(t, dict)])
+        self._llenar_texto(
+            self._t_idiomas,
+            [" | ".join(p for p in (i.get("idioma", ""), i.get("nivel", "")) if p)
+             for i in (datos.get("idiomas") or []) if isinstance(i, dict)])
+        self._llenar_texto(self._t_certs,
+                           [str(x) for x in (datos.get("certificaciones") or [])])
+
+        self._perfil_estado.set(aviso or "Editá lo que quieras: al guardar se "
+                                         "hace backup del archivo anterior.")
+        self._perfil_backups_pintar()
+
+    @staticmethod
+    def _llenar_texto(t, items):
+        if items:
+            t.insert("1.0", "\n".join(items))
+
+    def _perfil_recolectar(self):
+        """El dict NUEVO: igual al de disco salvo las claves editadas aqui."""
+        nuevo = dict(self._perfil_datos or {})
+        nuevo["nombre"] = self._e_nombre.get().strip()
+        try:
+            nuevo["experiencia_anios"] = float(self._v_exp.get() or 0)
+        except ValueError:
+            nuevo["experiencia_anios"] = 0.0
+        nuevo["educacion_nivel"] = self._e_edu.get().strip()
+        nuevo["seniority"] = self._e_sen.get().strip()
+        nuevo["titulos"] = _lineas(self._t_titulos.get("1.0", "end"))
+        nuevo["skills"] = _lineas(self._t_skills.get("1.0", "end"))
+        nuevo["temas"] = _temas_de_lineas(_lineas(self._t_temas.get("1.0", "end")))
+        nuevo["idiomas"] = _idiomas_de_lineas(_lineas(self._t_idiomas.get("1.0", "end")))
+        nuevo["certificaciones"] = _lineas(self._t_certs.get("1.0", "end"))
+        try:
+            nuevo["pesos"] = {clave: float(self._v_pesos[clave].get() or defecto)
+                              for clave, defecto in (("titulo", 1.0),
+                                                     ("skills", 0.7),
+                                                     ("tema", 0.5))}
+        except ValueError:
+            pass    # peso ilegible: se conserva el que hay en disco
+        return nuevo
+
+    def _perfil_guardar(self):
+        nuevo = self._perfil_recolectar()
+        if _perfil_vacio(nuevo):
+            messagebox.showerror(
+                "Perfil vacío",
+                "No guardo: quedaría sin títulos, skills ni temas "
+                "(no sirve para puntuar ni para buscar).")
+            return
+        cambios = _resumen_cambios(self._perfil_datos or {}, nuevo)
+        if not cambios:
+            self._perfil_estado.set("Sin cambios pendientes.")
+            return
+        if not messagebox.askyesno(
+                "Guardar perfil",
+                "Cambios a guardar:\n\n" + "\n".join(cambios)
+                + "\n\n¿Guardar ahora?"):
+            return
+        bk = guardar_perfil(nuevo, DEFAULT_PROFILE_PATH)
+        self._perfil_datos = nuevo
+        msg = "Perfil guardado. El próximo ranking ya usa estos valores."
+        if bk:
+            msg += f" (backup del anterior: {bk.name})"
+        self._perfil_estado.set(msg)
+        self._perfil_backups_pintar()
+
+    def _perfil_descartar(self):
+        self._perfil_cargar(aviso="Cambios descartados: se recargó lo que "
+                                   "hay en disco.")
+
+    def _perfil_backups_pintar(self):
+        hijos = self._tree_bk.get_children()
+        if hijos:
+            self._tree_bk.delete(*hijos)
+        bks = backups_perfil(DEFAULT_PROFILE_PATH)[:20]
+        self._bk_rutas = {}
+        for i, bk in enumerate(bks):
+            self._bk_rutas[f"bk{i}"] = bk
+            fecha = datetime.fromtimestamp(bk.stat().st_mtime)
+            self._tree_bk.insert("", "end", iid=f"bk{i}",
+                                 values=(bk.name, f"{fecha:%d/%m/%Y %H:%M}"))
+
+    def _perfil_restaurar(self):
+        sel = self._tree_bk.selection()
+        if not sel:
+            self._perfil_estado.set("Elegí un backup de la lista primero.")
+            return
+        bk = self._bk_rutas.get(sel[0])
+        if bk is None or not bk.exists():
+            return
+        if not messagebox.askyesno(
+                "Restaurar backup",
+                f"¿Restaurar {bk.name}?\n"
+                "Tu versión actual queda guardada como backup."):
+            return
+        ruta = DEFAULT_PROFILE_PATH
+        try:
+            if ruta.exists():
+                # backup del actual ANTES de pisarlo (como hacia Streamlit)
+                guardar_perfil(json.loads(ruta.read_text(encoding="utf-8")), ruta)
+            ruta.write_text(bk.read_text(encoding="utf-8"), encoding="utf-8")
+        except (OSError, json.JSONDecodeError) as exc:
+            messagebox.showerror("Restaurar", f"No se pudo restaurar: {exc}")
+            return
+        self._perfil_cargar(aviso=f"Restaurado {bk.name}.")
 
 
 if __name__ == "__main__":
