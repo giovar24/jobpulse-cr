@@ -4,7 +4,7 @@
 Arregla dos bugs del launcher (2026-10-19):
 
 - El dashboard se abria DESPUES del scraping (5+ minutos de consola en
-  negro): ahora el launcher abre Streamlit primero y la pestaña "🚀 Corrida"
+  negro): ahora el launcher abre la UI primero y la pestaña "Corrida"
   muestra que esta haciendo cada proveedor.
 - No habia forma de saber que estaba pasando: cada paso escribe
   `data/corrida_estado.json` (atomico) y `data/corrida.log`.
@@ -17,7 +17,7 @@ Uso en main.py:
     prog.sumar("directos", 12)
     prog.finalizar("ok", resumen={...})
 
-La GUI (app.py) solo LEE: `leer_estado()`, `corriendo()`, `tail()`.
+La GUI (ui.py) solo LEE: `leer_estado()`, `corriendo()`, `tail()`.
 `detener()` mata el proceso de la corrida (taskkill /T /F).
 """
 import json

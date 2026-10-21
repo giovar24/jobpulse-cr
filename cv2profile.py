@@ -6,7 +6,7 @@ Uso:
     python cv2profile.py MiCV.pdf --save --merge   # suma al perfil sin limpiar lo anterior
     python cv2profile.py MiCV.pdf --out otropath.json
 
-Tras guardar, ejecutan de nuevo:  python search.py --perfil  /  streamlit run app.py
+Tras guardar, ejecutan de nuevo:  python search.py --perfil  /  python ui.py
 Todo el analisis es 100% local (embeddings + lexicon); nada sale a internet.
 """
 import argparse
@@ -174,7 +174,7 @@ def main():
     print(f"\nPerfil guardado: {out_path}" + (f" (backup: {bk})" if bk else " (nuevo)"))
     print("Verifica el efecto con:")
     print("  python search.py --perfil")
-    print("  streamlit run app.py")
+    print("  python ui.py")
 
 
 if __name__ == "__main__":

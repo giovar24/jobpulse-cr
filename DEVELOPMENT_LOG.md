@@ -86,8 +86,8 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   `streamlit run app.py`). Reemplazado por `ui.py`: Streamlit vive dentro
   de una pestaña del navegador — cerrar Brave mataba la UI y dejaba
   procesos zombi en el puerto 8501.
-- `jobpulse.cmd` — un clic: **primero** el dashboard (AÚN Streamlit —
-  pendiente migrar a `ui.py`), después el scraping.
+- `jobpulse.cmd` — un clic: **primero** la UI de escritorio (`ui.py`; si ya
+  estaba abierta se reutiliza), después el scraping.
 - `core/credenciales.py` — LA LISTA de sitios que piden login + store de
   credenciales; `sitio_en_flujo` / `agregar_sitio_login` / `quitar_sitio_login`
   (alta/baja de sitios nuevos sin romper el flujo; los seeds no se quitan).
@@ -1738,3 +1738,54 @@ la UI).
 cómo funciona una corrida, mapa de archivos: `ui.py` actual, `app.py`
 legado, `jobpulse.cmd` pendiente) en este mismo commit, como manda la
 regla de oro de la entrada #44.
+
+## 46. Barrido de remanentes: jobpulse.cmd lanza ui.py, README y docstrings sin Streamlit (2026-10-20, noche)
+
+Contexto: tras la entrada #45 quedaban rincones del proyecto que seguían
+apuntando al dashboard Streamlit como si fuera la UI vigente. Se pidió
+revisar TODO el proyecto por remanentes y subir el resultado a GitHub.
+
+Barrido completo (`grep -i "streamlit|8501"` en `*.py *.txt *.md *.cmd
+*.bat *.example`), clasificado así:
+
+**Cambiado (describían la UI vigente):**
+
+- `jobpulse.cmd` — reescrita la parte 1/3: lanza
+  `python -X utf8 ui.py` (Start-Process minimizado) en vez de Streamlit;
+  chequeo de instancia única por CommandLine (`Get-CimInstance Win32_Process
+  -like '*ui.py*'`) en vez del puerto 8501; verificación de arranque a los
+  3 s. Partes 2/3 y 3/3 intactas (chequeo de corrida viva por
+  `corrida_estado.json`, espera de 15 s sin `pause`).
+- `run.bat` — comentario del alias actualizado.
+- `README.md` — 6 pasajes: el feature bullet (UI de escritorio con las 6
+  pestañas, app.py como legado), el comando de arranque
+  (`python -X utf8 ui.py`), la sección de `jobpulse.cmd`, y las
+  referencias a las pestañas Credenciales/Sesiones del "dashboard".
+- `credenciales.py` — docstring: "Equivalente grafico: pestaña
+  Credenciales de la UI".
+- `cv2profile.py` — docstring y el `print` post-guardado: `python ui.py`
+  en vez de `streamlit run app.py`.
+- `core/progreso.py` — docstring: "el launcher abre la UI primero" y
+  "La GUI (ui.py) solo LEE" (decía app.py; el contrato vigente es ui.py).
+  Se dejó intacta la línea histórica del bug de 2026-10-19 ("el dashboard
+  se abría DESPUES...") — pasado, es historia, no remanente.
+- `requirements.txt` — `streamlit` se QUEDA (app.py es legado funcional)
+  pero anotado: "solo app.py (dashboard LEGADO); la UI actual es stdlib".
+
+**Decididamente NO tocado:**
+
+- `app.py` — es el legado documentado; borrarlo es decisión del dueño,
+  no del barrido.
+- Entradas históricas de esta bitácora (#23, etc.) — la historia no se
+  reescribe.
+- Comentarios de `ui.py` que EXPLICAN comparando con Streamlit ("como
+  hacia Streamlit") — son documentación del porqué, no remanentes.
+
+Verificación: `cmd /c jobpulse.cmd --preflight` end-to-end — la UI abre
+(ventana propia), el preflight corre completo (exit 0, 22/22 fases) SIN
+scraping, el chequeo de "ya estaba abierta" reutiliza la instancia, y no
+queda ningún proceso colgado. `py_compile` de los .py tocados.
+
+**El nuevo comportamiento quedó reflejado en la guía del agente** (línea
+de `jobpulse.cmd` en el mapa de archivos) en este mismo commit, como
+manda la regla de oro de la entrada #44.

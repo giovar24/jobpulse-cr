@@ -31,12 +31,13 @@ System). Sin APIs de pago, sin nube, sin LLMs.
   con nivel, años de experiencia, educación, certificaciones y contacto.
   Inspección completa del proceso con `reporte_cv.py "MiCV.pdf"` (texto crudo,
   extracciones, IA local, revisión con evidencia por frase y perfil final).
-- **Dashboard Streamlit** (`app.py`): **Ranking** (desglose ATS), **Búsqueda
-  libre**, **🚀 Corrida** (progreso en vivo de un scraping: fase, barra,
-  vacantes por grupo *estatales* / *boards* / *portales directos*, log y
-  botones Iniciar/Preflight/Detener), **🔑 Credenciales** (sitios que piden
-  password, guardar/borrar, auto-login) y **🔐 Sesiones** (login manual en tu
-  Brave).
+- **UI de escritorio** (`ui.py`, Tkinter — sin navegador: cerrar Brave ya no
+  cierra nada): **Ranking** (semántico + ATS con desglose y keywords
+  faltantes), **Búsqueda libre**, **Perfil** (editor con backups), **Corrida**
+  (progreso en vivo de un scraping: fase, barra, vacantes por grupo, log y
+  botones Iniciar/Preflight/Detener), **Credenciales** (sitios que piden
+  password, guardar/borrar, auto-login) y **Sesiones** (login manual en tu
+  Brave). El dashboard Streamlit (`app.py`) queda como legado.
 - **Grupos de fuente** (`providers/source_groups.py`): cada vacante se
   etiqueta como *Portal estatal (ANE/CINDE/Procomer)* — los 3 portales
   oficiales de CR —, *Job board (agregador)* (Indeed, LinkedIn) o
@@ -78,8 +79,8 @@ python search.py --perfil
 # 4. Búsqueda libre interactiva
 python search.py "mesa de ayuda bilingüe remoto"
 
-# 5. Dashboard (Ranking · Búsqueda libre · 🚀 Corrida · 🔑 Credenciales · 🔐 Sesiones)
-streamlit run app.py
+# 5. UI de escritorio (Ranking · Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones)
+.venv\Scripts\python.exe -X utf8 ui.py
 
 # 6. Diagnostico SIN red ni navegador (plan de corrida + credenciales faltantes)
 python main.py --preflight
@@ -106,17 +107,18 @@ python bench_modelos.py
 
 ### Corrida con un clic y recordatorio (Windows)
 
-- **`jobpulse.cmd`** — doble clic: **primero** arranca el dashboard
-  (espera a que responda http://localhost:8501 y abre el navegador),
-  **después** lanza el scraping. Así la GUI nunca se queda esperando 5+
-  minutos de consola ni "nunca se activa" si `main.py` falla. Acepta
-  argumentos extra (`jobpulse.cmd --preflight`) y **no lanza una segunda
-  corrida** si ya hay una viva.
-- **Pestaña "🚀 Corrida"** del dashboard: progreso en vivo (fase actual,
-  barra, conteo de vacantes por grupo *Job board (agregador)* vs *Portal de
-  la empresa*, log final) y botones **Iniciar / Preflight / Detener /
-  Reindexar**. Sirve igual si la corrida la lanzaste desde la consola: todo
-  pasa por `data/corrida_estado.json` + `data/corrida.log`.
+- **`jobpulse.cmd`** — doble clic: **primero** abre la UI de escritorio
+  (ventana propia; si ya estaba abierta, se reutiliza), **después** lanza
+  el scraping. Así la GUI nunca se queda esperando 5+ minutos de consola
+  ni "nunca se activa" si `main.py` falla. Acepta argumentos extra
+  (`jobpulse.cmd --preflight`) y **no lanza una segunda corrida** si ya
+  hay una viva.
+- **Pestaña "Corrida"** de la UI: progreso en vivo (fase actual, barra,
+  conteo de vacantes por grupo *Portal estatal* / *Resto*, log) y botones
+  **ATS / Boards / Completa / Preflight / Detener**. Sirve igual si la
+  corrida la lanzaste desde la consola: todo pasa por
+  `data/corrida_estado.json` + `data/corrida.log`. Cerrar la UI no mata
+  la corrida: al reabrirla, la pestaña la vuelve a mostrar.
 - **`recordatorio.py`** — sin servidor 24 h: al **iniciar sesión** pregunta
   si quieres correr el scraping (si ya corriste hoy, no molesta). Con
   "Más tarde..." tú fijas la hora; si el equipo estaba apagado a esa hora,
@@ -150,8 +152,8 @@ queda **local-only** — el `.gitignore` lo excluye; solo los demos sintéticos
 
 ### La lista de sitios que piden password
 
-`python credenciales.py` (sin argumentos) — o la pestaña **🔑 Credenciales**
-del dashboard — muestra **la lista viva** de sitios que requieren sesión.
+`python credenciales.py` (sin argumentos) — o la pestaña **Credenciales**
+de la UI — muestra **la lista viva** de sitios que requieren sesión.
 Se alimenta de `data/empresas/login_requerido.json` (seed + lo que los
 scrappers detectan en runtime: muros de login, `pending_login.json`,
 `login_sites.json`). Cada entrada indica si es **OBLIGATORIO u opcional**,
@@ -270,7 +272,7 @@ core/credenciales.py # ALMACEN local de credenciales (gitignored) + LA LISTA
                       # sitio_en_flujo + agregar/quitar_sitio_login (alta y
                       # baja de sitios nuevos sin romper el flujo), SSO sin
                       # password (sso="google")
-core/progreso.py     # progreso de la corrida para el dashboard: escribe
+core/progreso.py     # progreso de la corrida para la UI: escribe
                       # data/corrida_estado.json (atomico) + data/corrida.log;
                       # Progreso.fase/sumar/total/finalizar
 credenciales.py      # CLI de esa lista: sin argumentos la muestra; --set,
@@ -285,17 +287,17 @@ core/dedupe.py       # dedupe boards<->directos: prioridad al ATS del
                       # employer; si el puesto ya esta en directos se
                       # descarta la copia de los boards (match empresa+titulo)
 data/profile.json    # perfil del candidato
-main.py · search.py · cv2profile.py · app.py · credenciales.py
+main.py · ui.py · search.py · cv2profile.py · app.py (legado) · credenciales.py
 ```
 
 ## Notas
 
-- **Sesiones de login (tab "🔐 Sesiones" del dashboard)**: los sitios que
+- **Sesiones de login (pestaña "Sesiones" de la UI)**: los sitios que
   necesitan sesion se resuelven A MANO — la app te da el link "Abrir en
   Brave", te logueas una vez y el scraper reusa esa sesion del perfil.
   Es el camino por defecto: el login automatico dispara CAPTCHAs/2FA.
 
-- **Credenciales (tab "🔑 Credenciales" / `python credenciales.py`)**:
+- **Credenciales (pestaña "Credenciales" / `python credenciales.py`)**:
   opcional y por sitio. Si guardas usuario/password (o SSO Google sin clave)
   y activas `--auto on`, el scraper intenta el login solo — **primero
   reutiliza la sesión existente y solo loguea si no la hay** — y, si el sitio

@@ -17,7 +17,7 @@
 
 Las credenciales quedan en `data/empresas/credenciales.json` (LOCAL y en
 `.gitignore`: nunca viajan a git). Equivalente grafico: pestaña
-"🔑 Credenciales" del dashboard (streamlit run app.py).
+"Credenciales" de la UI de escritorio (python ui.py).
 """
 import argparse
 import getpass

@@ -6,6 +6,6 @@ aiosqlite
 python-dotenv
 sentence-transformers
 torchvision
-streamlit
+streamlit   # solo app.py (dashboard LEGADO); la UI actual (ui.py) es stdlib
 pypdf
 python-docx
