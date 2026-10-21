@@ -4,51 +4,56 @@ title JobPulse CR
 cd /d "%~dp0"
 
 rem ------------------------------------------------------------------
-rem 1/3  La UI PRIMERO (Tkinter: proceso propio, sin navegador ni
-rem      servidor; cerrar Brave ya no cierra nada). Si ya hay una
-rem      ventana de JobPulse viva, no se lanza otra.
+rem 1/2  SOLO la UI, SIN scraping y SIN ventanas de comandos.
+rem      pythonw abre la UI sin consola propia - antes se lanzaba
+rem      python minimizado y quedaba una ventana negra en la barra.
+rem      El scraping se lanza a mano desde la pestana "Corrida" de la
+rem      UI, o con:  jobpulse.cmd --correr
 rem ------------------------------------------------------------------
-echo [JobPulse] 1/3 UI de escritorio (ui.py)...
-powershell -NoProfile -Command "$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'python.exe' -and $_.CommandLine -like '*ui.py*' }; if ($p) { exit 0 } else { exit 1 }"
+echo [JobPulse] Abriendo la UI de escritorio - el scraping NO se lanza solo...
+powershell -NoProfile -Command "$p = Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^pythonw?\.exe$' -and $_.CommandLine -like '*ui.py*' }; if ($p) { exit 0 } else { exit 1 }"
 if errorlevel 1 (
-    echo [JobPulse] Abriendo la ventana de JobPulse...
-    powershell -NoProfile -Command "Start-Process -FilePath '.venv\Scripts\python.exe' -ArgumentList '-X','utf8','ui.py' -WindowStyle Minimized"
-    powershell -NoProfile -Command "Start-Sleep -Seconds 3; $p = Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'python.exe' -and $_.CommandLine -like '*ui.py*' }; if ($p) { exit 0 } else { exit 1 }"
+    powershell -NoProfile -Command "Start-Process -FilePath '.venv\Scripts\pythonw.exe' -ArgumentList '-X','utf8','ui.py' -WindowStyle Hidden"
+    powershell -NoProfile -Command "Start-Sleep -Seconds 3; $p = Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^pythonw?\.exe$' -and $_.CommandLine -like '*ui.py*' }; if ($p) { exit 0 } else { exit 1 }"
     if errorlevel 1 (
-        echo [JobPulse] AVISO: la UI no arranco. Mira la consola minimizada de python.
+        echo [JobPulse] AVISO: la UI no arranco. Prueba a mano:
+        echo            .venv\Scripts\pythonw.exe -X utf8 ui.py
+        pause
     ) else (
-        echo [JobPulse] UI lista en su propia ventana.
+        echo [JobPulse] UI abierta en su propia ventana, sin consolas.
     )
 ) else (
     echo [JobPulse] La UI ya estaba abierta; se reutiliza.
 )
 
 rem ------------------------------------------------------------------
-rem 2/3  Scraping. El progreso se publica en data\corrida_estado.json,
-rem      asi que la pestana "Corrida" de la UI lo muestra en vivo
-rem      (fase actual, grupos, vacantes encontradas); tambien sale en
-rem      esta consola. Si ya hay una corrida viva, no se lanza otra.
-rem      Paso extra de argumentos: jobpulse.cmd --preflight
-rem      Corridas separadas:   jobpulse.cmd --solo ats     (portales de empresa)
-rem                             jobpulse.cmd --solo boards  (Indeed, LinkedIn,
-rem                                                          Procomer, ANE, CINDE)
+rem 2/2  Scraping SOLO con --correr. Los argumentos extra se le pasan
+rem      a main.py:
+rem          jobpulse.cmd --correr                 corrida completa
+rem          jobpulse.cmd --correr --solo ats       portales de empresa
+rem          jobpulse.cmd --correr --solo boards   Indeed/LinkedIn/estatales
+rem          jobpulse.cmd --correr --preflight     plan sin red
+rem      La corrida abre su PROPIA ventana de consola VERDE - titulo
+rem      "JobPulse CR - Scraping", texto verde color 0A - para distinguirla
+rem      de cualquier otro proceso, y se cierra sola al terminar. Esta
+rem      consola negra se cierra inmediatamente: no queda nada visible.
 rem ------------------------------------------------------------------
-echo.
-echo [JobPulse] 2/3 Scraping (seguilo en la pestana Corrida de la UI o aqui)...
-powershell -NoProfile -Command "if (Test-Path data\corrida_estado.json) { $p = Get-Content data\corrida_estado.json -Raw | ConvertFrom-Json; if ($p.estado -eq 'corriendo' -and $p.pid -and (Get-Process -Id $p.pid -ErrorAction SilentlyContinue)) { exit 0 } }; exit 1"
-if errorlevel 1 (
-    ".venv\Scripts\python.exe" -X utf8 main.py %*
-) else (
-    echo [JobPulse] Ya hay una corrida en curso; no se lanza otra.
+setlocal enabledelayedexpansion
+set "CORRER=0"
+set "ARGS="
+for %%a in (%*) do (
+    if /i "%%a"=="--correr" (set "CORRER=1") else (set "ARGS=!ARGS! %%a")
+)
+if "!CORRER!"=="0" (
+    echo [JobPulse] Listo. Para correr el scraping: pestana "Corrida" de la UI
+    echo            o bien:  jobpulse.cmd --correr
+    endlocal & exit /b 0
 )
 
-rem ------------------------------------------------------------------
-rem 3/3
-rem ------------------------------------------------------------------
-echo.
-echo [JobPulse] 3/3 Listo. La UI sigue abierta en su propia ventana;
-echo            puedes cerrar esta consola cuando quieras.
-rem `timeout` necesita stdin interactivo; si falla, esperamos con ping.
-timeout /t 15 /nobreak >nul 2>nul
-if errorlevel 1 ping -n 16 127.0.0.1 >nul
-exit /b 0
+powershell -NoProfile -Command "if (Test-Path data\corrida_estado.json) { $p = Get-Content data\corrida_estado.json -Raw | ConvertFrom-Json; if ($p.estado -eq 'corriendo' -and $p.pid -and (Get-Process -Id $p.pid -ErrorAction SilentlyContinue)) { exit 0 } }; exit 1"
+if not errorlevel 1 (
+    echo [JobPulse] Ya hay una corrida en curso; no se lanza otra.
+    endlocal & exit /b 0
+)
+start "JobPulse CR - Scraping" cmd /d /s /c "chcp 65001 >nul && color 0A && title JobPulse CR - Scraping && ".venv\Scripts\python.exe" -u -X utf8 main.py!ARGS!"
+endlocal & exit /b 0

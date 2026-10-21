@@ -26,7 +26,7 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 - Salida visible: `data/jobs.db`, `data/report_AAAAMMDD.csv` (día y 24h) y la
   **UI de escritorio** `ui.py` (Tkinter, sin navegador; pestaña Ranking).
 
-### Cómo funciona una corrida (`python main.py`, botón de la UI o `jobpulse.cmd`)
+### Cómo funciona una corrida (`python main.py`, botón de la UI o `jobpulse.cmd --correr`)
 1. **Preparación**: perfil → búsquedas expandidas (`core/search_engine.py`).
 2. **Fases providers** — 15 en 2 grupos (`providers/source_groups.py`):
    - **boards = 5** (agregadores): indeed, linkedin, ane, procomer, cinde.
@@ -77,17 +77,23 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   `--preflight` (valida el plan **sin red ni navegador**: 22 fases, exit 0),
   `--fresh`, `--refiltrar`, `--dias`, `--score-min`, `--sin-expand`.
 - `ui.py` — **UI de escritorio Tkinter** (la actual): 6 pestañas — Ranking ·
-  Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones. Lanza
-  `main.py` como subproceso y SOLO observa `data/corrida_estado.json`
-  (cerrar la ventana no mata la corrida). Lectura pura de SQLite (URI
-  `mode=ro`); el ranking (embeddings + ATS) y la verificación de sesiones
-  corren en hilos secundarios que solo encolan.
+  Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones. El scraping
+  SOLO se lanza desde sus botones (la UI nunca scrapea sola): abre la
+  corrida en su propia **ventana de consola VERDE** (título "JobPulse CR -
+  Scraping", texto verde `color 0A`; se cierra sola al terminar) y SOLO
+  observa `data/corrida_estado.json` (cerrar la UI no mata la corrida;
+  cerrar la ventana verde, sí). Corre bajo `pythonw` sin consola
+  (stdout/stderr a devnull). Lectura pura de SQLite (URI `mode=ro`); el
+  ranking (embeddings + ATS) y la verificación de sesiones corren en
+  hilos secundarios que solo encolan.
 - `app.py` — dashboard Streamlit (**LEGADO**, aún funciona con
   `streamlit run app.py`). Reemplazado por `ui.py`: Streamlit vive dentro
   de una pestaña del navegador — cerrar Brave mataba la UI y dejaba
   procesos zombi en el puerto 8501.
-- `jobpulse.cmd` — un clic: **primero** la UI de escritorio (`ui.py`; si ya
-  estaba abierta se reutiliza), después el scraping.
+- `jobpulse.cmd` — un clic: abre SOLO la UI con `pythonw` (cero ventanas
+  de comandos), SIN scraping. Corrida a mano: pestaña "Corrida" de la UI,
+  o `jobpulse.cmd --correr [--solo ats|boards] [--preflight]` (la corrida
+  abre la ventana VERDE; nunca duplica una corrida viva).
 - `core/credenciales.py` — LA LISTA de sitios que piden login + store de
   credenciales; `sitio_en_flujo` / `agregar_sitio_login` / `quitar_sitio_login`
   (alta/baja de sitios nuevos sin romper el flujo; los seeds no se quitan).
@@ -113,8 +119,8 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 
 ### Convenciones y reglas duras
 1. **Bitácora**: entradas `## N. título (fecha, hora)` al final del archivo;
-   la serie crece sin renumerar (al cierre de esta guía la última es **#44**;
-   la siguiente es #45). **Cada entrada debe mencionar que el nuevo
+   la serie crece sin renumerar (al cierre de esta guía la última es **#46**;
+   la siguiente es #47). **Cada entrada debe mencionar que el nuevo
    comportamiento quedó reflejado en ESTA guía** (y actualizarla si aplica).
 2. **Privacidad**: repo público → nunca subir `.env`, `data/profile.json`,
    CVs, credenciales ni datos personales (los ejemplos usan placeholders como
@@ -1789,3 +1795,54 @@ queda ningún proceso colgado. `py_compile` de los .py tocados.
 **El nuevo comportamiento quedó reflejado en la guía del agente** (línea
 de `jobpulse.cmd` en el mapa de archivos) en este mismo commit, como
 manda la regla de oro de la entrada #44.
+
+## 47. Scraping manual, UI sin consolas y corrida en ventana verde (2026-10-21, mañana)
+
+Pedido del dueño, 3 puntos: (1) la UI abre pero NADA scrapea hasta
+presionar un botón; (2) cero ventanas de comandos al abrir la UI — la
+única consola visible debe ser la del scraping mientras corre; (3) esa
+ventana se distingue por color VERDE de cualquier otro proceso.
+
+- **`jobpulse.cmd`** — reescrito. Ya no lanza el scraping despues de la
+  UI: doble clic = solo la UI. La UI ahora abre con `pythonw.exe`
+  (`Start-Process -WindowStyle Hidden`): antes `python.exe` minimizado
+  dejaba una consola negra viva en la barra de tareas. El scraping se
+  lanza con `--correr` (los demas args pasan a `main.py`: `--solo
+  ats|boards`, `--preflight`) y corre en su propia ventana VERDE via
+  `start "JobPulse CR - Scraping" cmd /d /s /c "chcp 65001 >nul &&
+  color 0A && title ... && "python.exe" -u -X utf8 main.py ARGS"`. El
+  launcher se cierra solo: no queda ninguna consola negra. `pause` solo
+  si la UI no arranca (para no perder el error).
+- **`ui.py`** — `_corrida_arrancar`: la corrida ya no es un subproceso
+  oculto con stdout apendado a `data/corrida_stdout.log`; abre la misma
+  ventana VERDE (mecanismo `start` desde un cmd `CREATE_NO_WINDOW`:
+  probado que `start` crea la ventana visible aunque el padre sea
+  invisible). Texto verde elegido (`color 0A`, negro+verde) y cierre
+  solo al terminar (`/c`): decisión del dueño. Si la UI corre bajo
+  pythonw, la corrida usa `python.exe` del mismo venv (pythonw no tiene
+  consola donde escribir). Guard nuevo: bajo pythonw no hay
+  stdout/stderr y un `print()` de terceros (sentence-transformers al
+  cargar el modelo) reventaría — se apuntan a devnull. Fuera: `tail_stdout`
+  y la sección "salida cruda" del panel de log (el crudo ahora es
+  visible en la ventana verde); `data/corrida_stdout.log` queda solo
+  para `app.py` (legado).
+- **`recordatorio.py`** — "Correr ahora" llama `jobpulse.cmd --correr` y
+  la consola intermedia es `CREATE_NO_WINDOW` (antes
+  `CREATE_NEW_CONSOLE`: ventana negra). La corrida diferida de Task
+  Scheduler también recibe `--correr` (sin ella, tras este cambio solo
+  abrirá la UI).
+- **`run.bat`** — comentario del alias actualizado (solo abre la UI).
+- **`README.md`** — sección "Corrida con un clic": doble clic = solo UI,
+  `--correr` para scraping, ventana verde y que cerrarla detiene la
+  corrida; el comando manual pasa a `pythonw`.
+
+Verificación: `py_compile` de los 53 `.py` (sin `.venv` ni `data/`);
+end-to-end `jobpulse.cmd --correr --preflight` (UI bajo pythonw sin
+consolas + preflight completo, estado "preflight", en la ventana verde
+que se cerró sola); lanzamiento desde `ui.py` con el mismo método del
+botón (ventana verde visible → corrida → cierre automático); sin
+procesos colgados después.
+
+**El nuevo comportamiento quedó reflejado en la guía del agente** (mapa:
+líneas de `ui.py` y `jobpulse.cmd`; encabezado de "Cómo funciona una
+corrida") en este mismo commit, como manda la regla de oro de la #44.

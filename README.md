@@ -80,7 +80,7 @@ python search.py --perfil
 python search.py "mesa de ayuda bilingüe remoto"
 
 # 5. UI de escritorio (Ranking · Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones)
-.venv\Scripts\python.exe -X utf8 ui.py
+.venv\Scripts\pythonw.exe -X utf8 ui.py        # pythonw = sin ventana de comandos
 
 # 6. Diagnostico SIN red ni navegador (plan de corrida + credenciales faltantes)
 python main.py --preflight
@@ -107,20 +107,23 @@ python bench_modelos.py
 
 ### Corrida con un clic y recordatorio (Windows)
 
-- **`jobpulse.cmd`** — doble clic: **primero** abre la UI de escritorio
-  (ventana propia; si ya estaba abierta, se reutiliza), **después** lanza
-  el scraping. Así la GUI nunca se queda esperando 5+ minutos de consola
-  ni "nunca se activa" si `main.py` falla. Acepta argumentos extra
-  (`jobpulse.cmd --preflight`) y **no lanza una segunda corrida** si ya
-  hay una viva.
+- **`jobpulse.cmd`** — doble clic: abre **solo la UI de escritorio**, sin
+  ninguna ventana de comandos (`pythonw`) y **sin lanzar el scraping**:
+  nada scrapea solo. La corrida se inicia desde la pestaña "Corrida" o con
+  `jobpulse.cmd --correr [--solo ats|boards] [--preflight]`; nunca lanza
+  una segunda corrida si ya hay una viva.
 - **Pestaña "Corrida"** de la UI: progreso en vivo (fase actual, barra,
   conteo de vacantes por grupo *Portal estatal* / *Resto*, log) y botones
-  **ATS / Boards / Completa / Preflight / Detener**. Sirve igual si la
-  corrida la lanzaste desde la consola: todo pasa por
-  `data/corrida_estado.json` + `data/corrida.log`. Cerrar la UI no mata
-  la corrida: al reabrirla, la pestaña la vuelve a mostrar.
+  **ATS / Boards / Completa / Preflight / Detener**. Cada corrida abre su
+  propia **ventana de consola verde** (texto verde, título "JobPulse CR -
+  Scraping"): la única ventana de comandos visible mientras corre, y se
+  cierra sola al terminar. Sirve igual si la corrida la lanzaste desde la
+  consola: todo pasa por `data/corrida_estado.json` + `data/corrida.log`.
+  Cerrar la UI no mata la corrida (al reabrirla, la pestaña la vuelve a
+  mostrar); cerrar la ventana verde **detiene** la corrida.
 - **`recordatorio.py`** — sin servidor 24 h: al **iniciar sesión** pregunta
   si quieres correr el scraping (si ya corriste hoy, no molesta). Con
+  "Correr ahora" abre la UI y la ventana verde sin consolas negras; con
   "Más tarde..." tú fijas la hora; si el equipo estaba apagado a esa hora,
   la corrida se ejecuta en cuanto arranque.
 

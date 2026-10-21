@@ -7,8 +7,9 @@ Paso 3: cada seccion vive en su propia pestana (ttk.Notebook):
    - "Ranking": tabla filtrable + ranking del perfil
    - "Busqueda libre": consulta en lenguaje natural sobre la base indexada
 Paso 4: pestana "Perfil": editor con resumen de cambios y backups.
-Paso 5: pestana "Corrida": lanza el scraping como subproceso y SOLO
-observa data/corrida_estado.json (como hacia Streamlit).
+Paso 5: pestana "Corrida": el scraping SOLO empieza con sus botones
+(esta UI nunca scrapea sola); corre en su propia ventana de consola
+VERDE y aqui solo se observa data/corrida_estado.json.
 Paso 6: pestana "Credenciales": LA LISTA de sitios con login, fiel a
 core/credenciales.py (solo ANE es de password; el resto es SSO).
 Paso 7: pestana "Sesiones": login manual en Brave (CAPTCHA/2FA) y
@@ -22,6 +23,7 @@ Ejecutar:  python ui.py
 """
 import json
 import logging
+import os
 import queue
 import sqlite3
 import subprocess
@@ -39,7 +41,7 @@ from core import credenciales as creds_store
 from core.profile import (CandidateProfile, DEFAULT_PROFILE_PATH,
                           backups_perfil, guardar_perfil)
 from core.progreso import (corriendo, detener, leer_estado,
-                           tail as log_tail, tail_stdout as log_tail_stdout)
+                           tail as log_tail)
 from core.search_engine import SemanticSearchEngine
 from core.sesiones import (abrir_en_brave, quitar_pendiente,
                            sitios_con_sesion, verificar_sesion)
@@ -47,6 +49,14 @@ from providers.source_groups import grupo_publico, GRUPOS_PUBLICOS
 
 BASE = Path(__file__).resolve().parent
 DB = BASE / "data" / "jobs.db"
+
+# La UI abre con pythonw (jobpulse.cmd: cero ventanas de comandos). Alli
+# stdout/stderr no existen, y un print() de terceros (sentence-transformers
+# al cargar el modelo) reventaria con stream None: se apuntan a devnull.
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -84,6 +94,10 @@ ESTADO_COLOR = {
     "interrumpida": "#a05a00",
     "nunca": "#555555",
 }
+
+# Titulo de la ventana de consola VERDE donde corre el scraping (la unica
+# ventana de comandos visible cuando hay una corrida viva).
+CORRIDA_TITULO = "JobPulse CR - Scraping"
 
 # (id, encabezado, ancho, alineacion)
 COLS_RANK = (
@@ -319,7 +333,7 @@ def _hilo_corrida(q: queue.Queue, stop: threading.Event):
     """
     while not stop.is_set():
         try:
-            q.put((leer_estado(), log_tail(120), log_tail_stdout(40)))
+            q.put((leer_estado(), log_tail(120)))
         except Exception:
             pass
         stop.wait(2.0)
@@ -473,7 +487,7 @@ class App(tk.Tk):
                          args=(self._cola_corrida, self._corrida_stop),
                          daemon=True).start()
         self.after(2000, self._corrida_refrescar)
-        self._corrida_pintar(leer_estado(), log_tail(120), log_tail_stdout(40))
+        self._corrida_pintar(leer_estado(), log_tail(120))
         self.protocol("WM_DELETE_WINDOW", self._al_cerrar)
 
     # ------------------------------------------------------------- pestanas
@@ -1033,9 +1047,12 @@ class App(tk.Tk):
         self._btn_detener = ttk.Button(barra2, text="Detener",
                                        command=self._corrida_detener)
         self._btn_detener.pack(side="left", padx=6)
-        ttk.Label(barra2, foreground="#666",
-                  text="La UI solo observa data/corrida_estado.json: si la cerras,"
-                       " la corrida sigue y se ve al reabrir."
+        ttk.Label(barra2, foreground="#666", wraplength=1000,
+                  text="Cada botón abre la corrida en su propia ventana de "
+                       "consola VERDE (título \"JobPulse CR - Scraping\"): "
+                       "la única ventana de comandos visible mientras corre, "
+                       "y se cierra sola al terminar. Si cierras la UI, la "
+                       "corrida sigue; si cierras la ventana verde, se detiene."
                   ).pack(side="left", padx=8)
 
         panel = ttk.LabelFrame(tab, text="Estado de la corrida", padding=10)
@@ -1082,7 +1099,14 @@ class App(tk.Tk):
         self.nb.add(tab, text="  Corrida  ")
 
     def _corrida_arrancar(self, preflight: bool = False, solo: str = "todos"):
-        """Lanza `python main.py` como subproceso; la UI solo observa.
+        """Lanza `python main.py` en su PROPIA ventana de consola VERDE.
+
+        El scraping SOLO empieza con estos botones: esta UI nunca scrapea
+        sola. La corrida corre en una ventana aparte ("JobPulse CR -
+        Scraping", texto verde via `color 0A`) para distinguirla de
+        cualquier otro proceso, y se cierra sola al terminar (/c). La UI
+        sigue observando data/corrida_estado.json; cerrar la ventana
+        verde detiene la corrida (queda "interrumpida").
 
         `solo` separa el alcance (ats | boards | todos). El candado de
         iniciar_corrida() es exclusivo: si hay una viva, main.py se niega
@@ -1093,23 +1117,26 @@ class App(tk.Tk):
                                 "Ya hay una corrida viva: espera a que termine "
                                 "o presiona Detener.")
             return
-        args = [sys.executable, "-u", "-X", "utf8", "main.py"]
+        args = ""
         if preflight:
-            args.append("--preflight")
+            args += " --preflight"
         if solo and solo != "todos":
-            args += ["--solo", solo]
-        out = BASE / "data" / "corrida_stdout.log"
-        try:
-            out.parent.mkdir(parents=True, exist_ok=True)
-            fh = open(out, "ab")
-        except OSError:
-            fh = None
-        subprocess.Popen(args, cwd=str(BASE), stdin=subprocess.DEVNULL,
-                          stdout=(fh if fh is not None else subprocess.DEVNULL),
-                          stderr=subprocess.STDOUT,
-                          creationflags=subprocess.CREATE_NO_WINDOW)
-        if fh:
-            fh.close()
+            args += f" --solo {solo}"
+        # La UI corre bajo pythonw (sin consola): la corrida necesita
+        # python.exe para tener donde escribir su salida.
+        py = Path(sys.executable)
+        if py.name.lower() == "pythonw.exe":
+            candidato = py.with_name("python.exe")
+            py = candidato if candidato.exists() else py
+        # `start` desde un cmd OCULTO (CREATE_NO_WINDOW) abre la ventana
+        # verde como proceso INDEPENDIENTE: cerrar la UI no la mata, y no
+        # queda ninguna otra consola visible.
+        verde = (f'chcp 65001 >nul && color 0A && title {CORRIDA_TITULO}'
+                 f' && "{py}" -u -X utf8 main.py{args}')
+        subprocess.Popen(
+            f'cmd /d /c start "{CORRIDA_TITULO}" cmd /d /s /c "{verde}"',
+            cwd=str(BASE), stdin=subprocess.DEVNULL,
+            creationflags=subprocess.CREATE_NO_WINDOW)
 
     def _corrida_detener(self):
         if not detener():
@@ -1128,7 +1155,7 @@ class App(tk.Tk):
             self._corrida_pintar(*dato)
         self.after(2000, self._corrida_refrescar)
 
-    def _corrida_pintar(self, est, log, crudo):
+    def _corrida_pintar(self, est, log):
         estado = est.get("estado", "nunca")
         vivo = estado == "corriendo"
 
@@ -1177,8 +1204,8 @@ class App(tk.Tk):
         elif estado == "interrumpida":
             self._cor_fase.configure(text="Interrumpida")
             self._cor_msg.configure(
-                text="El proceso ya no existe (se cerró o murió). "
-                     "Puedes volver a lanzarla.")
+                text="El proceso ya no existe (se cerró la ventana verde o "
+                     "murió). Puedes volver a lanzarla.")
         elif estado == "detenida":
             self._cor_fase.configure(text="Detenida")
             self._cor_msg.configure(text="Corrida detenida a mano.")
@@ -1190,8 +1217,9 @@ class App(tk.Tk):
         else:
             self._cor_fase.configure(text="Sin corridas todavía")
             self._cor_msg.configure(
-                text="Lanza una corrida con los botones de arriba: el progreso "
-                     "aparece aquí en segundos.")
+                text="Nada scrapea solo: lanza la corrida con los botones de "
+                     "arriba y verás el progreso aquí (y en su ventana verde) "
+                     "en segundos.")
 
         for b in (self._btn_ats, self._btn_boards, self._btn_todos,
                   self._btn_preflight):
@@ -1199,9 +1227,6 @@ class App(tk.Tk):
         self._btn_detener.configure(state="normal" if vivo else "disabled")
 
         cuerpo = "".join(log or [])
-        if crudo:
-            cuerpo += ("\n— salida cruda (corrida_stdout.log) —\n"
-                       + "".join(crudo[-15:]))
         if cuerpo != self._cor_log_prev:
             self._cor_log_prev = cuerpo
             t = self._cor_log

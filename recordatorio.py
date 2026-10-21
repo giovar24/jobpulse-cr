@@ -9,7 +9,8 @@ Flujo:
   2. Si ya se corrio hoy, o el usuario ya descarto el recordatorio hoy ->
      sale silencioso (nada en pantalla).
   3. Si no, dialogo tkinter:
-       [ Correr ahora ]   -> ejecuta jobpulse.cmd (scraping + dashboard).
+       [ Correr ahora ]   -> ejecuta jobpulse.cmd --correr: abre la UI
+                            y lanza el scraping en su ventana VERDE.
        [ Mas tarde... ]   -> pide la hora (HH:MM) y programa UNA corrida para
                              ese momento (Task Scheduler ONCE +
                              StartWhenAvailable: si el equipo estaba apagado,
@@ -79,7 +80,7 @@ def programar_diferida(hh: int, mm: int):
         objetivo += timedelta(days=1)  # la hora ya paso: manana a esa hora
     ps = (
         "$a = New-ScheduledTaskAction -Execute 'cmd.exe' "
-        f"-Argument '/c \"{BASE / 'jobpulse.cmd'}\"' -WorkingDirectory '{BASE}'; "
+        f"-Argument '/c \"{BASE / 'jobpulse.cmd'}\" --correr' -WorkingDirectory '{BASE}'; "
         "$t = New-ScheduledTaskTrigger -Once -At "
         f"'{objetivo.strftime('%Y-%m-%dT%H:%M:%S')}'; "
         "$s = New-ScheduledTaskSettingsSet -StartWhenAvailable "
@@ -97,11 +98,13 @@ def programar_diferida(hh: int, mm: int):
 
 
 def lanzar_corrida():
-    """Ejecuta jobpulse.cmd en su propia ventana (scraping + dashboard)."""
+    """Ejecuta jobpulse.cmd --correr sin ventanas negras: la consola
+    intermedia es invisible (CREATE_NO_WINDOW); el .cmd abre la UI con
+    pythonw y la corrida en su propia ventana VERDE de scraping."""
     subprocess.Popen(
-        ["cmd", "/c", str(BASE / "jobpulse.cmd")],
+        ["cmd", "/c", str(BASE / "jobpulse.cmd"), "--correr"],
         cwd=str(BASE),
-        creationflags=subprocess.CREATE_NEW_CONSOLE,
+        creationflags=subprocess.CREATE_NO_WINDOW,
         close_fds=False,
     )
 
