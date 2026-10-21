@@ -23,10 +23,10 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 - Embeddings **locales en CPU** (fallback automático al modelo
   `sentence-transformers/paraphrase-multilingual-mpnet-base-v2` cuando
   `google/embeddinggemma-300m` responde 401 gated).
-- Salida visible: `data/jobs.db`, `data/report_AAAAMMDD.csv` (día y 24h) y el
-  dashboard Streamlit (pestaña Ranking).
+- Salida visible: `data/jobs.db`, `data/report_AAAAMMDD.csv` (día y 24h) y la
+  **UI de escritorio** `ui.py` (Tkinter, sin navegador; pestaña Ranking).
 
-### Cómo funciona una corrida (`python main.py`, botón ▶️ o `jobpulse.cmd`)
+### Cómo funciona una corrida (`python main.py`, botón de la UI o `jobpulse.cmd`)
 1. **Preparación**: perfil → búsquedas expandidas (`core/search_engine.py`).
 2. **Fases providers** — 15 en 2 grupos (`providers/source_groups.py`):
    - **boards = 5** (agregadores): indeed, linkedin, ane, procomer, cinde.
@@ -60,8 +60,8 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   inicio), `--refiltrar` (vacía SOLO `jobs` y la reconstruye desde `jobs_raw`
   con el gate actual, sin scraping) y `clean_empty_jobs` (filas sin título ni
   link, cada corrida).
-- **No hay poda por antigüedad**: la DB crece; el dashboard y los informes
-  filtran por fecha (24h/día; la pestaña Ranking permite "todas").
+- **No hay poda por antigüedad**: la DB crece; la UI y los informes
+  filtran por fecha (24h/día; la pestaña Ranking deja ver todas con Días=0).
 - Reportes `data/report_AAAAMMDD.csv` y `report_24h_AAAAMMDD.csv`: contienen
   SOLO las vacantes nuevas de **esa** corrida y se **sobrescriben por fecha de
   día**; si una corrida posterior del mismo día no tiene nuevas, no escribe
@@ -76,9 +76,18 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 - `main.py` — orquestador (fases, dedupe, gate, guardado, reportes). Flags:
   `--preflight` (valida el plan **sin red ni navegador**: 22 fases, exit 0),
   `--fresh`, `--refiltrar`, `--dias`, `--score-min`, `--sin-expand`.
-- `app.py` — dashboard Streamlit, 5 pestañas: Ranking · Búsqueda libre ·
-  🚀 Corrida · 🔑 Credenciales · 🔐 Sesiones (lanza `main.py` como hijo).
-- `jobpulse.cmd` — un clic: **primero** el dashboard, después el scraping.
+- `ui.py` — **UI de escritorio Tkinter** (la actual): 6 pestañas — Ranking ·
+  Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones. Lanza
+  `main.py` como subproceso y SOLO observa `data/corrida_estado.json`
+  (cerrar la ventana no mata la corrida). Lectura pura de SQLite (URI
+  `mode=ro`); el ranking (embeddings + ATS) y la verificación de sesiones
+  corren en hilos secundarios que solo encolan.
+- `app.py` — dashboard Streamlit (**LEGADO**, aún funciona con
+  `streamlit run app.py`). Reemplazado por `ui.py`: Streamlit vive dentro
+  de una pestaña del navegador — cerrar Brave mataba la UI y dejaba
+  procesos zombi en el puerto 8501.
+- `jobpulse.cmd` — un clic: **primero** el dashboard (AÚN Streamlit —
+  pendiente migrar a `ui.py`), después el scraping.
 - `core/credenciales.py` — LA LISTA de sitios que piden login + store de
   credenciales; `sitio_en_flujo` / `agregar_sitio_login` / `quitar_sitio_login`
   (alta/baja de sitios nuevos sin romper el flujo; los seeds no se quitan).
@@ -1648,3 +1657,84 @@ reflejado en esa documentación**.
   guía antes de tocar código.
 - Verificación: cambios de documentación solamente (sin código): diff revisado
   por datos personales; commit + push de `DEVELOPMENT_LOG.md` y `README.md`.
+
+## 45. UI de escritorio Tkinter (`ui.py`): reemplazo del dashboard Streamlit (2026-10-20, noche)
+
+Contexto: el dashboard Streamlit vivía dentro de una pestaña del navegador —
+cerrar Brave mataba la UI y dejaba procesos Python zombis en el puerto 8501.
+Se pidió una UI que no dependa del navegador, construida **paso a paso,
+probando y descartando** (si la primera versión no convencía, se descartaba
+el plan completo con un solo archivo puesto en juego).
+
+Decisión de motor: **Tkinter** (stdlib: cero dependencias nuevas, proceso
+único que el usuario cierra). PySide6 se descartó por peso (~70 MB); Textual
+por perder la tabla visual. La arquitectura abarató el port: SOLO `app.py`
+importaba streamlit — `main.py`, `core/*` y `providers/*` tienen cero
+dependencia de la UI. Reemplazar el dashboard = reescribir 1 archivo.
+
+Método: cada pestaña se portó, se probó con smoke tests (App sin `mainloop`)
+y recién ahí se commiteó. La primera versión fue SOLO la lista de ofertas
+para validar que `ttk.Treeview` fuera tolerable; el usuario la aprobó
+("me parece mucho mejor que la web") y solo entonces se portó el resto.
+
+La UI: `ui.py`, 6 pestañas (equivalente 1:1 con app.py):
+
+1. **Ranking** — tabla ordenable con filtros Grupo (2 grupos públicos) /
+   Buscar / Días, Detalle compartido abajo y "Calcular ranking del perfil":
+   `search_profile` + `rank_with_ats`. Tkinter no es multihilo: los hilos
+   solo encolan y el hilo principal drena con `after`. Con ranking activo
+   la tabla muestra SOLO las rankeadas (como hacía Streamlit): `combined`
+   y `gate_score` son escalas distintas y mezclarlas sepultaba a las
+   rankeadas en la posición 156.
+2. **Búsqueda libre** — consulta en lenguaje natural sobre la base indexada.
+3. **Perfil** — editor del `data/profile.json` vía `guardar_perfil` (el
+   escritor único, con backup automático): resumen de cambios en diálogo
+   antes de escribir, rechazo si quedaría vacío, descartar recarga de disco,
+   backups restaurables. Listas "un ítem por línea"; temas/idiomas con " | ".
+4. **Corrida** — lanza `python main.py` (completa / `--solo ats` /
+   `--solo boards` / `--preflight`) como subproceso y SOLO observa
+   `data/corrida_estado.json`: cerrar la UI no mata la corrida. Hilo lector
+   cada 2 s (leer_estado dispara tasklist con corrida viva: jamás en el
+   hilo de la ventana). Transición corriendo→terminada refresca Ranking.
+5. **Credenciales** — LA LISTA + form de alta, fiel a `core/credenciales.py`
+   (solo consume su API). Confirmado con datos: 3 seeds, solo ANE es de
+   password (`.env`, fallback que sigue vivo); Indeed/LinkedIn son `sso=
+   google` — no piden clave. Única diferencia vs app.py: confirmación
+   antes de borrar/quitar.
+6. **Sesiones** — sitios que requieren login (BOARDS_SESION +
+   login_sites + pendientes), con Abrir en Brave / Verificar sesión /
+   Marcar resuelto. `verificar_sesion` monta Brave por CDP (lo cierra y
+   reabre): hilo secundario, botón bloqueado mientras tanto; verificación
+   OK resuelve el pendiente y repinta.
+
+**Dos bugs que encontraron los smoke tests** (lecciones del port):
+
+- **Claves español↔inglés**: las filas de la UI hablaban `puesto/
+  descripcion/requisitos` pero `core.ats` y `build_doc_text` leen `title/
+  description/requirements` → ATS 0.0 "Rechazo probable" universal y
+  ofertas nuevas embebidas con texto vacío. Fix: claves duplicadas en cada
+  fila (mismas celdas, dos nombres).
+- **`_escalar` simplificado**: comparaba `None` contra `""` como distintos;
+  con el perfil actual (sin clave `seniority`) aparecía el cambio fantasma
+  "Seniority: None → ''" y guardar "sin cambios" reescribía el archivo +
+  backup en cada apertura. Fix: adoptar el `_escalar` de app.py.
+
+Verificación: `py_compile` por pestaña; smoke tests de pintado/filtros/
+orden/detalle; ranking real (top: combined 61.6, ATS 88.4 "Fuerte");
+búsqueda libre real; preflight REAL lanzado desde la pestaña Corrida
+(jobs.db intacto, guard anti-doble-lanzamiento); Perfil y Credenciales
+probados sobre copias/almacenes falsos (profile.json real y
+data/empresas/ byte-idénticos tras los tests); Sesiones con monkeypatch
+(cero Brave real). Convención #3 de la guía pendiente al cierre: correr
+`python main.py --preflight` completo.
+
+Pendientes anotados: migrar `jobpulse.cmd` a `ui.py` (sigue abriendo
+Streamlit); `README.md` aún describe el dashboard Streamlit; el
+`guardar_perfil` nombra backups con precisión de segundos (guardar +
+restaurar en el mismo segundo colisiona — caso borde de `core/`, no de
+la UI).
+
+**El nuevo comportamiento quedó reflejado en la guía del agente** (qué es,
+cómo funciona una corrida, mapa de archivos: `ui.py` actual, `app.py`
+legado, `jobpulse.cmd` pendiente) en este mismo commit, como manda la
+regla de oro de la entrada #44.
