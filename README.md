@@ -26,14 +26,20 @@ System). Sin APIs de pago, sin nube, sin LLMs.
   `skills 40% · título 30% · experiencia 15% · educación 7.5% · idiomas 7.5%`
   con **keywords faltantes** por vacante y umbrales
   (🟢 ≥85 fuerte · 🟡 70-84 ajustar · 🔴 <70 débil).
+- **Perfil Harvard/ATS** (`data/profile.json`): un bloque `cv` (contacto,
+  resumen, educación, experiencia, proyectos, habilidades, certificaciones,
+  idiomas) que es lo que el usuario ve y edita, y un bloque `busqueda`
+  (puestos objetivo, ubicaciones, pesos, filtros) que es lo interno. Lo
+  derivado (años, nivel educativo, seniority, skills) se calcula desde el CV;
+  el perfil plano anterior se migra solo. Vista previa y borrador por IA en la
+  pestaña Perfil.
 - **Analizador de CV** (`cv2profile.py`): CV (PDF/DOCX/TXT/MD) en **español o
-  inglés** → perfil (`data/profile.json`): títulos semánticos, skills, idiomas
-  con nivel, años de experiencia, educación, certificaciones y contacto.
-  Inspección completa del proceso con `reporte_cv.py "MiCV.pdf"` (texto crudo,
-  extracciones, IA local, revisión con evidencia por frase y perfil final).
+  inglés** → perfil Harvard/ATS. Inspección completa con
+  `reporte_cv.py "MiCV.pdf"` (texto crudo, extracciones, IA local y perfil).
 - **UI de escritorio** (`ui.py`, Tkinter — sin navegador: cerrar Brave ya no
   cierra nada): **Ranking** (semántico + ATS con desglose y keywords
-  faltantes), **Búsqueda libre**, **Perfil** (editor con backups), **Corrida**
+  faltantes), **Búsqueda libre**, **Perfil** (Mi CV Harvard/ATS + Búsqueda
+  interna + backups), **Corrida**
   (progreso en vivo de un scraping: fase, barra, vacantes por grupo, log y
   botones Iniciar/Preflight/Detener), **Credenciales** (sitios que piden
   password, guardar/borrar, auto-login) y **Sesiones** (login manual en tu
@@ -137,6 +143,12 @@ python main.py --ia-cv "MiCV.pdf" --ia-puesto "Soporte Técnico"
 # CV + escribir data/profile.json (con backup) usando el CV como verdad
 python main.py --ia-cv "MiCV.pdf" --ia-puesto "Soporte Técnico" --ia-guardar
 ```
+
+**La IA solo llena el perfil; el usuario lo revisa.** En la UI, "Evaluar CV con
+IA" por defecto **no** guarda: deja `data/cv_ia.json` y desde *Perfil > Mi CV >
+Cargar propuesta IA* se carga como **borrador** en el editor. Nada se escribe
+hasta apretar *Guardar perfil*. El flag `--ia-guardar` existe para scripting,
+pero se salta esa revisión.
 
 - **Salidas**: `data/ia_AAAAMMDD_HHMM.csv` (crudo de la ventana con score IA),
   `data/cv_ia.md` / `data/cv_ia.json` (informe + perfil propuesto + CV

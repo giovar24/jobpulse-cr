@@ -513,6 +513,9 @@ async def evaluar_cv_ia(db, profile, cv_path: str, puesto: str = "",
         if not actual and profile is not None:
             actual = profile.to_dict()
         perfil_ia = dict(resultado.get("perfil") or {})
+        cv_ia = perfil_ia.setdefault("cv", {})
+        bus_ia = perfil_ia.setdefault("busqueda", {})
+        overrides = bus_ia.setdefault("overrides", {})
         # Completar con los extractores locales (contacto, fechas, idiomas...)
         # lo que el LLM no haya devuelto: el perfil queda usable por el ATS.
         try:
@@ -521,26 +524,39 @@ async def evaluar_cv_ia(db, profile, cv_path: str, puesto: str = "",
                                           detect_experience_years,
                                           detect_languages_struct,
                                           detect_seniority)
-            contacto = detect_contact(cv_texto)
+            contacto = dict(cv_ia.get("contacto") or {})
+            for k, v in detect_contact(cv_texto).items():
+                if v:
+                    contacto.setdefault(k, v)
             if contacto:
-                perfil_ia["contacto"] = contacto
-            if not perfil_ia.get("experiencia_anios"):
-                perfil_ia["experiencia_anios"] = detect_experience_years(cv_texto)
-            if not perfil_ia.get("educacion_nivel"):
-                perfil_ia["educacion_nivel"] = detect_education_level(cv_texto)
-            if not perfil_ia.get("certificaciones"):
-                perfil_ia["certificaciones"] = detect_certifications(cv_texto)
-            if not perfil_ia.get("idiomas"):
-                perfil_ia["idiomas"] = detect_languages_struct(cv_texto)
-            if not perfil_ia.get("seniority"):
-                perfil_ia["seniority"] = detect_seniority(cv_texto)
+                cv_ia["contacto"] = contacto
+            if not cv_ia.get("experiencia") and not overrides.get("experiencia_anios"):
+                v = detect_experience_years(cv_texto)
+                if v:
+                    overrides["experiencia_anios"] = v
+            if not cv_ia.get("educacion") and not overrides.get("educacion_nivel"):
+                v = detect_education_level(cv_texto)
+                if v:
+                    overrides["educacion_nivel"] = v
+            if not cv_ia.get("certificaciones"):
+                v = detect_certifications(cv_texto)
+                if v:
+                    cv_ia["certificaciones"] = v
+            if not cv_ia.get("idiomas"):
+                v = detect_languages_struct(cv_texto)
+                if v:
+                    cv_ia["idiomas"] = v
+            if not cv_ia.get("experiencia") and not overrides.get("seniority"):
+                v = detect_seniority(cv_texto)
+                if v:
+                    overrides["seniority"] = v
         except Exception as exc:
             logger.debug("CV: extractores locales no disponibles (%s).", exc)
         nuevo = merge_profile(actual, perfil_ia, replace=True)
         nuevo["_comentario"] = (
-            "Perfil del candidato. Títulos/skills/temas creados por la IA "
+            "Perfil del candidato (CV Harvard/ATS). Datos extraidos por la IA "
             f"desde {os.path.basename(cv_path)} "
-            f"({datetime.now():%Y-%m-%d}). Revisalo en la pestaña Perfil.")
+            f"({datetime.now():%Y-%m-%d}). Revisalo en la pestaña Perfil > Mi CV.")
         bk = guardar_perfil(nuevo)
         logger.info("CV: perfil actualizado%s. Revisalo en la pestaña Perfil.",
                     f" (backup: {bk.name})" if bk else "")

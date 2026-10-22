@@ -26,7 +26,8 @@ ensure_workspace()   # crea data/ y profile.json (generico) si es equipo nuevo
 load_dotenv()
 
 from core.cv_analysis import CVAnalyzer, extract_text, merge_profile
-from core.profile import DEFAULT_PROFILE_PATH
+from core.profile import (DEFAULT_PROFILE_PATH, guardar_perfil,
+                          normalizar_perfil)
 
 if sys.stdout and sys.stdout.encoding and sys.stdout.encoding.lower().replace("-", "") not in ("utf8",):
     try:
@@ -143,7 +144,7 @@ def main():
     if actual_data:
         final = merge_profile(actual_data, proposed, replace=not args.merge)
     else:
-        final = {
+        final = normalizar_perfil({
             "nombre": re.sub(r"\s+", " ", (texto.splitlines() or ["Candidato"])[0]).strip()[:40] or "Candidato",
             "titulos": proposed["titulos"],
             "skills": proposed["skills"],
@@ -158,20 +159,23 @@ def main():
             "pesos_ats": {"skills": 0.40, "titulo": 0.30, "experiencia": 0.15,
                           "educacion": 0.075, "idiomas": 0.075},
             "filtros": {"dias": None, "fuentes": []},
-        }
+        })
 
     if not args.save:
         if actual_data:
             print(f"\n(dry-run) Con --save se aplica a {out_path}: "
-                  "limpia titulos/skills/temas/nombre y pone lo del CV (--merge suma sin limpiar)")
+                  "actualiza el bloque CV y conserva tu busqueda manual "
+                  "(--merge suma sin limpiar)")
         else:
             print(f"\n(dry-run) Con --save se crea el perfil {out_path}")
+        print("Nota: el CV visual completo (educacion, experiencia, "
+              "proyectos) conviene revisarlo/corregirlo en la UI > Perfil > Mi CV.")
         return
 
-    bk = backup(out_path)
     final['_comentario'] = "Perfil del candidato. Generado por cv2profile.py"
-    out_path.write_text(json.dumps(final, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"\nPerfil guardado: {out_path}" + (f" (backup: {bk})" if bk else " (nuevo)"))
+    bk = guardar_perfil(final, out_path)
+    print(f"\nPerfil guardado: {out_path}"
+          + (f" (backup: {bk.name})" if bk else " (nuevo)"))
     print("Verifica el efecto con:")
     print("  python search.py --perfil")
     print("  python ui.py")

@@ -54,6 +54,13 @@ PRESETS = {
         "modelo": "gpt-4o-mini",
         "key_env": ("IA_API_KEY", "OPENAI_API_KEY"),
     },
+    # Ollama Cloud (ollama.com): endpoint OpenAI-compatible + modelos grandes
+    # en la nube. La clave sale de OLLAMA_API_KEY (o IA_API_KEY).
+    "ollama": {
+        "base": "https://ollama.com/v1",
+        "modelo": "gemma4:31b",
+        "key_env": ("IA_API_KEY", "OLLAMA_API_KEY"),
+    },
 }
 
 DEFAULT_IA_MIN = 70.0     # score 0-100 a partir del cual "aplica"
@@ -84,7 +91,9 @@ _SENIORITY_MAP = {
 }
 # Subir esto invalida la cache de evaluaciones (cambio de prompt = nueva
 # pregunta; las respuestas viejas quedan en ia_evals como historial).
-PROMPT_VERSION = "v2"
+# v3: perfil y CV adaptado con esquema Harvard/ATS (contacto, educacion,
+# experiencia y proyectos estructurados).
+PROMPT_VERSION = "v3"
 
 
 class IAError(Exception):
@@ -138,11 +147,28 @@ def perfil_texto(profile) -> str:
         f"{d.get('idioma', '')} {d.get('nivel', '')}".strip()
         for d in (profile.idiomas or []) if isinstance(d, dict)
     )
+    exp_resumen = []
+    for e in (getattr(profile, "experiencia", None) or [])[:3]:
+        if isinstance(e, dict):
+            emp = e.get("empresa", "")
+            pue = e.get("puesto", "")
+            if emp or pue:
+                exp_resumen.append(f"{pue} @ {emp}".strip(" @"))
+    edu_resumen = []
+    for e in (getattr(profile, "educacion", None) or [])[:2]:
+        if isinstance(e, dict):
+            inst = e.get("institucion", "")
+            tit = e.get("titulo", "")
+            if inst or tit:
+                edu_resumen.append(f"{tit} — {inst}".strip(" —"))
     partes = [
         f"Nombre: {profile.nombre or '(sin nombre)'}",
+        f"Resumen: {getattr(profile, 'resumen_profesional', '') or 'no indicado'}",
         f"Titulos objetivo: {', '.join(profile.titulos or [])}",
         f"Skills: {', '.join(profile.skills or [])}",
         f"Temas de busqueda: {temas}",
+        f"Experiencia resumida: {'; '.join(exp_resumen) or 'no indicada'}",
+        f"Educacion resumida: {'; '.join(edu_resumen) or 'no indicada'}",
         f"Experiencia: {profile.experiencia_anios or 0} anios",
         f"Educacion: {profile.educacion_nivel or 'no indicada'}",
         f"Seniority: {profile.seniority or 'no indicado'}",
@@ -184,12 +210,21 @@ def _json_de_texto(texto: str) -> dict:
         except ValueError:
             continue
         encontrados.append(obj)
-    for obj in encontrados:
-        if isinstance(obj, dict) and any(
-                k in obj for k in ("resultados", "perfil", "evaluacion")):
+    dicts = [o for o in encontrados if isinstance(o, dict)]
+    # El objeto bueno es el que trae perfil + evaluacion juntos (CV) o la
+    # lista de resultados (vacantes). Evita quedarnos con un sub-objeto
+    # suelto si el JSON venia truncado o anidado.
+    for obj in dicts:
+        if "perfil" in obj and "evaluacion" in obj:
             return obj
-    if encontrados:
-        return encontrados[0]
+    for obj in dicts:
+        if "resultados" in obj:
+            return obj
+    for obj in dicts:
+        if "perfil" in obj or "evaluacion" in obj:
+            return obj
+    if dicts:
+        return dicts[0]
     raise IAError("la IA no devolvio JSON reconocible")
 
 
@@ -231,6 +266,8 @@ class IAClient:
     def _proveedor_por_clave() -> str:
         """Sin IA_PROVEEDOR: deducirlo de la clave presente (evita mezclar
         una clave de NVIDIA con el endpoint de Google)."""
+        if os.getenv("OLLAMA_API_KEY"):
+            return "ollama"
         if os.getenv("NVIDIA_API_KEY"):
             return "nvidia"
         if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
@@ -438,8 +475,13 @@ class IAClient:
                 "la IA devolvio una respuesta vacia" + detalle + ". Elegi otro "
                 "modelo en el selector (p. ej. openai/gpt-oss-20b).")
         if fin == "length":
-            logger.warning("IA: respuesta truncada por max_tokens; puede faltar "
-                           "parte del JSON (si pasa, elegi otro modelo).")
+            rt = ((uso.get("completion_tokens_details") or {})
+                  .get("reasoning_tokens"))
+            extra = f", {rt} en razonamiento" if rt else ""
+            raise IAError(
+                "la IA corto la respuesta por max_tokens" + extra
+                + ". Elegi un modelo que no gaste tanto en razonar "
+                  "(p. ej. openai/gpt-oss-20b) o reintenta la corrida.")
         try:
             return _json_de_texto(contenido), uso
         except (ValueError, TypeError) as exc:
@@ -597,32 +639,74 @@ class IAClient:
     @staticmethod
     def _system_cv() -> str:
         return (
-            "Eres un evaluador de CVs y reclutador tecnico para Costa Rica. "
-            "Recibis el texto de un CV y el perfil que el sistema ya tiene del "
-            "candidato. Tu tarea tiene DOS partes:\n"
-            "1) PERFIL: extraer un perfil estructurado para buscar vacantes. "
-            "Usá SOLO lo que el CV demuestra: no inventes empresas, fechas, "
-            "titulos ni skills. Si un dato no esta, deja el campo vacio.\n"
-            "2) EVALUACION: puntuar el CV (0-100) para el objetivo indicado y "
-            "dar mejoras concretas. En 'palabras_clave_faltantes' pon terminos "
-            "que el mercado pide y el CV no evidencia; NO las agregues al CV "
-            "adaptado sin evidencia.\n"
-            "El 'cv_adaptado_markdown' debe reescribir SOLO el contenido real "
-            "del CV (reordenar, aclarar, cuantificar lo que ya dice), en "
-            "espanol, con secciones: Perfil, Experiencia, Habilidades, "
-            "Educacion. No agregues experiencia ni logros inventados.\n"
-            "En 'titulos' pon los cargos/titulos profesionales que el CV "
-            "evidencia (p. ej. 'Analista de Soporte N2'), nunca la empresa. "
-            "En 'temas', 'puesto' es el cargo en espanol y 'puesto_en' el "
-            "MISMO cargo traducido al ingles (nunca la empresa).\n"
-            "Responde SOLO JSON valido, sin markdown alrededor, con este esquema:\n"
-            '{"perfil":{"nombre":"","titulos":[],"skills":[],'
-            '"temas":[{"puesto":"","puesto_en":"","ubicacion":"Costa Rica"}],'
-            '"experiencia_anios":0,'
-            '"educacion_nivel":"maestria|universitario|tecnologo|tecnico|bachiller|",'
-            '"certificaciones":[],'
-            '"idiomas":[{"idioma":"","nivel":""}],'
-            '"seniority":"junior|mid|senior|"},'
+            "Eres un evaluador de CVs, reclutador tecnico y experto en ATS "
+            "para Costa Rica. Recibis el texto de un CV y el perfil que el "
+            "sistema ya tiene del candidato. Tu tarea tiene TRES partes:\n"
+            "1) PERFIL: extraer un perfil estructurado CON FORMATO DE CV "
+            "HARVARD/ATS. Usa SOLO lo que el CV demuestra: no inventes "
+            "empresas, fechas, titulos, logros ni skills. Si un dato no esta, "
+            "deja el campo vacio o la lista vacia. El bloque 'cv' es la "
+            "fuente visual (lo que un ATS parsea); el bloque 'busqueda' es "
+            "intencion de busqueda propuesta (no la inventes si el CV no la "
+            "sugiere).\n"
+            "Reglas del bloque 'cv':\n"
+            "- 'contacto': solo email, telefono, ubicacion, linkedin, github "
+            "y portafolio si aparecen. No inventes.\n"
+            "- 'resumen': 2-4 lineas con el perfil real del CV, sin "
+            "adjetivos vacios.\n"
+            "- 'educacion': una entrada por estudio, en orden cronologico "
+            "inverso. Fechas en MM/AAAA o AAAA; si no aparecen, vacias. "
+            "Incluye gpa, honores y cursos solo si el CV los menciona.\n"
+            "- 'experiencia': una entrada por puesto, en orden cronologico "
+            "inverso. 'logros' son vinetas que empiezan con verbo de accion; "
+            "incluye metricas SOLO si el CV las trae. No agregues logros "
+            "inventados.\n"
+            "- 'proyectos': solo si el CV los menciona.\n"
+            "- 'habilidades': lista plana de palabras clave ATS "
+            "(herramientas, tecnologias, metodos). Sin frases largas.\n"
+            "- 'certificaciones': texto 'Nombre — Emisor (Ano)' si el CV lo "
+            "trae.\n"
+            "- 'idiomas': idioma y nivel reales.\n"
+            "Reglas del bloque 'busqueda':\n"
+            "- 'puestos_objetivo': cargos que el CV respalda y que tienen "
+            "sentido como proximo paso. Nunca empresas.\n"
+            "- 'ubicaciones': solo si el CV o el objetivo las mencionan. Si "
+            "no, 'Costa Rica'.\n"
+            "- 'temas': 3-6 busquedas; 'puesto' en espanol y 'puesto_en' el "
+            "MISMO cargo traducido al ingles. Nunca la empresa.\n"
+            "2) EVALUACION: puntuar el CV (0-100) para el objetivo indicado "
+            "y dar mejoras concretas. En 'palabras_clave_faltantes' pon "
+            "terminos que el mercado pide y el CV no evidencia; NO las "
+            "agregues al CV adaptado sin evidencia.\n"
+            "3) CV ADAPTADO: 'cv_adaptado_markdown' en formato Harvard/ATS: "
+            "una sola columna, sin tablas, sin fotos ni graficos, "
+            "encabezados estandar. Encabezado con nombre, email, telefono, "
+            "LinkedIn y ciudad. Secciones: Perfil (opcional), Educacion, "
+            "Experiencia, Proyectos, Habilidades, Certificaciones, Idiomas. "
+            "Si el candidato tiene 3+ anos, pone Experiencia antes de "
+            "Educacion; si no, Educacion primero. Fechas MM/AAAA, vinetas "
+            "con verbos de accion y metricas reales. Reescribi SOLO el "
+            "contenido real del CV (reordenar, aclarar, cuantificar lo que "
+            "ya dice); no inventes experiencia ni logros. Mantenelo en "
+            "espanol.\n"
+            "Responde SOLO JSON valido, sin markdown alrededor, con este "
+            "esquema:\n"
+            '{"perfil":{'
+            '"cv":{"nombre":"",'
+            '"contacto":{"email":"","telefono":"","ubicacion":"",'
+            '"linkedin":"","github":"","portafolio":""},'
+            '"resumen":"",'
+            '"educacion":[{"institucion":"","titulo":"","campo":"",'
+            '"ubicacion":"","inicio":"","fin":"","gpa":"","honores":"",'
+            '"cursos":[]}],'
+            '"experiencia":[{"empresa":"","puesto":"","ubicacion":"",'
+            '"inicio":"","fin":"","logros":[]}],'
+            '"proyectos":[{"nombre":"","descripcion":"","tecnologias":[],'
+            '"inicio":"","fin":"","link":""}],'
+            '"habilidades":[],"certificaciones":[],'
+            '"idiomas":[{"idioma":"","nivel":""}]},'
+            '"busqueda":{"puestos_objetivo":[],"ubicaciones":["Costa Rica"],'
+            '"temas":[{"puesto":"","puesto_en":"","ubicacion":"Costa Rica"}]}},'
             '"evaluacion":{"puntaje":0,"resumen":"","fortalezas":[],'
             '"debilidades":[],"palabras_clave_faltantes":[],'
             '"sugerencias":[{"donde":"","cambio":"","por_que":""}]},'
@@ -631,12 +715,15 @@ class IAClient:
 
     def _user_cv(self, cv_texto: str, perfil_txt: str,
                  vacantes: Optional[List[dict]], puesto: str = "") -> str:
+        # Muestra corta: el objetivo es detectar palabras clave, no analizar el
+        # mercado completo. Con 25 vacantes largas el prompt crecia de mas y el
+        # modelo devolvia JSON incompletos.
         muestra = []
-        for v in (vacantes or [])[:12]:
+        for v in (vacantes or [])[:6]:
             muestra.append({
                 "titulo": v.get("title", ""),
                 "empresa": v.get("company", ""),
-                "descripcion": (v.get("description") or "")[:600],
+                "descripcion": (v.get("description") or "")[:300],
             })
         objetivo = puesto or "el que mejor encaje con el CV y el perfil"
         return (
@@ -670,46 +757,48 @@ class IAClient:
         # Algunos modelos envuelven todo en {"resultado": {...}}.
         for clave in ("resultado", "result", "data"):
             anidado = data.get(clave)
-            if isinstance(anidado, dict) and "perfil" in anidado:
+            if isinstance(anidado, dict) and ("perfil" in anidado
+                                              or "cv" in anidado):
                 data = anidado
                 break
-        perfil = data.get("perfil")
-        if not isinstance(perfil, dict):
-            raise IAError("la respuesta no trae 'perfil'")
-        ev = data.get("evaluacion")
+        perfil_raw = data.get("perfil")
+        if not isinstance(perfil_raw, dict) and isinstance(data.get("cv"), dict):
+            # El modelo devolvio el perfil a nivel raiz (sin "perfil").
+            perfil_raw = data
+        if not isinstance(perfil_raw, dict):
+            raise IAError(
+                "la respuesta no trae 'perfil' (claves: "
+                + ", ".join(sorted(str(k) for k in data.keys())) + ")")
+        ev = (data.get("evaluacion") or data.get("evaluación")
+              or data.get("evaluation"))
         if not isinstance(ev, dict):
-            raise IAError("la respuesta no trae 'evaluacion'")
+            ev = perfil_raw.get("evaluacion") or perfil_raw.get("evaluación")
+        if not isinstance(ev, dict):
+            raise IAError(
+                "la respuesta no trae 'evaluacion' (claves: "
+                + ", ".join(sorted(str(k) for k in data.keys())) + ")")
+
+        # Normaliza al esquema canonico Harvard/ATS. Acepta tanto el formato
+        # nuevo (cv + busqueda) como el plano anterior.
+        from core.profile import normalizar_perfil
+        perfil = normalizar_perfil(perfil_raw)
+        cv = perfil["cv"]
+        b = perfil["busqueda"]
+
         # Un modelo de razonamiento puede devolver el esqueleto del JSON con
         # todo vacio tras gastar max_tokens "pensando": no lo damos por bueno.
-        if not any((perfil.get("nombre"), perfil.get("skills"),
-                    perfil.get("temas"), ev.get("resumen"),
-                    data.get("cv_adaptado_markdown"))):
+        if not any((
+            cv["nombre"], cv["contacto"], cv["resumen"], cv["educacion"],
+            cv["experiencia"], cv["proyectos"], cv["habilidades"],
+            b["puestos_objetivo"], b["temas"], ev.get("resumen"),
+            data.get("cv_adaptado_markdown"),
+            perfil_raw.get("cv_adaptado_markdown"),
+        )):
             raise IAError(
                 "la IA devolvio un perfil/evaluacion vacios (probablemente un "
                 "modelo de razonamiento que gasto max_tokens pensando). Elegi "
                 "otro modelo en el selector (p. ej. openai/gpt-oss-20b).")
 
-        temas = []
-        for t in (perfil.get("temas") or []):
-            if isinstance(t, dict) and t.get("puesto"):
-                temas.append({
-                    "puesto": _texto_plano(t.get("puesto"), 90),
-                    "puesto_en": _texto_plano(t.get("puesto_en"), 90)
-                                 or _texto_plano(t.get("puesto"), 90),
-                    "ubicacion": _texto_plano(t.get("ubicacion"), 90)
-                                 or "Costa Rica",
-                })
-        idiomas = []
-        for d in (perfil.get("idiomas") or []):
-            if isinstance(d, dict) and d.get("idioma"):
-                idiomas.append({
-                    "idioma": _texto_plano(d.get("idioma"), 40),
-                    "nivel": _texto_plano(d.get("nivel"), 40) or "no especificado",
-                })
-        try:
-            anios = float(perfil.get("experiencia_anios") or 0)
-        except (TypeError, ValueError):
-            anios = 0.0
         try:
             puntaje = float(ev.get("puntaje"))
         except (TypeError, ValueError):
@@ -722,20 +811,8 @@ class IAClient:
                     "cambio": _texto_plano(s.get("cambio"), 300),
                     "por_que": _texto_plano(s.get("por_que"), 240),
                 })
-        edu = _texto_plano(perfil.get("educacion_nivel"), 30).lower()
-        sen = _texto_plano(perfil.get("seniority"), 20).lower()
         return {
-            "perfil": {
-                "nombre": _texto_plano(perfil.get("nombre"), 80),
-                "titulos": self._lista_texto(perfil.get("titulos"), 8),
-                "skills": self._lista_texto(perfil.get("skills"), 35),
-                "temas": temas[:6],
-                "experiencia_anios": min(max(anios, 0.0), 50.0),
-                "educacion_nivel": _EDU_MAP.get(edu, ""),
-                "certificaciones": self._lista_texto(perfil.get("certificaciones"), 15),
-                "idiomas": idiomas[:6],
-                "seniority": _SENIORITY_MAP.get(sen, ""),
-            },
+            "perfil": perfil,
             "evaluacion": {
                 "puntaje": round(max(0.0, min(100.0, puntaje)), 1),
                 "resumen": _texto_plano(ev.get("resumen"), 600),
@@ -745,19 +822,33 @@ class IAClient:
                     ev.get("palabras_clave_faltantes"), 25),
                 "sugerencias": sugerencias[:10],
             },
-            "cv_adaptado_markdown": str(data.get("cv_adaptado_markdown") or "").strip(),
+            "cv_adaptado_markdown": str(
+                data.get("cv_adaptado_markdown")
+                or perfil_raw.get("cv_adaptado_markdown") or "").strip(),
         }
 
     def evaluar_cv(self, cv_texto: str, perfil, vacantes: Optional[List[dict]] = None,
                    puesto: str = "") -> dict:
-        # 4000 alcanza para perfil + evaluacion + CV adaptado (~1600 tokens
-        # reales con gpt-oss-20b) y evita esperas de 5+ minutos.
-        data, _ = self._chat_json(
-            self._system_cv(),
-            self._user_cv(cv_texto, perfil_texto(perfil), vacantes, puesto),
-            max_tokens=4000,
-        )
-        return self._normalizar_cv(data)
+        # El esquema Harvard/ATS (educacion, experiencia, proyectos) mas la
+        # evaluacion y el CV adaptado no entran comodos en 4000: gpt-oss-20b
+        # se cortaba con finish_reason=length. 6000 deja margen sin disparar
+        # la espera a 5+ minutos.
+        user = self._user_cv(cv_texto, perfil_texto(perfil), vacantes, puesto)
+        data, _ = self._chat_json(self._system_cv(), user, max_tokens=6000)
+        try:
+            return self._normalizar_cv(data)
+        except IAError as exc:
+            # A veces el modelo devuelve un JSON valido pero con otra forma
+            # (evaluacion anidada, claves extra, perfil suelto...). Un unico
+            # reintento con instruccion explicita lo endereza sin partir el lote.
+            logger.warning("CV: respuesta invalida (%s); reintento unico.", exc)
+            estricto = user + (
+                "\n\nIMPORTANTE: responde SOLO un objeto JSON completo, sin "
+                "texto ni markdown. Las claves 'perfil' y 'evaluacion' van AL "
+                "MISMO NIVEL, dentro del objeto raiz.")
+            data2, _ = self._chat_json(self._system_cv(), estricto,
+                                       max_tokens=6000)
+            return self._normalizar_cv(data2)
 
 
 def cv_a_markdown(resultado: dict, meta: dict) -> str:
@@ -787,14 +878,33 @@ def cv_a_markdown(resultado: dict, meta: dict) -> str:
         lineas.append(f"{i}. **{s.get('donde') or 'CV'}** → {s.get('cambio')}")
         if s.get("por_que"):
             lineas.append(f"   - Por qué: {s['por_que']}")
-    lineas += ["", "## Perfil propuesto para buscar vacantes"]
-    lineas.append(f"- **Títulos:** {', '.join(perfil.get('titulos') or [])}")
-    lineas.append(f"- **Skills:** {', '.join(perfil.get('skills') or [])}")
-    lineas.append("- **Temas:** " + "; ".join(
+    from core.profile import normalizar_perfil
+    from core.cv_render import cv_harvard_markdown
+
+    p = normalizar_perfil(perfil)
+    cv = p["cv"]
+    b = p["busqueda"]
+    contacto = cv.get("contacto") or {}
+    c_txt = " | ".join(
+        str(contacto[k]) for k in ("email", "telefono", "ubicacion", "linkedin")
+        if contacto.get(k)
+    ) or "(sin datos)"
+    lineas += ["", "## Perfil Harvard/ATS extraído"]
+    lineas.append(f"- **Contacto:** {c_txt}")
+    lineas.append(f"- **Resumen:** {cv.get('resumen') or '(sin resumen)'}")
+    lineas.append(f"- **Puestos objetivo:** "
+                  f"{', '.join(b.get('puestos_objetivo') or []) or '(sin datos)'}")
+    lineas.append(f"- **Habilidades:** "
+                  f"{', '.join(cv.get('habilidades') or []) or '(sin datos)'}")
+    temas_txt = "; ".join(
         f"{t.get('puesto', '')} ({t.get('ubicacion', '')})"
-        for t in (perfil.get("temas") or [])))
-    lineas.append(f"- **Experiencia:** {perfil.get('experiencia_anios', 0):.0f} años"
-                  f" · **Seniority:** {perfil.get('seniority') or 'no indicado'}")
-    lineas += ["", "## CV adaptado (revisar antes de usar)",
+        for t in (b.get("temas") or [])) or "(sin datos)"
+    lineas.append(f"- **Temas:** {temas_txt}")
+    lineas.append(f"- **Educación:** {len(cv.get('educacion') or [])} registro(s)"
+                  f" · **Experiencia:** {len(cv.get('experiencia') or [])} puesto(s)"
+                  f" · **Proyectos:** {len(cv.get('proyectos') or [])}")
+    lineas += ["", "### CV Harvard/ATS reconstruido desde el perfil",
+               "", cv_harvard_markdown(p), ""]
+    lineas += ["", "## CV adaptado por la IA (revisar antes de usar)",
                "", resultado.get("cv_adaptado_markdown") or "(sin texto)", ""]
     return "\n".join(lineas)

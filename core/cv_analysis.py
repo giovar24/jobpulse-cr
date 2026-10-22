@@ -10,6 +10,7 @@ Pipeline:
 
 Es el "contrato" esperado: cv -> dict -> ProfileWriter.
 """
+import copy
 import re
 import unicodedata
 from pathlib import Path
@@ -535,49 +536,106 @@ class CVAnalyzer:
         }
 
 
+def _firma_registro(campo: str, item: Dict) -> str:
+    if campo == "experiencia":
+        return f"{item.get('empresa', '')}|{item.get('puesto', '')}|{item.get('inicio', '')}".lower()
+    if campo == "educacion":
+        return f"{item.get('institucion', '')}|{item.get('titulo', '')}|{item.get('inicio', '')}".lower()
+    if campo == "idiomas":
+        return f"{item.get('idioma', '')}".lower()
+    return f"{item.get('nombre', '')}".lower()
+
+
+def _merge_listas(a: List[Dict], b: List[Dict], campo: str) -> List[Dict]:
+    out = list(a)
+    vistos = {_firma_registro(campo, x) for x in a if _firma_registro(campo, x)}
+    for x in b:
+        f = _firma_registro(campo, x)
+        if f and f not in vistos:
+            out.append(x)
+            vistos.add(f)
+    return out
+
+
+def _uniq_texto(a: List[str], b: List[str]) -> List[str]:
+    low = {str(x).lower() for x in a}
+    return list(a) + [x for x in b if str(x).lower() not in low]
+
+
 def merge_profile(actual: Dict, novedad: Dict, replace: bool = True) -> Dict:
-    """Fusiona lo extraido del CV con el perfil existente.
+    """Fusiona el CV extraido con el perfil existente (esquema Harvard/ATS).
 
-    Default (replace=True): LIMPIEZA — el CV es la fuente unica de verdad y las
-    secciones de origen CV (nombre, titulos, skills, temas) SE REEMPLAZAN por
-    lo extraido, sin arrastrar residuos de perfiles anteriores (semilla
-    generica, datos de demo o corridas previas con otro CV). Se preservan los
-    ajustes que NO derivan del CV: pesos, pesos_ats, filtros y _comentario.
-    Los campos ATS solo cambian si el CV los detecta; si no, quedan los
-    actuales (experiencia/educacion/idiomas/contacto/seniority).
-    Si una seccion no se detecta en el CV (lista vacia), se respeta la actual
-    para no dejar el perfil vacio por una extraccion fallida.
+    `replace=True` (default): el CV es la fuente de verdad del bloque visual
+    (`cv`). Se reemplazan nombre, contacto, resumen, educacion, experiencia,
+    proyectos, habilidades, certificaciones e idiomas SOLO si el CV trae datos
+    (una seccion vacia no borra lo que ya habia). La capa de busqueda conserva
+    la intencion manual (puestos objetivo, ubicaciones, pesos, filtros) y solo
+    se rellena desde el CV si estaba vacia.
 
-    replace=False (--merge): modo historico que SUMA titulos/skills sin quitar
-    lo anterior. Util si el perfil se edita a mano y no se quiere perder lo
-    curado; a cambio, acumula contenido de perfiles previos (fue la causa de
-    arrastrar datos de un CV demo al perfil del candidato).
+    `replace=False` (--merge historico): suma registros y listas sin quitar lo
+    anterior, para cuando el perfil fue editado a mano y no se quiere perder.
     """
-    nuevo = dict(actual)
+    from core.profile import normalizar_perfil
 
-    campos_ats = ("experiencia_anios", "educacion_nivel", "certificaciones",
-                  "idiomas", "contacto", "seniority")
-    for c in campos_ats:
-        v = novedad.get(c)
-        if v:  # no vacia (si el CV no detecto el dato, se conserva el actual)
-            nuevo[c] = v
+    a = normalizar_perfil(actual)
+    n = normalizar_perfil(novedad)
+    nuevo = copy.deepcopy(a)
+    cv_a = nuevo["cv"]
+    cv_n = n["cv"]
 
+    # Estructura del CV: reemplaza si viene con datos (en --merge se respeta
+    # el nombre/resumen que el usuario ya tenia).
     if replace:
-        # Limpieza: lo que no viene del CV no sobrevive (nombre incluido).
-        if novedad.get("nombre"):
-            nuevo["nombre"] = novedad["nombre"]
-        for campo in ("titulos", "skills", "temas"):
-            v = novedad.get(campo)
+        for campo in ("nombre", "resumen"):
+            if cv_n.get(campo):
+                cv_a[campo] = cv_n[campo]
+    else:
+        if cv_n.get("resumen") and not cv_a.get("resumen"):
+            cv_a["resumen"] = cv_n["resumen"]
+    if cv_n.get("contacto"):
+        contacto = dict(cv_a.get("contacto") or {})
+        for k, v in cv_n["contacto"].items():
             if v:
-                nuevo[campo] = v
-        return nuevo
+                contacto[k] = v
+        cv_a["contacto"] = contacto
 
-    def uniq(a, b):
-        low = {str(t).lower() for t in a}
-        return a + [t for t in b if str(t).lower() not in low]
+    for campo in ("educacion", "experiencia", "proyectos"):
+        if replace:
+            if cv_n.get(campo):
+                cv_a[campo] = cv_n[campo]
+        else:
+            cv_a[campo] = _merge_listas(cv_a.get(campo, []), cv_n.get(campo, []), campo)
 
-    nuevo["titulos"] = uniq(actual.get("titulos", []), novedad.get("titulos", []))
-    nuevo["skills"] = uniq(actual.get("skills", []), novedad.get("skills", []))
-    if novedad.get("temas"):
-        nuevo["temas"] = novedad["temas"]
-    return nuevo
+    for campo in ("habilidades", "certificaciones"):
+        if replace:
+            if cv_n.get(campo):
+                cv_a[campo] = cv_n[campo]
+        else:
+            cv_a[campo] = _uniq_texto(cv_a.get(campo, []), cv_n.get(campo, []))
+    if cv_n.get("idiomas"):
+        if replace:
+            cv_a["idiomas"] = cv_n["idiomas"]
+        else:
+            cv_a["idiomas"] = _merge_listas(
+                cv_a.get("idiomas", []), cv_n.get("idiomas", []), "idiomas")
+
+    b_a = nuevo["busqueda"]
+    b_n = n["busqueda"]
+
+    # Un CV estructurado desbloquea los calculos automaticos y limpia los
+    # overrides que venian de un perfil plano anterior (sin experiencia/educacion).
+    overrides = dict(b_a.get("overrides") or {})
+    if cv_n.get("experiencia") and not a["cv"].get("experiencia"):
+        overrides.pop("experiencia_anios", None)
+        overrides.pop("seniority", None)
+    if cv_n.get("educacion") and not a["cv"].get("educacion"):
+        overrides.pop("educacion_nivel", None)
+    b_a["overrides"] = overrides
+
+    # Intencion de busqueda: se conserva la del usuario; solo se rellena vacia.
+    for campo in ("puestos_objetivo", "ubicaciones", "temas", "skills_extra",
+                  "skills_excluir", "pesos", "pesos_ats", "filtros"):
+        if not b_a.get(campo) and b_n.get(campo):
+            b_a[campo] = b_n[campo]
+
+    return normalizar_perfil(nuevo)

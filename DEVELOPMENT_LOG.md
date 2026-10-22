@@ -106,20 +106,26 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   `--ia-modelo MODELO` (pisa `IA_MODEL` de esa corrida) y
   `--ia-listar-modelos` (lista viva de `GET /models` y sale).
 - `ui.py` — **UI de escritorio Tkinter** (la actual): 6 pestañas — Ranking ·
-  Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones. El scraping
-  SOLO se lanza desde sus botones (la UI nunca scrapea sola): abre la
-  corrida en su propia **ventana de consola VERDE** (título "JobPulse CR -
-  Scraping", texto verde `color 0A`; se cierra sola al terminar) y SOLO
-  observa `data/corrida_estado.json` (cerrar la UI no mata la corrida;
-  cerrar la ventana verde, sí). Corre bajo `pythonw` sin consola
+  Búsqueda libre · Perfil · Corrida · Credenciales · Sesiones. La pestaña
+  **Perfil** tiene 3 sub-pestañas: **Mi CV (Harvard/ATS)** (contacto, resumen,
+  tarjetas de educación/experiencia/proyectos, habilidades, certificaciones,
+  idiomas y vista previa), **Búsqueda (interno)** (puestos objetivo,
+  ubicaciones, temas, skills extra/excluir, overrides, pesos) y **Backups**.
+  El botón **Cargar propuesta IA** lee `data/cv_ia.json` y lo carga como
+  **borrador** en el editor: la IA solo propone, nada se guarda hasta apretar
+  *Guardar perfil*. El scraping SOLO se lanza desde sus botones (la UI nunca
+  scrapea sola): abre la corrida en su propia **ventana de consola VERDE**
+  (título "JobPulse CR - Scraping", texto verde `color 0A`; se cierra sola al
+  terminar) y SOLO observa `data/corrida_estado.json` (cerrar la UI no mata
+  la corrida; cerrar la ventana verde, sí). Corre bajo `pythonw` sin consola
   (stdout/stderr a devnull). Lectura pura de SQLite (URI `mode=ro`); el
   ranking (embeddings + ATS) y la verificación de sesiones corren en
   hilos secundarios que solo encolan. La pestaña Corrida tiene además los
   botones IA: **Re-evaluar crudo con IA**, **Evaluar CV con IA** (file
-  dialog + pregunta si aplicar el perfil) y **Calibrar IA local**, más un
-  **selector manual de modelo** (combobox + *Actualizar lista*): pide
-  `GET /models` en un hilo y lo pasa como `--ia-modelo`; recuerda la
-  elección en `data/ia_modelo.txt` (gitignored).
+  dialog; por defecto recomienda **No** guardar para revisar el borrador) y
+  **Calibrar IA local**, más un **selector manual de modelo** (combobox +
+  *Actualizar lista*): pide `GET /models` en un hilo y lo pasa como
+  `--ia-modelo`; recuerda la elección en `data/ia_modelo.txt` (gitignored).
 - `app.py` — dashboard Streamlit (**LEGADO**, aún funciona con
   `streamlit run app.py`). Reemplazado por `ui.py`: Streamlit vive dentro
   de una pestaña del navegador — cerrar Brave mataba la UI y dejaba
@@ -147,7 +153,12 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   Brave y alimenta todas las corridas).
 - `caza_ats_grandes.py` — caza/registro de ATS grandes (Alorica y PayPal
   marcados "no re-cazar": 0 vacantes CR).
-- `cv2profile.py` / `reporte_cv.py` — extraen el perfil / diagnostican un CV.
+- `core/profile.py` — perfil Harvard/ATS (`cv` + `busqueda`), migración del
+  formato plano, `CandidateProfile` con derivados (años, nivel educativo,
+  seniority, skills) y escritura con backup. `core/cv_render.py` renderiza la
+  vista previa Harvard/ATS unicolumna.
+- `cv2profile.py` / `reporte_cv.py` — extraen el perfil / diagnostican un CV
+  (el CV visual completo se revisa en UI > Perfil > Mi CV).
 - `core/ia_api.py` — cliente IA externa (OpenAI-compatible: `google`,
   `nvidia`, `openai`, `custom`) + prompts de vacantes/CV, lotes, caché por
   hash (incluye proveedor+modelo+`PROMPT_VERSION`), ritmo y topes de cuota.
@@ -2163,3 +2174,95 @@ consolas cp1252.
 **El nuevo comportamiento quedó reflejado en la guía del agente** (mapa de
 archivos, flags de `main.py`, selector de la UI y notas de modelos) en este
 mismo commit, como manda la regla #44.
+
+## 52. Perfil Harvard/ATS: `cv` + `busqueda`, editor Mi CV y borrador IA (2026-10-21, noche)
+
+**Problema.** El perfil era una lista plana (`nombre`, `titulos`, `skills`,
+`temas`, `experiencia_anios`...) pensada para el ranking, no para un CV. El
+usuario necesita ver y corregir su CV en un formato que un ATS entienda, y que
+la IA lo prellene la mayor cantidad posible de campos sin inventar.
+
+**Decisión.** Un solo `data/profile.json` con dos bloques:
+- `cv`: fuente visual Harvard/ATS (contacto, resumen, educacion, experiencia,
+  proyectos, habilidades, certificaciones, idiomas). Es lo que el usuario edita.
+- `busqueda`: intención de búsqueda (puestos objetivo, ubicaciones, temas,
+  skills extra/excluir, overrides, pesos, pesos_ats, filtros). Lo derivado
+  (años, nivel educativo, seniority, skills) se calcula desde el CV; los
+  overrides manuales mandan y se pueden dejar vacíos para volver a automático.
+El formato plano anterior se migra solo: `normalizar_perfil()` lo convierte y
+`CandidateProfile` sigue exponiendo `titulos/skills/temas/...`, así que
+`core/ats.py`, `search_engine.py`, `search.py` y `main.py` no cambian su
+contrato.
+
+**Núcleo.**
+- `core/profile.py`: `normalizar_perfil()`, `guardar_perfil()` (backup),
+  `CandidateProfile` con derivación (`_anios_experiencia`,
+  `_nivel_educacion`, `_seniority`) y `to_dict()` compatible. Migración de
+  `ciudad`→`ubicacion`, certificaciones dict→texto, temas y pesos.
+- `core/cv_render.py`: `cv_harvard_markdown()` unicolumna para la vista previa.
+- `core/cv_analysis.py`: `merge_profile()` reescrito para el esquema nuevo;
+  `replace=True` actualiza el CV solo si trae datos y **preserva la búsqueda
+  manual**; al llegar experiencia/educación estructuradas limpia overrides
+  viejos para que los derivados se recalculen. `--merge` suma registros.
+- `core/ia_api.py`: `PROMPT_VERSION = "v3"`. El prompt pide el perfil en
+  formato Harvard/ATS (`cv` + `busqueda`) y el CV adaptado unicolumna con
+  secciones estándar (Experiencia antes de Educación si 3+ años). `_normalizar_cv`
+  devuelve el perfil canónico; `cv_a_markdown` muestra el perfil Harvard
+  extraído y el CV reconstruido además del adaptado por la IA.
+- `cv2profile.py`, `main.py` y `app.py` (legado) adaptados: detectores locales
+  rellenan contacto/fechas/idiomas/certs lo que la IA no traiga; `app.py`
+  edita una vista plana y al guardar fusiona con el `cv` estructurado.
+
+**UI (`ui.py`).** Pestaña Perfil con sub-pestañas:
+- **Mi CV (Harvard/ATS)**: contacto, resumen, tarjetas de educación,
+  experiencia y proyectos (agregar/editar/eliminar con diálogo), habilidades,
+  certificaciones, idiomas y **Vista previa**.
+- **Búsqueda (interno)**: puestos objetivo, ubicaciones, temas manuales,
+  skills extra/excluir, ajustes manuales (vacío = automático), pesos y score
+  ATS. Muestra qué se deriva del CV.
+- **Backups** con restauración.
+- **Cargar propuesta IA (data/cv_ia.json)**: la IA solo **propone**; el
+  borrador se carga en el editor y nada se guarda hasta apretar *Guardar
+  perfil*. En *Corrida > Evaluar CV con IA* el diálogo ahora recomienda **No**
+  (default) para revisar antes de escribir el perfil.
+- `README.md` y `data/profile.example.json` actualizados al esquema nuevo.
+
+**Verificación.** `py_compile` de `app.py`, `main.py`, `ui.py`, `cv2profile.py`,
+`search.py`, `reporte_cv.py` y `core/*` OK. Pruebas de humo: migración de un
+perfil plano (títulos/skills/temas/contacto preservados), fusión con CV
+estructurado (educación/experiencia entran y los overrides viejos se limpian),
+render Harvard, `ia_api._normalizar_cv` + `cv_a_markdown`, `App()` se
+construye sin errores, ida y vuelta del editor (`_perfil_pintar` →
+`_perfil_recolectar`) y carga de una propuesta IA simulada como borrador.
+
+**Validacion real `--ia-cv` (demo_cv.docx, "Soporte Tecnico").** La primera
+corrida con `nvidia/openai/gpt-oss-20b` fallo con "la respuesta no trae
+'evaluacion'": el JSON era valido pero a veces incompleto o con forma distinta.
+Arreglos en `core/ia_api.py`: `max_tokens` 4000→6000 (el esquema Harvard con
+educacion/experiencia/proyectos + evaluacion + CV adaptado no entra comodo en
+4000), `_json_de_texto()` prefiere el objeto que trae `perfil`+`evaluacion`
+juntos (evita quedarse con un sub-objeto suelto), `_normalizar_cv()` acepta
+`evaluación`/`evaluation`, perfil a nivel raiz y evaluacion anidada (y el error
+ahora lista las claves recibidas), `evaluar_cv()` reintenta UNA vez con
+instruccion explicita ("claves perfil y evaluacion AL MISMO NIVEL") y la muestra
+de vacantes del prompt bajo de 12 a 6 con descripcion de 300 chars (el prompt
+crecia de mas y el modelo devolvia JSON incompletos). Con eso, `--ia-cv`
+funciona de primera: 80/100 en ~55 s con gpt-oss-20b.
+
+**Preset Ollama Cloud.** El usuario cambio de proveedor: Ollama Cloud
+(ollama.com) es mas rapido y estable, pero la cuota de tokens se acaba antes;
+NVIDIA es ilimitado pero el servicio suele ser deficiente. Se agrego
+`PRESETS["ollama"]` (base `https://ollama.com/v1`, default `gemma4:31b`),
+deteccion automatica por `OLLAMA_API_KEY` (antes que NVIDIA) y la seccion en
+`.env.example`. Verificacion: `--ia-cv` con `gemma4:31b` por Ollama Cloud ->
+65/100 en ~8 s (vs 55 s de NVIDIA), perfil Harvard completo (2 puestos,
+educacion, skills, temas ES/EN) y sugerencias concretas del mercado CR (SLA,
+ITIL, nivel de ingles en marco A1-C2). `gemma4:31b` es mas estricto que
+gpt-oss-20b (65 vs 80 en el mismo CV): util para calibrar el rango. llama.cpp
+local no se prueba hoy: `llama-server` ya expone API OpenAI-compatible, asi que
+el preset `custom` (`IA_BASE_URL=http://localhost:8080/v1`) lo cubre sin tocar
+codigo; queda para manana.
+
+**Pendiente.** Correr `--ia-cv` con el CV real del usuario para validar la
+extraccion Harvard/ATS completa, y un `--ia` normal para confirmar que la
+cache v3 no rompio el lote de vacantes.

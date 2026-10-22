@@ -17,6 +17,7 @@ from core.bootstrap import ensure_workspace
 from core.ats import rank_with_ats
 from core.database import JobDatabase
 from core.profile import CandidateProfile, DEFAULT_PROFILE_PATH
+from core.cv_analysis import merge_profile
 from core.search_engine import SemanticSearchEngine
 from core import credenciales as creds_store
 from core.progreso import (corriendo, detener, leer_estado, tail as log_tail,
@@ -408,6 +409,12 @@ with tab_perfil:
             datos = None
 
         if isinstance(datos, dict):
+            # Vista plana para los widgets: el perfil guardado usa el esquema
+            # Harvard/ATS (cv + busqueda), pero Streamlit edita los campos de
+            # busqueda y el CV estructurado se preserva al fusionar en guardar.
+            perfil_orig = datos
+            datos = {k: v for k, v in CandidateProfile(datos).to_dict().items()
+                     if k not in ("cv", "busqueda")}
             # Firma del archivo: si cambia por fuera (cv2profile, git, etc.)
             # los widgets se resetean y muestran lo que realmente hay en disco.
             firma = f"{ruta_p.stat().st_mtime_ns}_{len(ruta_p.read_bytes())}"
@@ -549,7 +556,10 @@ with tab_perfil:
                     st.error("No guardo: el perfil quedaría vacío "
                              "(sin títulos, skills ni temas).")
                 else:
-                    bk = guardar_perfil(nuevo, ruta_p)
+                    # Fusiona los campos planos editados con el CV estructurado
+                    # que Streamlit no toca, y guarda en esquema Harvard/ATS.
+                    bk = guardar_perfil(merge_profile(perfil_orig, nuevo,
+                                                      replace=True), ruta_p)
                     st.cache_data.clear()
                     _aviso_editor(
                         f"Perfil guardado en `{ruta_p.name}`"

@@ -1,57 +1,98 @@
 {
-  "_comentario": "PLANTILLA GENERICA DE EJEMPLO (datos 100% falsos). El sistema la copia a data/profile.json si este no existe. Tu profile.json real esta en .gitignore: nunca viaja a git. Genera el tuyo desde tu CV con: python cv2profile.py MiCV.pdf --save",
-  "nombre": "Juan Perez",
-  "titulos": [
-    "Soporte Tecnico",
-    "Mesa de Ayuda",
-    "Analista de Soporte",
-    "Technical Support Specialist",
-    "Help Desk"
-  ],
-  "skills": [
-    "Soporte Tecnico",
-    "Mesa de ayuda",
-    "Windows",
-    "Office 365",
-    "Google Workspace",
-    "Tickets y trazabilidad",
-    "Instalacion de software",
-    "Redes basicas",
-    "Ingles intermedio",
-    "Python basico",
-    "SQL basico"
-  ],
-  "temas": [
-    { "puesto": "Soporte", "puesto_en": "IT Support", "ubicacion": "Costa Rica" },
-    { "puesto": "Soporte Técnico", "puesto_en": "Technical Support", "ubicacion": "Costa Rica" },
-    { "puesto": "Mesa de Ayuda", "puesto_en": "Help Desk", "ubicacion": "Costa Rica" }
-  ],
-  "experiencia_anios": 3,
-  "educacion_nivel": "universitario",
-  "idiomas": [
-    { "idioma": "Ingles", "nivel": "Intermedio" },
-    { "idioma": "Espanol", "nivel": "Nativo" }
-  ],
-  "certificaciones": ["ITIL"],
-  "contacto": {
-    "email": "juan.perez@example.com",
-    "ciudad": "San Jose, Costa Rica",
-    "linkedin": "https://linkedin.com/in/ejemplo-juan-perez"
+  "schema": "harvard-ats-v1",
+  "_comentario": "PLANTILLA GENERICA DE EJEMPLO (datos 100% falsos). El sistema la copia a data/profile.json si este no existe. Tu profile.json real esta en .gitignore: nunca viaja a git. Genera el tuyo desde tu CV con: python cv2profile.py MiCV.pdf --save, y revisalo en UI > Perfil > Mi CV.",
+  "cv": {
+    "nombre": "Juan Perez",
+    "contacto": {
+      "email": "juan.perez@example.com",
+      "telefono": "+506 8000 0000",
+      "ubicacion": "San Jose, Costa Rica",
+      "linkedin": "https://linkedin.com/in/ejemplo-juan-perez",
+      "github": "",
+      "portafolio": ""
+    },
+    "resumen": "Profesional de soporte tecnico con 3 anos de experiencia en mesa de ayuda, Windows y Office 365. Orientado a resolver incidentes con trazabilidad y buena comunicacion con el usuario.",
+    "educacion": [
+      {
+        "institucion": "Universidad de Ejemplo",
+        "titulo": "Bachillerato en Ingenieria en Sistemas",
+        "campo": "Ingenieria en Sistemas",
+        "ubicacion": "San Jose, Costa Rica",
+        "inicio": "2018",
+        "fin": "2022",
+        "gpa": "8.5/10",
+        "honores": "",
+        "cursos": ["Redes", "Bases de Datos", "Sistemas Operativos"]
+      }
+    ],
+    "experiencia": [
+      {
+        "empresa": "Empresa de Ejemplo S.A.",
+        "puesto": "Analista de Soporte Tecnico",
+        "ubicacion": "San Jose, Costa Rica",
+        "inicio": "2022",
+        "fin": "Actualidad",
+        "logros": [
+          "Resolvi mas de 40 tickets semanales en mesa de ayuda con 95% de satisfaccion.",
+          "Documente procedimientos de soporte que redujeron 20% los tiempos de respuesta.",
+          "Instale y configure Windows y Office 365 para mas de 100 usuarios."
+        ]
+      }
+    ],
+    "proyectos": [],
+    "habilidades": [
+      "Soporte Tecnico",
+      "Mesa de Ayuda",
+      "Windows",
+      "Office 365",
+      "Google Workspace",
+      "Tickets y trazabilidad",
+      "Instalacion de software",
+      "Redes basicas",
+      "Python basico",
+      "SQL basico"
+    ],
+    "certificaciones": ["ITIL Foundation — PeopleCert (2024)"],
+    "idiomas": [
+      { "idioma": "Ingles", "nivel": "Intermedio" },
+      { "idioma": "Espanol", "nivel": "Nativo" }
+    ]
   },
-  "pesos": {
-    "titulo": 1.0,
-    "skills": 0.7,
-    "tema": 0.5
+  "busqueda": {
+    "puestos_objetivo": [
+      "Soporte Tecnico",
+      "Mesa de Ayuda",
+      "Analista de Soporte",
+      "Technical Support Specialist",
+      "Help Desk"
+    ],
+    "ubicaciones": ["Costa Rica"],
+    "temas": [
+      { "puesto": "Soporte", "puesto_en": "IT Support", "ubicacion": "Costa Rica" },
+      { "puesto": "Soporte Tecnico", "puesto_en": "Technical Support", "ubicacion": "Costa Rica" },
+      { "puesto": "Mesa de Ayuda", "puesto_en": "Help Desk", "ubicacion": "Costa Rica" }
+    ],
+    "skills_extra": [],
+    "skills_excluir": [],
+    "overrides": {},
+    "pesos": {
+      "titulo": 1.0,
+      "skills": 0.7,
+      "tema": 0.5
+    },
+    "pesos_ats": {
+      "skills": 0.40,
+      "titulo": 0.30,
+      "experiencia": 0.15,
+      "educacion": 0.075,
+      "idiomas": 0.075
+    },
+    "filtros": {
+      "dias": null,
+      "fuentes": []
+    }
   },
-  "pesos_ats": {
-    "skills": 0.40,
-    "titulo": 0.30,
-    "experiencia": 0.15,
-    "educacion": 0.075,
-    "idiomas": 0.075
-  },
-  "filtros": {
-    "dias": null,
-    "fuentes": []
+  "meta": {
+    "schema": "harvard-ats-v1"
   }
 }
