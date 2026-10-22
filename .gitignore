@@ -28,6 +28,7 @@ data/jobs.backup_*.db
 data/embeddings_cache.*
 data/report*.csv
 data/*_backup_*.json
+data/_backup_informes_*/
 data/recordatorio_estado.json
 data/ui_prefs.json
 
@@ -57,6 +58,10 @@ data/*.md
 ~$*
 
 # --- Salidas ---
+# Entregables: auditorias, reportes de vacantes y calibracion IA. Pueden
+# derivarse del CV real, asi que no se versionan. Se redirigen con
+# JOBPULSE_INFORMES_DIR si se quieren guardar fuera del proyecto.
+informes/
 *.log
 .streamlit/
 # Estado de la corrida en vivo (lo escribe core/progreso.py; volatil, sin datos)

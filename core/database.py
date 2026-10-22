@@ -3,6 +3,15 @@ import logging
 from datetime import date, datetime, timedelta
 from typing import List, Dict, Optional
 from providers.base import JobOffer
+from core.dedupe import clave_duplicado_exacto
+from core.text import limpiar_texto
+
+# Para el canonico de un duplicado exacto: gana el portal directo (ATS) sobre
+# el agregador. Dentro del mismo grupo, gana la fila mas antigua.
+_SOURCES_DIRECTOS = {
+    "workday", "greenhouse", "icims", "smartrecruiters", "successfactors",
+    "rippling", "phenom", "ats_ligeros", "tp", "login_sites",
+}
 
 logger = logging.getLogger("jobpulse.db")
 
@@ -40,6 +49,7 @@ class JobDatabase:
                         ia_model TEXT,
                         ia_hash TEXT,
                         ia_ts TEXT,
+                        dup_of TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
@@ -50,7 +60,8 @@ class JobDatabase:
                 for col, tipo in (("gate_score", "REAL"), ("gate_razon", "TEXT"),
                                   ("expires_at", "TEXT"), ("ia_score", "REAL"),
                                   ("ia_razon", "TEXT"), ("ia_model", "TEXT"),
-                                  ("ia_hash", "TEXT"), ("ia_ts", "TEXT")):
+                                  ("ia_hash", "TEXT"), ("ia_ts", "TEXT"),
+                                  ("dup_of", "TEXT")):
                     if col not in existentes:
                         await db.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} {tipo}")
                         logger.info(f"Migracion: +{col} en {tabla}")
@@ -119,6 +130,20 @@ class JobDatabase:
         new_jobs = []
         async with aiosqlite.connect(self.db_path) as db:
             for job in jobs:
+                # Frontera única de limpieza: todo lo que se persiste (nuevo o
+                # re-filtrado desde jobs_raw) pasa por la misma normalización.
+                job.search_term = limpiar_texto(job.search_term)
+                job.title = limpiar_texto(job.title)
+                job.company = limpiar_texto(job.company)
+                job.location = limpiar_texto(job.location)
+                job.link = limpiar_texto(job.link)
+                job.description = limpiar_texto(job.description,
+                                                conservar_saltos=True)
+                job.requirements = limpiar_texto(job.requirements,
+                                                 conservar_saltos=True)
+                job.salary = limpiar_texto(job.salary)
+                job.date_published = limpiar_texto(job.date_published) or None
+                job.expires_at = limpiar_texto(job.expires_at) or None
                 if not job.title or not job.link:
                     continue
 
@@ -194,6 +219,60 @@ class JobDatabase:
         else:
             logger.info("Vigencia: 0 filas vencidas (vence < %s; sin "
                         "vencimiento, publicada < %s).", hoy, corte)
+        return total
+
+    async def marcar_duplicados_exactos(self, tablas=("jobs_raw", "jobs")) -> int:
+        """Marca con `dup_of` los duplicados exactos de cada tabla.
+
+        Clave: empresa + titulo + ubicacion conservadores (sin quitar numeros
+        romanos ni ruido). Requiere ubicacion no vacia. El canonico es el portal
+        directo y, dentro del mismo grupo, la fila mas antigua. No borra filas:
+        las copias quedan marcadas y las vistas pueden ocultarlas.
+
+        Idempotente: recalcula todas las marcas de las tablas indicadas.
+        """
+        total = 0
+        async with aiosqlite.connect(self.db_path) as db:
+            for tabla in tablas:
+                cols = {r[1] for r in await (await db.execute(
+                    f"PRAGMA table_info({tabla})")).fetchall()}
+                if not cols:
+                    continue
+                if "dup_of" not in cols:
+                    await db.execute(
+                        f"ALTER TABLE {tabla} ADD COLUMN dup_of TEXT")
+                filas = await (await db.execute(
+                    f"SELECT job_id, company, title, location, source, "
+                    f"created_at FROM {tabla}")).fetchall()
+                grupos = {}
+                for job_id, company, title, location, source, created in filas:
+                    clave = clave_duplicado_exacto(company, title, location)
+                    if not clave:
+                        continue
+                    grupos.setdefault(clave, []).append(
+                        (job_id, source or "", created or ""))
+
+                marcas = {}
+                for items in grupos.values():
+                    if len(items) < 2:
+                        continue
+                    items.sort(key=lambda x: (
+                        0 if x[1] in _SOURCES_DIRECTOS else 1, x[2], x[0]))
+                    canonico = items[0][0]
+                    for job_id, _, _ in items[1:]:
+                        marcas[job_id] = canonico
+
+                await db.execute(f"UPDATE {tabla} SET dup_of = NULL")
+                if marcas:
+                    await db.executemany(
+                        f"UPDATE {tabla} SET dup_of = ? WHERE job_id = ?",
+                        [(canonico, job_id)
+                         for job_id, canonico in marcas.items()])
+                total += len(marcas)
+                if marcas:
+                    logger.info("Duplicados exactos: %d marcados en %s",
+                                len(marcas), tabla)
+            await db.commit()
         return total
 
     async def save_raw_jobs(self, jobs: List[JobOffer]) -> List[JobOffer]:

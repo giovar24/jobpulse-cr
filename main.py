@@ -31,7 +31,7 @@ from providers.source_groups import (GROUP_BOARDS, GROUP_DIRECTOS,
 from core.dedupe import dedupe_boards_vs_directos
 from core.progreso import GRUPO_LABEL, GRUPO_RESTO, iniciar_corrida
 from core import credenciales as creds_store
-from core.rutas import CV_IA_JSON, CV_IA_MD
+from core.rutas import BASE_DIR, CV_IA_JSON, CV_IA_MD, ruta_informe
 
 ensure_workspace()   # crea data/, profile.json (generico) y .env si faltan
 load_dotenv()
@@ -192,7 +192,7 @@ def _reportes(newly, sufijo: str = ""):
         return
     logger.info(f"Found {len(newly)} new jobs today!")
     df = pd.DataFrame([job_row(j) for j in newly])
-    report_name = f"data/report_{stamp}{sufijo}.csv"
+    report_name = ruta_informe("vacantes", f"report_{stamp}{sufijo}.csv")
     df.to_csv(report_name, index=False, encoding="utf-8-sig")
     logger.info(f"Report generated: {report_name}")
 
@@ -203,7 +203,7 @@ def _reportes(newly, sufijo: str = ""):
     recent = [j for j in newly if threshold <= (j.date_published or "") <= today]
     if recent:
         df24 = pd.DataFrame([job_row(j) for j in recent])
-        name24 = f"data/report_24h_{stamp}{sufijo}.csv"
+        name24 = ruta_informe("vacantes", f"report_24h_{stamp}{sufijo}.csv")
         df24.to_csv(name24, index=False, encoding="utf-8-sig")
         logger.info(f"Publicadas en las últimas 24 h: {len(recent)} (guardadas en {name24})")
     else:
@@ -234,6 +234,8 @@ async def refiltrar(db, profile, engine, dias, min_score, prog=None):
     newly, _, _ = await _aplicar_gate(db, profile, engine, offers, dias, min_score)
     # Misma regla de vigencia que la corrida normal: lo vencido no se conserva.
     await db.purge_expired(dias)
+    # Duplicados exactos marcados con dup_of (no se borra nada).
+    await db.marcar_duplicados_exactos()
     _reportes(newly)
     if prog:
         prog.sumar(GROUP_ESTATALES, sum(
@@ -364,7 +366,7 @@ async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
     ruta_csv = ""
     if ventana:
         stamp = datetime.now().strftime("%Y%m%d_%H%M")
-        ruta_csv = f"data/ia_{stamp}.csv"
+        ruta_csv = ruta_informe("ia", f"ia_{stamp}.csv")
         with open(ruta_csv, "w", newline="", encoding="utf-8-sig") as f:
             w = csv.writer(f)
             w.writerow(["Job ID", "Fuente", "Puesto", "Empresa", "Ubicación",
@@ -614,18 +616,20 @@ async def reporte_ia(db, min_score: float = DEFAULT_MIN_SCORE,
             cvs[e.get("job_hash") or str(e.get("id"))] = e
     rep = calcular(pares, ia_min=ia_min, score_min=min_score)
     md = render_md(rep, list(cvs.values()))
-    os.makedirs("data", exist_ok=True)
-    with open("data/ia_calibracion.md", "w", encoding="utf-8") as f:
+    md_path = ruta_informe("ia", "ia_calibracion.md")
+    json_path = ruta_informe("ia", "ia_calibracion.json")
+    with open(md_path, "w", encoding="utf-8") as f:
         f.write(md)
-    with open("data/ia_calibracion.json", "w", encoding="utf-8") as f:
+    with open(json_path, "w", encoding="utf-8") as f:
         json.dump({"generado": datetime.now().isoformat(timespec="seconds"),
                    "reporte": rep}, f, ensure_ascii=False, indent=2)
+    informe = (str(md_path.relative_to(BASE_DIR))
+               if md_path.is_relative_to(BASE_DIR) else str(md_path))
 
     if not pares:
         logger.warning("IA calibración: no hay vacantes evaluadas por la IA "
                        "todavía. Corré `python main.py --ia` primero.")
-        return {"_estado": "ok", "ia_pares": 0,
-                "ia_informe": "data/ia_calibracion.md"}
+        return {"_estado": "ok", "ia_pares": 0, "ia_informe": informe}
     u = rep.get("umbral_recomendado") or {}
     logger.info("IA calibración: %d pares · r=%s · MAE=%s · exactitud=%.1f%% "
                 "con --score-min %.2f", rep["n"], rep.get("correlacion"),
@@ -635,12 +639,12 @@ async def reporte_ia(db, min_score: float = DEFAULT_MIN_SCORE,
                     "(F1 %.2f, exactitud %.1f%%). Es una sugerencia: aplicalo "
                     "y después corré --refiltrar.",
                     u["score_min"], u["f1"], 100 * u["exactitud"])
-    logger.info("IA calibración: informe en data/ia_calibracion.md")
+    logger.info("IA calibración: informe en %s", informe)
     return {"_estado": "ok", "ia_pares": rep["n"],
             "ia_correlacion": rep.get("correlacion"),
             "ia_mae": rep.get("mae"),
             "ia_umbral_sugerido": u.get("score_min"),
-            "ia_informe": "data/ia_calibracion.md"}
+            "ia_informe": informe}
 
 
 def _fases_totales(searches: list, re_filtrar: bool, solo: str = RUN_TODOS) -> int:
@@ -670,7 +674,7 @@ def _barrido_cfg(nombre: str):
 
 
 async def main(fresh: bool = False, searches: list = None, sin_expand: bool = False,
-               dias: int = DEFAULT_DIAS, min_score: float = DEFAULT_MIN_SCORE,
+               dias: int = DEFAULT_DIAS, min_score=None,
                re_filtrar: bool = False, preflight: bool = False,
                solo: str = RUN_TODOS, ia: bool = False, ia_cv: str = "",
                ia_puesto: str = "", ia_guardar: bool = False,
@@ -783,7 +787,11 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
     if modo_ia:
         if ia_reporte:
             prog.fase("IA: calibrando el gate local", "IA")
-            resumen = await reporte_ia(db, min_score, ia_min)
+            # reporte_ia solo muestra el umbral; si viene None (default por
+            # modelo) se usa el default del modulo para el informe.
+            resumen = await reporte_ia(
+                db, DEFAULT_MIN_SCORE if min_score is None else min_score,
+                ia_min)
             prog.fase("IA: informe de calibración", "IA")
             return resumen
         if ia_cv:
@@ -1089,6 +1097,8 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
     # si no la publica, ventana de publicacion). Va despues del gate para
     # cubrir tambien lo descartado que acaba de entrar a jobs_raw.
     await db.purge_expired(dias)
+    # Duplicados exactos marcados con dup_of en ambas tablas (no se borra nada).
+    await db.marcar_duplicados_exactos()
     # sufijo de alcance: dos corridas del mismo dia no pisan su CSV.
     _reportes(newly, "" if solo == RUN_TODOS else f"_{solo}")
     return _resumen_progreso(prog, len(newly))
@@ -1101,8 +1111,10 @@ if __name__ == "__main__":
                         help="Desactiva la expansion semantica de tematicas (default: activa con perfil)")
     parser.add_argument("--dias", type=int, default=DEFAULT_DIAS,
                         help=f"Ventana de fechas del gate (default: {DEFAULT_DIAS})")
-    parser.add_argument("--score-min", type=float, default=DEFAULT_MIN_SCORE,
-                        help=f"Umbral de relevancia semantica 0-1 (default: {DEFAULT_MIN_SCORE})")
+    parser.add_argument("--score-min", type=float, default=None,
+                        help="Umbral de relevancia semantica 0-1 (default: "
+                             "calibrado por modelo de embeddings; 0.26 con "
+                             "EmbeddingGemma, 0.30 con mpnet)")
     parser.add_argument("--refiltrar", action="store_true",
                         help="Reaplica el gate sobre jobs_raw sin re-scrapear")
     parser.add_argument("--preflight", action="store_true",

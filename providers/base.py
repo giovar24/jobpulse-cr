@@ -33,5 +33,5 @@ class BaseProvider(ABC):
         pass
 
     def clean_text(self, text: Optional[str]) -> str:
-        if not text: return ""
-        return " ".join(text.split())
+        from core.text import limpiar_texto
+        return limpiar_texto(text)

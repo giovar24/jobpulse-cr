@@ -2541,11 +2541,11 @@ class App(tk.Tk):
             command=lambda: self._corrida_arrancar(extra="--ia-reporte"))
         self._btn_ia_rep.pack(side="left")
         ttk.Label(barra_ia, style="Suave.TLabel", wraplength=1000,
-                  text="IA externa (Gemini/NVIDIA, requiere IA_API_KEY en "
+                  text="IA externa (OpenRouter/Gemini/NVIDIA..., clave en "
                        ".env): re-puntúa el crudo (no cambia qué entra a "
                        "jobs), evalúa/crea el perfil desde un CV, o mide el "
-                       "acuerdo de la IA local. Consumen cuota gratuita."
-                  ).pack(side="left", padx=8)
+                       "acuerdo de la IA local."
+                   ).pack(side="left", padx=8)
 
         barra_mod = ttk.Frame(tab, padding=(10, 4))
         barra_mod.pack(fill="x")

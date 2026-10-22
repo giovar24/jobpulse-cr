@@ -28,8 +28,8 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import httpx
-from bs4 import BeautifulSoup
 
+from core.text import limpiar_texto
 from providers.base import BaseProvider, JobOffer
 
 logger = logging.getLogger("jobpulse.phenom")
@@ -159,7 +159,7 @@ class PhenomProvider(BaseProvider):
                     i = t.find('"', m.end() - 1)
                     try:
                         blob, _ = json.JSONDecoder().raw_decode(t, i)
-                        desc_txt = BeautifulSoup(blob, "html.parser").get_text(" ", strip=True)
+                        desc_txt = limpiar_texto(blob, conservar_saltos=True)
                     except ValueError:
                         pass
                 p = re.search(r'"postedDate"\s*:\s*"([^"]+)"', t)
@@ -179,7 +179,8 @@ class PhenomProvider(BaseProvider):
                                      or "; ".join(v.get("ubicaciones") or [])),
             link=url,
             date_published=(fecha[:10] if fecha else None),
-            description=self.clean_text(desc_txt or v.get("teaser") or ""),
+            description=limpiar_texto(desc_txt or v.get("teaser") or "",
+                                       conservar_saltos=True),
             requirements="",
             salary="",
         )

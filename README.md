@@ -154,15 +154,17 @@ revisión. Antes de guardar, la UI avisa si faltan datos importantes (contacto,
 resumen, experiencia/educación, fechas, skills, puestos o ubicaciones) y deja
 corregirlos o guardar igual.
 
-- **Salidas**: `data/ia_AAAAMMDD_HHMM.csv` (crudo de la ventana con score IA),
-  `data/usuario/cv_ia.md` / `data/usuario/cv_ia.json` (informe + perfil propuesto + CV
-  adaptado) y `data/ia_calibracion.md` (acuerdo gate ↔ IA, umbral sugerido).
+- **Salidas**: `informes/ia/ia_AAAAMMDD_HHMM.csv` (crudo de la ventana con score
+  IA), `data/usuario/cv_ia.md` / `data/usuario/cv_ia.json` (informe + perfil
+  propuesto + CV adaptado) y `informes/ia/ia_calibracion.md` (acuerdo gate ↔ IA,
+  umbral sugerido).
 - **Historial**: cada respuesta queda en la tabla append-only `ia_evals`
   (modelo, perfil, hash, score, razón, tokens). Sirve para calibrar y, más
   adelante, destilar un reranker local; nada se descarta.
 - **UI**: pestaña *Corrida* → **Re-evaluar crudo con IA**, **Evaluar CV con IA**
   y **Calibrar IA local** (misma lógica, en la ventana verde). Arriba hay un
-  **selector de API** (Google/Gemini, NVIDIA NIM, OpenAI, Ollama Cloud) y un
+  **selector de API** (OpenRouter, Google/Gemini, NVIDIA NIM, OpenAI, Ollama
+  Cloud) y un
   **selector manual de modelo**: la lista se pide en vivo al proveedor
   (`GET /models`, botón *Actualizar lista*) y cada API recuerda su modelo en
   `data/ia_modelos.json`; el proveedor queda en `data/ia_proveedor.txt`
@@ -176,14 +178,25 @@ corregirlos o guardar igual.
   vacantes, la más rápida de las probadas). `google/gemma-3-12b-it` figura en
   la lista pero da 404 en esta cuenta.
 - **Privacidad**: en estos modos el texto de las vacantes y/o tu CV viaja al
-  proveedor que elijas (Google/Gemini, NVIDIA, OpenAI u Ollama). El resto del
-  tiempo nada sale de tu máquina. `data/usuario/cv_ia.*` e `data/ia_*` están
-  en `.gitignore`. Cada proveedor usa su clave específica
-  (`GEMINI_API_KEY`, `NVIDIA_API_KEY`, `OPENAI_API_KEY`, `OLLAMA_API_KEY`) y
+  proveedor que elijas (OpenRouter, Google/Gemini, NVIDIA, OpenAI u Ollama). El
+  resto del
+  tiempo nada sale de tu máquina. `data/usuario/cv_ia.*`, `informes/` y
+  `data/ia_*` están en `.gitignore`. Cada proveedor usa su clave específica
+  (`OPENROUTER_API_KEY`, `GEMINI_API_KEY`, `NVIDIA_API_KEY`, `OPENAI_API_KEY`,
+  `OLLAMA_API_KEY`) y
   `IA_API_KEY` queda como fallback.
 - **Cuota**: `IA_LOTE` (vacantes por request), `IA_MAX_VACANTES`,
   `IA_MAX_LLAMADAS`, `IA_RPM` y `IA_TIMEOUT` en `.env`; un 429 corta con aviso
   y conserva lo ya evaluado. Ver `.env.example`.
+- **Agregar o cambiar proveedores**: los presets viven en
+  `core/ia_api.py` (`PRESETS`): **nvidia** (activo por defecto), **google**,
+  **openai**, **ollama** y **openrouter** (integrado pero desactivado: su
+  clave queda comentada en `.env` con los pasos de reactivado — basta
+  descomentarla y poner `IA_PROVEEDOR=openrouter`). Activar/desactivar uno es
+  solo comentar su clave. **Cualquier endpoint compatible con OpenAI se agrega
+  SIN tocar código** con el preset `custom`:
+  `IA_PROVEEDOR=custom` + `IA_BASE_URL` + `IA_MODEL` + `IA_API_KEY` (sirve
+  para Groq, Together, llama.cpp, LM Studio, vLLM...; ver `.env.example`).
 
 ### Corrida con un clic y recordatorio (Windows)
 
@@ -374,6 +387,24 @@ core/sesiones.py     # logica de sesiones compartida por app/hacer_login:
 core/dedupe.py       # dedupe boards<->directos: prioridad al ATS del
                       # employer; si el puesto ya esta en directos se
                       # descarta la copia de los boards (match empresa+titulo)
+                      # + claves EXACTAS (empresa+titulo+ubicacion) que
+                      # marcan duplicados con dup_of sin borrar filas
+core/text.py         # limpieza en la frontera: limpiar_texto() (HTML,
+                      # entidades, espacios, caracteres invisibles) se aplica
+                      # a TODO lo que entra a jobs/jobs_raw via save_jobs
+tools/                # mantenimiento de la base (idempotentes)
+  auditar.py         # auditoria de calidad SOLO LECTURA: metricas + umbrales,
+                      # escribe informes/calidad/auditoria_*.md/.json; exit != 0
+                      # si hay HTML/entidades/fechas invalidas/duplicados
+  backfill_limpieza.py # limpieza retroactiva de jobs_raw/jobs (dry-run por
+                      # defecto; --aplicar escribe y recalcula dup_of)
+sql/auditoria.sql    # las mismas consultas de auditoria, para uso manual
+tests/               # unittest (python -m unittest discover -s tests): texto,
+                      # claves de dedupe y save_jobs+dup_of; sin red ni Ollama
+informes/             # ENTREGABLES, separados de data/ (sobreviven a --fresh):
+  calidad/            #   auditorias y backfills
+  vacantes/           #   report_AAAAMMDD.csv y report_24h_*.csv de cada corrida
+  ia/                 #   ia_AAAAMMDD_HHMM.csv e ia_calibracion.md/.json
 data/usuario/         # tus datos: perfil, backups, IA del CV y CVs importados
 data/usuario/profile.json    # perfil del candidato
 main.py · ui.py · search.py · cv2profile.py · app.py (legado) · credenciales.py
@@ -406,5 +437,9 @@ main.py · ui.py · search.py · cv2profile.py · app.py (legado) · credenciale
   `e5-small` y `MiniLM` multilingües.
 - `.env` está en `.gitignore`: tus tokens nunca se suben al repo.
 - `data/jobs.db` y los caches de embeddings se regeneran con `python main.py`.
+- **Calidad**: `python tools/auditar.py` audita la base (solo lectura) y falla
+  si hay HTML residual, entidades, fechas invalidas o duplicados exactos sin
+  marcar; los reportes de cada corrida viven en `informes/` (no en `data/`).
+  La carpeta se puede redirigir con la variable `JOBPULSE_INFORMES_DIR`.
 - Cambio de equipo: clona + `pip install -r requirements.txt` y arranca; el
   bootstrap crea los archivos faltantes automáticamente.

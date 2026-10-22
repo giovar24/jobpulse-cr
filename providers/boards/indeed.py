@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Tuple
 from urllib.parse import quote_plus
 from providers.base import BaseProvider, JobOffer
 from core.dates import parse_date
-from core.text import split_requirements, html_to_text
+from core.text import split_requirements, limpiar_texto
 
 logger = logging.getLogger("jobpulse.indeed")
 
@@ -100,7 +100,8 @@ class IndeedProvider(BaseProvider):
                 re.DOTALL | re.IGNORECASE,
             )
             if match:
-                return {"description": html_to_text(match.group(1)), "requirements": "", "salary": ""}
+                return {"description": limpiar_texto(match.group(1), conservar_saltos=True),
+                        "requirements": "", "salary": ""}
             return {}
         except Exception as e:
             logger.warning(f"HTTP detail fetch failed for Indeed {url}: {e}")
@@ -257,7 +258,7 @@ class IndeedProvider(BaseProvider):
         for job in targets:
             raw = got.get(job.job_id)
             if raw:
-                job.description = html_to_text(raw)
+                job.description = limpiar_texto(raw, conservar_saltos=True)
 
         filled = sum(1 for j in targets if j.description)
         logger.info(f"Indeed: descripciones completas obtenidas para {filled}/{len(targets)} vacantes")
@@ -339,7 +340,8 @@ class IndeedProvider(BaseProvider):
                                 location=self.clean_text(item.get("location", "")) or location,
                                 link=f"https://cr.indeed.com/viewjob?jk={jk}",
                                 date_published=date_iso,
-                                description=self.clean_text(item.get("snippet", "")),
+                                description=limpiar_texto(item.get("snippet", ""),
+                                                         conservar_saltos=True),
                                 requirements="",
                                 salary=self.clean_text(item.get("salary", "")),
                             ))

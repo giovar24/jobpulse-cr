@@ -73,6 +73,36 @@ def norm_place(place: str) -> str:
     return " ".join(t for t in _tokens(place) if t not in _RUIDO_TOK)
 
 
+# --- Claves conservadoras para duplicados EXACTOS ---------------------------
+# No quitan ruido ni sufijos: "Support Engineer I" y "II" deben seguir siendo
+# distintos. Se usan para marcar dup_of, no para el matching cross-source
+# difuso (ese sigue en dedupe_boards_vs_directos).
+def norm_titulo_exacto(title: str) -> str:
+    return " ".join(sorted(_tokens(title)))
+
+
+def norm_compania_exacta(company: str) -> str:
+    return " ".join(sorted(_tokens(company)))
+
+
+def norm_lugar_exacto(location: str) -> str:
+    return " ".join(sorted(_tokens(location)))
+
+
+def clave_duplicado_exacto(company: str, title: str, location: str) -> tuple:
+    """Clave (empresa, titulo, ubicacion) sin fusiones agresivas.
+
+    Devuelve None si falta alguno de los tres: sin ubicacion no se puede
+    afirmar que dos filas sean el mismo puesto (evita unir Heredia con San Jose).
+    """
+    empresa = norm_compania_exacta(company)
+    titulo = norm_titulo_exacto(title)
+    lugar = norm_lugar_exacto(location)
+    if not empresa or not titulo or not lugar:
+        return None
+    return (empresa, titulo, lugar)
+
+
 def _key(o: JobOffer) -> tuple:
     empresa = norm_company(o.company)
     titulo = norm_title(o.title)

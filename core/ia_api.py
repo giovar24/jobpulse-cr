@@ -6,10 +6,13 @@ LLM fuerte, SIEMPRE a demanda (`main.py --ia` / `--ia-cv`): nunca corre dentro
 de una corrida de scraping.
 
 Proveedores gratis con preset (misma interfaz /chat/completions):
-  - google : Google AI Studio (Gemini), free tier.
-  - nvidia : NVIDIA NIM, free tier con creditos.
-  - openai : OpenAI (por si algun dia se paga).
-  - custom : cualquier endpoint compatible (OpenRouter, Groq, Ollama...).
+  - google    : Google AI Studio (Gemini), free tier.
+  - nvidia    : NVIDIA NIM, free tier con creditos.
+  - openai    : OpenAI (por si algun dia se paga).
+  - openrouter: OpenRouter (cientos de modelos, presupuesto por clave; alias
+                "~" = ultimo release del modelo).
+  - ollama    : Ollama Cloud.
+  - custom    : cualquier endpoint compatible (via IA_BASE_URL).
 
 Control de cuota (free tier):
   - Cache por hash: una vacante o un CV no se vuelve a mandar si nada cambio.
@@ -54,6 +57,16 @@ PRESETS = {
         "modelo": "gpt-4o-mini",
         "key_env": ("IA_API_KEY", "OPENAI_API_KEY"),
     },
+    # OpenRouter (openrouter.ai): un solo endpoint, cientos de modelos con
+    # presupuesto propio por clave. Soporta el alias "~" que ancla al ultimo
+    # release (ej. "~openai/gpt-latest"). IMPORTANTE: OpenRouter rechaza con
+    # 402 los requests sin max_tokens (asume el maximo del modelo y verifica
+    # presupuesto); _chat_json ya lo fija en 3000.
+    "openrouter": {
+        "base": "https://openrouter.ai/api/v1",
+        "modelo": "~openai/gpt-latest",
+        "key_env": ("IA_API_KEY", "OPENROUTER_API_KEY"),
+    },
     # Ollama Cloud (ollama.com): endpoint OpenAI-compatible + modelos grandes
     # en la nube. La clave sale de OLLAMA_API_KEY (o IA_API_KEY).
     "ollama": {
@@ -69,6 +82,7 @@ PROVEEDOR_NOMBRES = {
     "nvidia": "NVIDIA NIM",
     "openai": "OpenAI",
     "ollama": "Ollama Cloud",
+    "openrouter": "OpenRouter",
 }
 
 DEFAULT_IA_MIN = 70.0     # score 0-100 a partir del cual "aplica"
@@ -275,6 +289,8 @@ class IAClient:
         una clave de NVIDIA con el endpoint de Google)."""
         if os.getenv("OLLAMA_API_KEY"):
             return "ollama"
+        if os.getenv("OPENROUTER_API_KEY"):
+            return "openrouter"
         if os.getenv("NVIDIA_API_KEY"):
             return "nvidia"
         if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
@@ -304,9 +320,10 @@ class IAClient:
 
     def motivo_no_disponible(self) -> str:
         return (
-            "Falta la clave de esta API. Definí GEMINI_API_KEY / "
-            "NVIDIA_API_KEY / OLLAMA_API_KEY / OPENAI_API_KEY (o IA_API_KEY) "
-            "en .env y elegí la API en la UI. Ver .env.example."
+            "Falta la clave de esta API. Definí OPENROUTER_API_KEY / "
+            "GEMINI_API_KEY / NVIDIA_API_KEY / OLLAMA_API_KEY / "
+            "OPENAI_API_KEY (o IA_API_KEY) en .env y elegí la API en la UI. "
+            "Ver .env.example."
         )
 
     def resumen_uso(self) -> str:

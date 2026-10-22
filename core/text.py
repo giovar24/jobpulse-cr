@@ -1,13 +1,7 @@
 """Utilidades de texto para las descripciones de vacantes."""
+import html
 import re
 from bs4 import BeautifulSoup
-
-
-def strip_html(text) -> str:
-    """Convierte HTML en texto plano (colapsa espacios)."""
-    if not text:
-        return ""
-    return " ".join(BeautifulSoup(str(text), "html.parser").get_text(" ", strip=True).split())
 
 
 def html_to_text(text) -> str:
@@ -23,8 +17,43 @@ def html_to_text(text) -> str:
     raw = re.sub(r"(?i)</(p|li|ul|ol|div|h[1-6]|tr)>", "\n", raw)
     plain = BeautifulSoup(raw, "html.parser").get_text(" ")
     plain = re.sub(r"[ \t]+", " ", plain)
+    plain = re.sub(r"[ \t]*\n[ \t]*", "\n", plain)
     plain = re.sub(r"\n\s*\n+", "\n", plain)
     return plain.strip()
+
+
+def limpiar_texto(text, conservar_saltos: bool = False) -> str:
+    """Normaliza un texto venido de cualquier provider.
+
+    - Decodifica entidades HTML (&amp;, &#39;, ...).
+    - Elimina etiquetas y contenido de script/style.
+    - Quita caracteres de control y anchos cero (BOM, zero-width, NBSP).
+    - Colapsa espacios (y saltos de línea si `conservar_saltos` es False).
+
+    Es idempotente: aplicarla dos veces da el mismo resultado.
+    """
+    if text is None:
+        return ""
+    raw = html.unescape(str(text))
+    if "<" in raw and ">" in raw:
+        raw = html_to_text(raw)
+    raw = (raw.replace("\ufeff", "").replace("\u200b", "")
+              .replace("\u200c", "").replace("\u200d", "")
+              .replace("\xa0", " "))
+    raw = "".join(ch if ch in "\n\t" or ord(ch) >= 32 else " "
+                  for ch in raw)
+    if conservar_saltos:
+        raw = re.sub(r"[ \t]+", " ", raw)
+        raw = re.sub(r" *\n *", "\n", raw)
+        raw = re.sub(r"\n{2,}", "\n", raw)
+    else:
+        raw = re.sub(r"\s+", " ", raw)
+    return raw.strip()
+
+
+def strip_html(text) -> str:
+    """Convierte HTML en texto plano (colapsa espacios)."""
+    return limpiar_texto(text)
 
 
 # Encabezados típicos de la sección de requisitos.

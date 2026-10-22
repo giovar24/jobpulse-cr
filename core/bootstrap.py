@@ -4,14 +4,16 @@ Filosofia: clonar el repo + instalar requirements es TODO lo necesario. Cada
 entrypoint (main.py, search.py, app.py, cv2profile.py, ui.py) llama
 `ensure_workspace()` al inicio y este crea lo que falte:
 
-  1. `data/`                      -> datos del scraper (jobs.db, reportes...).
+  1. `data/`                      -> datos del scraper (jobs.db, caches, logs...).
   2. `data/usuario/`              -> datos personales: perfil, backups, IA del CV
                                      y `data/usuario/cv/` para los CV importados.
                                      Si existen archivos del layout viejo
                                      (data/profile.json, data/cv_ia.*) se mueven.
-  3. `data/usuario/profile.json`  -> copiado desde `data/profile.example.json`
+  3. `informes/`                  -> entregables (calidad, vacantes, IA) fuera de
+                                     data/; los reportes historicos se migran.
+  4. `data/usuario/profile.json`  -> copiado desde `data/profile.example.json`
                                      (perfil GENERICO de ejemplo, datos falsos).
-  4. `.env`                       -> copiado desde `.env.example` (placeholders;
+  5. `.env`                       -> copiado desde `.env.example` (placeholders;
                                      el usuario agrega su HF_TOKEN si quiere).
 
 Privacidad: `data/usuario/` y `.env` estan en `.gitignore`. El example SIEMPRE
@@ -21,8 +23,9 @@ nunca recibe - ni expone - datos reales de ningun candidato.
 import shutil
 from typing import Dict
 
-from core.rutas import (BASE_DIR, DATA_DIR, PROFILE_EXAMPLE, PROFILE_PATH,
-                        asegurar_dirs, migrar_legado)
+from core.rutas import (BASE_DIR, DATA_DIR, INFORMES_DIR, PROFILE_EXAMPLE,
+                        PROFILE_PATH, asegurar_dirs, migrar_informes,
+                        migrar_legado)
 
 ENV_EXAMPLE = BASE_DIR / ".env.example"
 ENV_PATH = BASE_DIR / ".env"
@@ -30,16 +33,20 @@ ENV_PATH = BASE_DIR / ".env"
 
 def ensure_workspace(quiet: bool = True) -> Dict[str, bool]:
     """Crea directorios y archivos faltantes. Devuelve que se creo:
-    {"data_dir": bool, "profile": bool, "env": bool}. Idempotente."""
-    created = {"data_dir": False, "profile": False, "env": False}
+    {"data_dir", "informes", "profile", "env"} -> bool. Idempotente."""
+    created = {"data_dir": False, "informes": False,
+               "profile": False, "env": False}
 
     if not DATA_DIR.exists():
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         created["data_dir"] = True
 
-    # Folder exclusivo de datos del usuario (perfil, backups, CVs importados).
+    # Folder exclusivo de datos del usuario (perfil, backups, CVs importados)
+    # y carpeta independiente de informes.
+    informes_existia = INFORMES_DIR.exists()
     asegurar_dirs()
     migrar_legado()
+    created["informes"] = bool(migrar_informes()) or not informes_existia
 
     # Perfil: desde la plantilla generica. Si no hay plantilla, no hay nada
     # que copiar (CandidateProfile.load devolvera None y los entrypoints
@@ -56,6 +63,7 @@ def ensure_workspace(quiet: bool = True) -> Dict[str, bool]:
     if not quiet:
         msgs = {
             "data_dir": "  + data/ (directorio de trabajo del scraper)",
+            "informes": "  + informes/ (entregables: calidad, vacantes, IA)",
             "profile": f"  + {PROFILE_PATH.relative_to(BASE_DIR)} (copiado del "
                        f"generico {PROFILE_EXAMPLE.name}: editalo o genera el "
                        f"tuyo con cv2profile.py)",

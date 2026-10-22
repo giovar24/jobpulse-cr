@@ -23,8 +23,10 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
 - Embeddings **locales en CPU** (fallback automático al modelo
   `sentence-transformers/paraphrase-multilingual-mpnet-base-v2` cuando
   `google/embeddinggemma-300m` responde 401 gated).
-- Salida visible: `data/jobs.db`, `data/report_AAAAMMDD.csv` (día y 24h) y la
-  **UI de escritorio** `ui.py` (Tkinter, sin navegador; pestaña Ranking).
+- Salida visible: `data/jobs.db`, `informes/vacantes/report_AAAAMMDD.csv`
+  (día y 24h; carpeta `informes/` separada de `data/`, redirigible con
+  `JOBPULSE_INFORMES_DIR`) y la **UI de escritorio** `ui.py` (Tkinter, sin
+  navegador; pestaña Ranking).
   La UI tiene 8 **temas** (claro/oscuro × teal/índigo/azul/esmeralda) que
   se cambian en vivo desde la barra inferior; la elección se recuerda en
   `data/ui_prefs.json` (archivo de prefs de la UI, no de datos).
@@ -63,8 +65,10 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
    corrida sigue.
 4. **Dedupe cross-source** (`core/dedupe.py`): gana el provider directo (ATS
    de la empresa) sobre la copia republicada en los boards.
-5. **Gate** (`core/gate.py`): aprueba por fecha (`--dias`, default **30**) **Y**
-   relevancia semántica (`--score-min`, default **0.30**) — son ambas.
+ 5. **Gate** (`core/gate.py`): aprueba por fecha (`--dias`, default **30**) **Y**
+    relevancia semántica **Y** dominio del título. El umbral se calibra **POR
+    MODELO de embeddings** (`--score-min` sin valor = calibración del modelo:
+    **0.26** con EmbeddingGemma, **0.30** con mpnet; escape 0.32/0.45).
 6. **Persistencia** (abajo) + **reportes** CSV del día/24h.
 
 ### Qué pasa ENTRE corridas (persistencia)
@@ -73,7 +77,17 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   - `jobs` = solo aprobados por el gate (lo que ve el ranking).
   - Ambas traen `expires_at` (fecha de vencimiento ISO que publica el portal:
     ANE la trae en el detalle como "Fecha de vencimiento de la vacante";
-    LinkedIn/Indeed/Workday y compañía normalmente no la exponen).
+    LinkedIn/Indeed/Workday y compañía normalmente no la exponen) y
+    `dup_of` (marcado de duplicado exacto, ver `marcar_duplicados_exactos`).
+- **Limpieza en la frontera**: TODO lo que se persiste pasa por
+  `core/text.limpiar_texto` dentro de `save_jobs` (HTML, entidades,
+  espacios/controles, con saltos en descripción/requisitos). Los providers
+  más sucios (Indeed, Phenom) también limpian en origen, pero la frontera es
+  `save_jobs`: nada crudo entra a la base aunque un provider falle.
+- **Duplicados exactos**: al cerrar la corrida (y en `--refiltrar`),
+  `marcar_duplicados_exactos` marca con `dup_of` las copias
+  (empresa+titulo+ubicacion normalizados; canonico = directo más antiguo).
+  No borra filas; el ranking y las auditorías excluyen las marcadas.
 - **Por defecto NADA se borra: se ACUMULA** vía upsert por `job_id`
   (`save_jobs`): fila existente → actualiza campos vacíos + gate, **su
   `created_at` NO cambia** (por eso "vacantes nuevas de 24h" cuenta llegadas,
@@ -88,10 +102,13 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   inicio), `--refiltrar` (vacía SOLO `jobs` y la reconstruye desde `jobs_raw`
   con el gate actual, sin scraping) y `clean_empty_jobs` (filas sin título ni
   link, cada corrida).
-- Reportes `data/report_AAAAMMDD.csv` y `report_24h_AAAAMMDD.csv`: contienen
+- Reportes `informes/vacantes/report_AAAAMMDD.csv` y
+  `report_24h_AAAAMMDD.csv`: contienen
   SOLO las vacantes nuevas de **esa** corrida y se **sobrescriben por fecha de
   día**; si una corrida posterior del mismo día no tiene nuevas, no escribe
-  (conserva el archivo anterior).
+  (conserva el archivo anterior). Los informes históricos que vivían en
+  `data/` se migran solos a `informes/` al primer arranque
+  (`core/rutas.migrar_informes`).
 - `data/corrida.log` y `data/corrida_stdout.log`: se **apendan** (nunca se
   truncan). `data/corrida_estado.json`: estado atómico de la corrida en curso.
 - `data/empresas/` (credenciales, login_requerido, login_sites,
@@ -2484,3 +2501,168 @@ bien. Si se vuelve a usar NVIDIA para CV, probar con un CV corto o subir
 `IA_TIMEOUT`. El fallback local de embeddings sigue activo por el bloqueo
 de DLLs de torch/pandas en este Windows.
 
+
+
+## 57. Calidad de datos: limpieza en la frontera, informes/ separado, auditoría SQL y dup_of (2026-10-22, mediodía)
+
+**Problema.** La base acumulaba texto sucio: 28/63 filas con HTML residual en
+`jobs`/`jobs_raw` (Indeed `<ul><li>` y Phenom teaser), 1/12 con entidades
+(`&`), 3/38 con espacios dobles, 11/30 grupos duplicados exactos y 6
+vencidas en crudo. Además los informes se mezclaban con los datos del scraper
+en `data/`.
+
+**Solución — 4 piezas.**
+
+1. **Frontera única de limpieza** (`core/text.limpiar_texto`): decodifica
+   entidades (`html.unescape`), quita tags/script/style vía BeautifulSoup,
+   elimina BOM/zero-width/NBSP/controles y colapsa espacios. `description` y
+   `requirements` conservan saltos (los encabezados de `split_requirements`
+   dependen de eso). Se aplica en `JobDatabase.save_jobs` (INSERT y UPDATE,
+   corrida normal y `--refiltrar`) y en los providers sucios: Indeed
+   (`snippet` + rpc/jobdescs), Phenom (blob SSR + teaser) y
+   `BaseProvider.clean_text` (ahora delega en `limpiar_texto`).
+
+2. **Carpeta `informes/` independiente de `data/`** (calidad/ vacantes/ ia/):
+   los entregables sobreviven a `--fresh` y a limpiezas de tablas. Rutas
+   centralizadas en `core/rutas` (`INFORMES_DIR`, `ruta_informe`), override con
+   `JOBPULSE_INFORMES_DIR`, creadas por `ensure_workspace`, migración automática
+   de los `data/report*.csv`/`ia_*` históricos (`migrar_informes`) y
+   `.gitignore` actualizado. `main.py` (_reportes, --ia, --ia-reporte) ya
+   escribe ahí; `ia_modelo*.txt|json` y `ia_proveedor.txt` SON configuración y
+   se quedan en `data/`.
+
+3. **Auditoría SQL solo lectura** (`tools/auditar.py` + `sql/auditoria.sql`):
+   métricas por tabla contra umbrales (html=0, entidades=0, espacios dobles=0,
+   fechas inválidas=0, vencidas=0, duplicados=0, title/link vacíos=0) +
+   informativas (sin requisitos/salario, dup marcados) + `quick_check` y aviso
+   de journal_mode. UDFs `_norm` (NFKD→ASCII) y `_tiene_html`
+   (`<[a-zA-Z/][^<>]*>`, para no confundir "English <> Spanish" con HTML).
+   Escribe `informes/calidad/auditoria_*.md/.json` y devuelve exit!=0 si falla
+   — usable como puerta de calidad tras cada corrida.
+
+4. **Duplicados exactos marcados, no borrados**: columna `dup_of` en
+   `jobs`/`jobs_raw` (migración por ALTER) + `marcar_duplicados_exactos`
+   (claves conservadoras `norm_*_exacto` en `core/dedupe`: sin quitar
+   "I"/"II" ni ruido; requiere empresa+título+ubicación, canonico = directo
+   más antiguo). Corre al cerrar cada corrida y en `--refiltrar`. La fase
+   difusa cross-source (Concentrix vs "+ Webhelp") sigue siendo la existente
+   `dedupe_boards_vs_directos`.
+
+**Backfill retroactivo** (`tools/backfill_limpieza.py`, dry-run por defecto,
+idempotente, reusa `limpiar_texto`): 478/1191 crudas y 167/248 curadas
+corregidas, 63 duplicados marcados; segunda pasada = 0 cambios. Resumen en
+`informes/calidad/backfill_*.md`.
+
+**Verificación.** `tests/` (unittest, sin red): `test_text` (13 casos de
+limpieza/idempotencia/`split_requirements`), `test_dedupe` (claves exactas:
+acentos/orden sí, "Engineer I" vs "II" no, sin ubicación no), `test_database`
+(save limpia en frontera, filas sin título/link fuera, dup_of idempotente) —
+20/20 OK. Auditoría pre: 9 fallos → post (`--refiltrar` + backfill):
+**0 fallos, exit 0**. Respaldos previos: `data/jobs.db.bak-calidad-20261022` y
+`data/_backup_informes_20261022/`.
+
+**Efecto lateral explicado (no es bug).** `--refiltrar` reconstruyó `jobs`
+248 → 27: la tabla acumulaba aprobadas con la escala del modelo anterior
+(mediana gate ~0.45, 685 crudas ≥0.30) y EmbeddingGemma-300m corre más baja
+(mediana ~0.28, 34 ≥0.30). El gate aplicó los criterios actuales como manda
+el diseño; si 27 parece poco, recalibrar `--score-min` (o correr
+`--ia-reporte`) es la decisión del usuario, no un defecto de la limpieza.
+
+**Pendiente (fase 6 no ejecutada por alcance).** `journal_mode` sigue en
+`delete` (WAL recomendado para UI + corrida concurrentes; la auditoría lo
+avisa), cobertura de `empty_requirements`/`empty_salary` (informativa), y
+dedupe difuso cross-source.
+
+
+## 58. Calibracion del gate por modelo + OpenRouter + muestra estratificada vs IA (2026-10-22, tarde)
+
+**Problema.** Tras la limpieza (#57), `--refiltrar` dejo `jobs` en 27 filas. La
+causa NO fue la limpieza sino la escala: los umbrales del gate (min 0.30,
+escape 0.45) se calibraron con mpnet (matches reales 0.35-0.50) y
+EmbeddingGemma-300m corre mas bajo (dominio p50=0.26, no-dominio p50=0.20,
+max no-dominio 0.36). Resultado: ~164 vacantes de dominio validas descartadas
+en la banda 0.24-0.30 (Amazon Support Engineer, Auxis Service Desk
+Trilingual, Korn Ferry IT Support IV...) y el escape muerto (0.45
+inalcanzable).
+
+**Medicion con IA externa (muestra estratificada).** Nuevos
+`tools/ia_muestra.py` (arma muestra determinista: 14 aprobadas + 14 banda
+critica 0.24-0.30 + 6 dominio bajo + 6 no-dominio alto + 6 no-dominio bajo;
+dry-run por defecto) y `tools/ia_analizar.py` (correlacion Pearson/Spearman,
+barrido de umbral simulando la regla completa, FN/FP, acuerdo entre modelos →
+`informes/calidad/calibracion_gate.md`). Evaluaciones: OpenRouter
+`~openai/gpt-latest` (gpt-6.1-sol; 32/46 — el pool de creditos del workspace
+es menor al tope de la clave y corto por 402) y NVIDIA NIM
+`openai/gpt-oss-20b` (46/46, 0 errores). Verificacion cruzada: Pearson
+gate↔IA 0.65/0.54, acuerdo entre modelos r=0.78 (|diff| media 23 pts);
+grupo E (basura) = 0 de IA promedio (sanity OK); la banda B promedia 62 con
+gpt-latest (hay oro) y el escape deja pasar mayormente ruido (D promedia 23).
+
+**Recalibracion aplicada (`core/gate.py`).**
+1. `_CALIB_POR_MODELO`: umbrales POR modelo — EmbeddingGemma (0.26, 0.32),
+   mpnet (0.30, 0.45) — + `calibracion(modelo)`. `gate_jobs(min_score=None)`
+   resuelve contra el modelo EFECTIVO del motor despues de `engine.load()`
+   (el fallback mpnet recalibra solo); `--score-min` explicito manda.
+   argparse default None con help explicando.
+2. Veto lexico ampliado con hallazgos de la muestra: `client\b` ("Client
+   Services Representative", AnswerHero), `\bitsm\b` ("Administracion
+   funcional de plataformas ITSM", GBM — IA 70 que ni el escape rescataba:
+   gate 0.271 < 0.32) y `moderador|moderat` (objetivo del perfil
+   "Moderador de Contenido" / "Content Moderator").
+3. OpenRouter como proveedor 5 (`PRESETS` + deteccion por clave + UI): base
+   openrouter.ai/api/v1, default `~openai/gpt-latest` (alias "~" = ultimo
+   release). OJO documentado: OpenRouter rechaza con 402 requests sin
+   `max_tokens` (asume el maximo del modelo y verifica presupuesto) —
+   `_chat_json` ya lo fija en 3000. `.env`: OPENROUTER_API_KEY activa,
+   IA_PROVEEDOR=openrouter, NVIDIA_API_KEY conservada como seleccionable.
+
+**Resultado (`--refiltrar` con cache caliente, solo re-embeda queries).**
+jobs: **27 → 142 aprobadas** (18 dup_of → **124 unicas**); 0 vencidas;
+auditoria OK (0 fallos). Top del ranking intacto (las 27 originales siguen
+arriba: eran todas coherentes) y las joyas de la banda critica entran:
+Amazon Support Engineer x2, BlueCat, Auxis Service Desk I Trilingual, Korn
+Ferry IT Support IV, GBM ITSM (via itsm), AnswerHero (via client), IDS,
+BairesDev, "Microsoft Identity Solutions Support" (IA 90 segun gpt-latest).
+Falsos positivos conocidos y aceptados (los ordena el ranking): HPE
+"Software Engineer - Apps, Test Infra" (IA 10-30), "Intern - Bachelor's
+Tech" HPE via escape (IA 0 para gpt-oss-20b).
+
+**Tests.** `tests/test_gate.py`: mapa de calibracion (gemma/mpnet/desconocido),
+constantes = gemma, tokens nuevos del veto y negativos (Mecanico, Ingeniero
+Mecanico, SAP SD, Executive Assistant). 27/27 en verde.
+
+**Cuota usada.** OpenRouter 1 corrida de muestra (32 evals, ~$0.06);
+NVIDIA 1 corrida (46 evals, free tier). Los checks de auth/lista no cuentan
+como evaluacion. Queda 1 uso de OpenRouter y 1 de NVIDIA bajo la regla del
+usuario (max 2 usos por API para pruebas).
+
+
+## 59. OpenRouter desactivado como proveedor activo; presets y via manual documentados (2026-10-22, tarde)
+
+**Pedido.** Quitar OpenRouter como proveedor ACTIVO (el pool de creditos del
+workspace se agoto con 402 en lotes largos, bitacora #58) pero conservar el
+perfil/preset para reactivarlo despues; y documentar como se agregan
+proveedores manualmente.
+
+**Cambios.**
+1. `.env`: activo vuelve a ser **nvidia** (`IA_PROVEEDOR=nvidia`,
+   `IA_MODEL=openai/gpt-oss-20b`, `NVIDIA_API_KEY` activa). El bloque
+   OpenRouter queda COMENTADO con su clave y los 2 pasos de reactivacion
+   (descomentar `OPENROUTER_API_KEY` + poner
+   `IA_PROVEEDOR=openrouter`/`IA_MODEL=~openai/gpt-latest`).
+2. El preset `openrouter` SIGUE en `core/ia_api.py` (PRESETS +
+   PROVEEDOR_NOMBRES + deteccion por clave + selector de la UI): sin clave,
+   la UI y el CLI avisan "Falta la clave de esta API" en vez de romper.
+3. `.env.example`: reorganizada la seccion IA con el patron
+   activar/desactivar (comentar la clave basta) y la **via manual**: el
+   preset `custom` (`IA_PROVEEDOR=custom` + `IA_BASE_URL` + `IA_MODEL` +
+   `IA_API_KEY`) cubre cualquier endpoint OpenAI-compatible (Groq, Together,
+   llama.cpp, LM Studio, vLLM, LiteLLM...) sin tocar codigo.
+4. `README.md`: nueva nota "Agregar o cambiar proveedores" en la seccion IA.
+5. `data/ia_proveedor.txt` (memoria de la UI, "ollama") NO se toco: es la
+   seleccion personal del usuario, previa a todo esto.
+
+**Verificacion (local, sin red).** Con dotenv cargado, `IAClient` resuelve
+proveedor=nvidia modelo=openai/gpt-oss-20b disponible=True; con la clave
+OpenRouter comentada, elegir "openrouter" en la UI degrada al mensaje de
+clave faltante.
