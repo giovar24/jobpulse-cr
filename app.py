@@ -388,7 +388,7 @@ with tab_perfil:
 
     st.subheader("✏️ Editar perfil del candidato")
     st.caption(
-        "El perfil (`data/profile.json`) es lo que decide **qué busca** y "
+        "El perfil (`data/usuario/profile.json`) es lo que decide **qué busca** y "
         "**cómo puntúa** el sistema. El extractor automático puede meter "
         "ruido (un título que no tenés, un skill inflado, un tema que no "
         "querés); aquí lo corregís a mano. Cada guardado hace **backup** "

@@ -25,6 +25,9 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   `google/embeddinggemma-300m` responde 401 gated).
 - Salida visible: `data/jobs.db`, `data/report_AAAAMMDD.csv` (día y 24h) y la
   **UI de escritorio** `ui.py` (Tkinter, sin navegador; pestaña Ranking).
+  La UI tiene 8 **temas** (claro/oscuro × teal/índigo/azul/esmeralda) que
+  se cambian en vivo desde la barra inferior; la elección se recuerda en
+  `data/ui_prefs.json` (archivo de prefs de la UI, no de datos).
 
 ### Cómo funciona una corrida (`python main.py`, botón de la UI o `jobpulse.cmd --correr`)
 1. **Preparación**: perfil → búsquedas expandidas (`core/search_engine.py`).
@@ -2322,4 +2325,162 @@ ranking (miles de llamadas, debe ser gratis).
 **Pendiente.** Bench `qwen3-embedding:0.6b` local vs gemma (mismas
 queries), correr `--ia-cv` con el CV real del usuario y un `--ia` normal
 con la cache v3.
+
+## 54. UI estética: paleta "Teal Esmeralda" + botones/pestañas distinguibles + copiar URL (2026-10-21, noche)
+
+**Problema.** Con el tema nativo de Windows todos los controles ttk salían
+gris claro: una pestaña, un botón y un cuadro de texto eran la misma cosa.
+Además el usuario pidió poder copiar la URL del puesto sin seleccionar
+texto, y una paleta atractiva "de internet".
+
+**Cambio 1 — un acento, un significado.** `_aplicar_tema()` pasa a tema
+"clam" (el único de Tkinter que respeta background/foreground en botones
+y pestañas) y pinta TODA la UI desde un solo diccionario `PALETA` con la
+regla 60-30-10: 60% fondo/superficies claras, 30% texto, 10% acento. El
+acento (relleno fuerte + texto blanco bold) queda reservado a SOLO tres
+cosas: los botones (`TButton`, y `Danger.TButton` en rojo para "Detener"),
+la pestaña activa del Notebook y la fila seleccionada de las tablas. Las
+pestañas inactivas y los cuadros de texto van en neutros: así un objeto
+teal relleno = algo con lo que se acciona, y una pestaña teal = dónde
+estás parado.
+
+**Cambio 2 — paleta "Teal Esmeralda".** De una comparativa de paletas SaaS
+2026 publicadas (ColorHexHub "Teal Blue": acento teal #14B8A6 sobre fondo
+menta #F0FDFA), elegida por el usuario entre 4 candidatas (indigo, teal,
+emerald, cyan). Aterrizada en la escala Tailwind: acento teal-600 #0D9488
+(en vez de teal-500) porque el texto BLANCO encima pasa contraste;
+hover teal-700, pressed teal-800, foco/hover suave teal-100, fondo
+teal-50. Texto/bordes en slate neutro (contraste ~17:1 en el texto
+principal). Los colores de estado dispersos se unificaron con la guía
+semántica 2026: éxito emerald-600 #059669, error red-600 #DC2626, aviso
+amber-600 #D97706, neutro slate-600 #475569 (`ESTADO_COLOR` y los
+`foreground=` sueltos de las pestañas Corrida/Credenciales/IA).
+
+**Cambio 3 — "Copiar URL del puesto".** El panel Detalle (compartido por
+todas las pestañas) gana un botón a la derecha del encabezado: copia
+`self._detalle_link` al portapapeles con `clipboard_clear/append` y da
+feedback cambiando el texto a "✓ URL copiada" 1.8 s (un `after` lo
+restaura). Deshabilitado cuando no hay fila seleccionada (o cuando la
+oferta no trae link: entonces el detalle lo dice).
+
+**Cambio 4 — adiós "invalid command name" al cerrar.** Los dos timers
+periodicos (`_drenar` 120 ms, `_corrida_refrescar` 2 s) se re-agendaban
+con `self.after(...)` sin guardar el id; al destruir la ventana con un
+timer pendiente, Tcl imprimia `invalid command name "..._drenar"` en
+consola. Ahora se guardan en `_after_drenar_id`/`_after_corrida_id` y un
+`destroy()` override los cancela antes de `super().destroy()` (cubre
+también el cierre por WM_DELETE_WINDOW, que pasa por `_al_cerrar`).
+
+**Verificación.** `py_compile ui.py` OK; smoke de interacciones (seleccionar
+fila + detalle, copiar URL, recorrer las 6 pestañas, filtro de texto,
+búsqueda libre) OK sin el mensaje de Tcl; smoke visual (`smoke_tema.py`,
+captura PNG de la ventana con una fila seleccionada) OK y sin el mensaje
+de Tcl; la UI real arranca y queda viva con `python ui.py`.
+
+**Pendiente.** Nada estético; el usuario valida la paleta en vivo.
+
+## 55. UI: sistema de temas claro/oscuro x 4 tonos, selector en vivo y persistencia (2026-10-22, mañana)
+
+**Problema.** La UI tenia UNA paleta fija (entrada 54) y ~35 etiquetas con
+`foreground="#hex"` suelto: cambiar los colores a mano implicaba cazarlos
+uno por uno. El usuario pidio "temas": uno claro, uno oscuro y varios tonos.
+
+**Catalogo.** `TEMAS`: 8 temas = MODO (claro/oscuro) x TONO (Teal, Índigo,
+Azul, Esmeralda), armados con dos builders (`_tema_claro`/`_tema_oscuro`)
+sobre la escala Tailwind de cada tono + la guia de dark mode 2026 (canvas
+#0F172A, superficies #1E293B, texto blanco suave #E2E8F0, acentos claros
+desaturados). En claro el acento es tone-600 con texto BLANCO; en oscuro se
+invierte al patron "boton brillante, texto oscuro" de los dashboards dark
+(acento tone-400, texto tone-950). Los colores semánticos (`sem_*`) tambien
+son por modo: 600 en claro, 400 en oscuro (exito/esmeralda, error/rojo,
+aviso/ambar, neutro/slate).
+
+**Mecanica.** El tema activo vive en el module-level `PALETA` (lo re-asigna
+`_usar_tema()`); `_aplicar_tema()` pinta todo desde ahi como antes. La
+clave para cambiar EN VIVO sin reconstruir widgets: los textos con color
+pasan de hex fijo a ESTILOS ttk (`Suave.TLabel`, `SemOK/SemErr/SemAviso/
+SemNeutro.TLabel`) que `_aplicar_tema` reconfigura — al cambiar de tema se
+repintan solos, incluso los que un hilo pinto con `configure(style=...)`.
+`ESTADO_COLOR` (hexes) pasa a `ESTADO_ESTILO` (estados de corrida ->
+estilos). Los `tk.Text` no son ttk: los permanentes (detalle, log de
+corrida, cajas del editor de Perfil) se registran en `_texts_tema` y
+`_tema_cambiar` los repinta; los de dialogos nacen despues de cada cambio
+y leen los defaults nuevos (`option_add *Text.foreground/insertBackground/
+select*`, que antes no existian y en dark el texto salia negro sobre
+#1E293B). El texto sobre el acento es ahora `acento_tx` (blanco en claro,
+tone-950 en oscuro) en botones, pestana activa, filas y selecciones.
+
+**Selector.** Combobox readonly "Tema:" en la barra inferior (ancho = tema
+mas largo). `_tema_cambiar()` aplica en vivo y guarda la eleccion en
+`data/ui_prefs.json` (`_tema_guardado()` la lee al arrancar, ANTES de
+crear widgets: todos nacen ya con el tema). Archivo nuevo, un solo campo
+`{"tema": "..."}`; si falta o trae un nombre viejo se cae al default
+("Teal claro") sin romper.
+
+**Verificación.** `py_compile ui.py` OK; `smoke_temas.py` recorre los 8
+temas EN VIVO (ninguno lanza), verifica persistencia (prefs=ultimo) y
+captura claro+oscuro; `smoke_interacciones.py` (seleccion+detalle, copiar
+URL, 6 pestañas, filtros, busqueda libre) OK. Prefs dejados en "Teal
+claro" tras las pruebas.
+
+**Pendiente.** Nada; el usuario elige su tema desde la UI.
+
+## 56. Perfil: importar CV, API/modelo por proveedor, aviso de faltantes y borrado de backups (2026-10-22, mediodía)
+
+**Problema.** El perfil vivía mezclado con los datos del scraper
+(`data/profile.json`), el CV solo se podía importar por consola, la UI no
+dejaba elegir API/modelo para el análisis, no avisaba si faltaban datos
+importantes y los backups se acumulaban sin forma de borrarlos.
+
+**Cambio 1 — datos del usuario separados.** Nuevo `core/rutas.py`
+(`USER_DIR = data/usuario/`, `CV_DIR = data/usuario/cv/`) y migración
+idempotente en `core/bootstrap.py`: mueve `profile.json`,
+`profile_backup_*.json`, `cv_ia.*` y CVs reales del layout viejo solo si el
+destino no existe. `core/profile.py`, `main.py`, `search.py`,
+`cv2profile.py`, `app.py` y la UI usan las rutas nuevas. `.gitignore`
+ignora `data/usuario/`, los CVs y los archivos de estado/preferencias.
+README actualizado.
+
+**Cambio 2 — importar CV desde la UI.** Barra superior de Perfil:
+"Importar CV (PDF/DOCX/TXT/MD)" + check "Analizar con IA (API)". La
+extracción local no depende de embeddings (fallback si torch/pandas
+fallan); la API es opcional y consume cuota. El resultado entra como
+**borrador**: nada se guarda hasta "Guardar perfil". Ventana de progreso
+con barra indeterminada, tiempo transcurrido, proveedor/modelo y error; se
+puede cerrar y se cierra sola al terminar. "Mi CV" ahora tiene scroll para
+pantallas chicas.
+
+**Cambio 3 — API y modelo por proveedor.** Selector de API
+(Google/Gemini, NVIDIA NIM, OpenAI, Ollama Cloud) y de modelo en Corrida;
+la lista se pide en vivo (`GET /models`) y se descartan respuestas viejas
+con un token. Cada API recuerda su modelo en `data/ia_modelos.json`; el
+proveedor se guarda en `data/ia_proveedor.txt` (compatibilidad con
+`data/ia_modelo.txt`). `IAClient` prioriza la clave específica
+(`GEMINI_API_KEY`, `NVIDIA_API_KEY`, `OLLAMA_API_KEY`, `OPENAI_API_KEY`)
+sobre `IA_API_KEY`, así se pueden tener varias configuradas. La corrida
+pasa `IA_PROVEEDOR` y `--ia-modelo` al proceso. Verificado Ollama con 23
+modelos; `gemma4:31b` quedó seleccionado.
+
+**Cambio 4 — aviso de perfil incompleto.** `_perfil_campos_faltantes()`
+revisa nombre, contacto, resumen, experiencia/educación (existencia y
+fechas), skills, puestos y ubicaciones. Antes de guardar, importar o cargar
+una propuesta IA, un diálogo modal lista lo que falta con "Volver a
+revisar" / "Guardar igual": avisa pero no bloquea.
+
+**Cambio 5 — borrar backups.** En Perfil > Backups: "Eliminar
+seleccionado" y "Eliminar todos los backups". Ambos piden confirmación; el
+borrado masivo solo toca `profile_backup_*.json`, nunca el `profile.json`
+actual, y reporta errores por archivo. La lista se refresca después.
+
+**Verificación.** `py_compile ui.py core/ia_api.py` OK. Smoke headless:
+cambio de API/modelo (Google/Gemini, NVIDIA, OpenAI, Ollama), persistencia,
+`IA_PROVEEDOR` en el comando de corrida, aviso modal (True/False),
+importación local y borrado individual/masivo en directorio temporal. La UI
+real arrancó y el usuario validó la importación, el aviso y el borrado.
+
+**Pendiente.** NVIDIA con CV completo tardó >240 s en una prueba
+(`IAClient._post` reintenta una vez con timeout de 120 s); Ollama respondió
+bien. Si se vuelve a usar NVIDIA para CV, probar con un CV corto o subir
+`IA_TIMEOUT`. El fallback local de embeddings sigue activo por el bloqueo
+de DLLs de torch/pandas en este Windows.
 

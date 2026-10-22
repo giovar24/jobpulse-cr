@@ -26,7 +26,7 @@ System). Sin APIs de pago, sin nube, sin LLMs.
   `skills 40% · título 30% · experiencia 15% · educación 7.5% · idiomas 7.5%`
   con **keywords faltantes** por vacante y umbrales
   (🟢 ≥85 fuerte · 🟡 70-84 ajustar · 🔴 <70 débil).
-- **Perfil Harvard/ATS** (`data/profile.json`): un bloque `cv` (contacto,
+- **Perfil Harvard/ATS** (`data/usuario/profile.json`): un bloque `cv` (contacto,
   resumen, educación, experiencia, proyectos, habilidades, certificaciones,
   idiomas) que es lo que el usuario ve y edita, y un bloque `busqueda`
   (puestos objetivo, ubicaciones, pesos, filtros) que es lo interno. Lo
@@ -59,13 +59,14 @@ python -m venv .venv
 
 **Eso es todo.** En el primer arranque, `core/bootstrap.py` crea lo que falte:
 
-- `data/` (directorio de trabajo)
-- `data/profile.json` ← copia del **ejemplo genérico** (`Juan Perez`, datos falsos)
+- `data/` (directorio de trabajo del scraper)
+- `data/usuario/` (tus datos: perfil, backups, IA del CV y CV importados)
+- `data/usuario/profile.json` ← copia del **ejemplo genérico** (`Juan Perez`, datos falsos)
 - `.env` ← copia de `.env.example` (placeholders; pon tu `HF_TOKEN` si quieres EmbeddingGemma)
 
 ### Privacidad
 
-- `data/profile.json` y `.env` están en `.gitignore`: **tus datos personales nunca se suben a git**.
+- `data/usuario/` y `.env` están en `.gitignore`: **tus datos personales nunca se suben a git**.
 - La plantilla `data/profile.example.json` solo contiene datos de ejemplo (`juan.perez@example.com`).
 - Para generar tu perfil real desde tu CV: `python cv2profile.py "MiCV.pdf" --save`
   (queda solo en tu máquina).
@@ -137,30 +138,35 @@ python main.py --ia --ia-modelo "openai/gpt-oss-20b" --ia-max 30
 # Calibra la IA local contra las respuestas IA y sugiere --score-min
 python main.py --ia-reporte
 
-# CV: crea el perfil propuesto + evaluación/adaptación (no toca profile.json)
+# CV: crea el perfil propuesto + evaluación/adaptación (no toca el perfil)
 python main.py --ia-cv "MiCV.pdf" --ia-puesto "Soporte Técnico"
 
-# CV + escribir data/profile.json (con backup) usando el CV como verdad
+# CV + escribir data/usuario/profile.json (con backup) usando el CV como verdad
 python main.py --ia-cv "MiCV.pdf" --ia-puesto "Soporte Técnico" --ia-guardar
 ```
 
-**La IA solo llena el perfil; el usuario lo revisa.** En la UI, "Evaluar CV con
-IA" por defecto **no** guarda: deja `data/cv_ia.json` y desde *Perfil > Mi CV >
-Cargar propuesta IA* se carga como **borrador** en el editor. Nada se escribe
-hasta apretar *Guardar perfil*. El flag `--ia-guardar` existe para scripting,
-pero se salta esa revisión.
+**La IA solo llena el perfil; el usuario lo revisa.** En la UI, *Perfil >
+Importar CV (PDF/DOCX/TXT/MD)* permite marcar **Analizar con IA (API)**; por
+defecto **no** guarda: deja `data/usuario/cv_ia.json` y el resultado se carga
+como **borrador** en el editor. Nada se escribe hasta apretar *Guardar
+perfil*. El flag `--ia-guardar` existe para scripting, pero se salta esa
+revisión. Antes de guardar, la UI avisa si faltan datos importantes (contacto,
+resumen, experiencia/educación, fechas, skills, puestos o ubicaciones) y deja
+corregirlos o guardar igual.
 
 - **Salidas**: `data/ia_AAAAMMDD_HHMM.csv` (crudo de la ventana con score IA),
-  `data/cv_ia.md` / `data/cv_ia.json` (informe + perfil propuesto + CV
+  `data/usuario/cv_ia.md` / `data/usuario/cv_ia.json` (informe + perfil propuesto + CV
   adaptado) y `data/ia_calibracion.md` (acuerdo gate ↔ IA, umbral sugerido).
 - **Historial**: cada respuesta queda en la tabla append-only `ia_evals`
   (modelo, perfil, hash, score, razón, tokens). Sirve para calibrar y, más
   adelante, destilar un reranker local; nada se descarta.
 - **UI**: pestaña *Corrida* → **Re-evaluar crudo con IA**, **Evaluar CV con IA**
   y **Calibrar IA local** (misma lógica, en la ventana verde). Arriba hay un
+  **selector de API** (Google/Gemini, NVIDIA NIM, OpenAI, Ollama Cloud) y un
   **selector manual de modelo**: la lista se pide en vivo al proveedor
-  (`GET /models`, botón *Actualizar lista*) y la elección se recuerda en
-  `data/ia_modelo.txt` (gitignored). `--ia-modelo` pisa a `IA_MODEL` del `.env`.
+  (`GET /models`, botón *Actualizar lista*) y cada API recuerda su modelo en
+  `data/ia_modelos.json`; el proveedor queda en `data/ia_proveedor.txt`
+  (gitignored). `--ia-modelo` pisa a `IA_MODEL` del `.env`.
 - **Modelos**: la lista de `/models` no garantiza que tu cuenta pueda usar el
   modelo (NVIDIA devuelve 404/410 en varios). Si pasa, elegí otro con el
   selector y listo. Para el CV conviene un modelo que no gaste toda la salida
@@ -170,8 +176,11 @@ pero se salta esa revisión.
   vacantes, la más rápida de las probadas). `google/gemma-3-12b-it` figura en
   la lista pero da 404 en esta cuenta.
 - **Privacidad**: en estos modos el texto de las vacantes y/o tu CV viaja al
-  proveedor que elijas (Google/NVIDIA). El resto del tiempo nada sale de tu
-  máquina. `data/cv_ia.*` e `data/ia_*` están en `.gitignore`.
+  proveedor que elijas (Google/Gemini, NVIDIA, OpenAI u Ollama). El resto del
+  tiempo nada sale de tu máquina. `data/usuario/cv_ia.*` e `data/ia_*` están
+  en `.gitignore`. Cada proveedor usa su clave específica
+  (`GEMINI_API_KEY`, `NVIDIA_API_KEY`, `OPENAI_API_KEY`, `OLLAMA_API_KEY`) y
+  `IA_API_KEY` queda como fallback.
 - **Cuota**: `IA_LOTE` (vacantes por request), `IA_MAX_VACANTES`,
   `IA_MAX_LLAMADAS`, `IA_RPM` y `IA_TIMEOUT` en `.env`; un 429 corta con aviso
   y conserva lo ya evaluado. Ver `.env.example`.
@@ -365,7 +374,8 @@ core/sesiones.py     # logica de sesiones compartida por app/hacer_login:
 core/dedupe.py       # dedupe boards<->directos: prioridad al ATS del
                       # employer; si el puesto ya esta en directos se
                       # descarta la copia de los boards (match empresa+titulo)
-data/profile.json    # perfil del candidato
+data/usuario/         # tus datos: perfil, backups, IA del CV y CVs importados
+data/usuario/profile.json    # perfil del candidato
 main.py · ui.py · search.py · cv2profile.py · app.py (legado) · credenciales.py
 ```
 

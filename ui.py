@@ -27,10 +27,12 @@ import logging
 import os
 import queue
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from datetime import date, datetime, timedelta
 from pathlib import Path
@@ -40,10 +42,12 @@ from tkinter import filedialog, messagebox, ttk
 
 from core.ats import rank_with_ats
 from core import credenciales as creds_store
+from core.bootstrap import ensure_workspace
 from core.profile import (CandidateProfile, DEFAULT_PROFILE_PATH,
                           backups_perfil, guardar_perfil, normalizar_perfil)
 from core.cv_render import cv_harvard_markdown
-from core.cv_analysis import merge_profile
+from core.cv_analysis import CVAnalyzer, extract_text, merge_profile
+from core.rutas import CV_DIR, CV_IA_JSON, CV_IA_MD
 from core.progreso import (corriendo, detener, leer_estado,
                            tail as log_tail)
 from core.search_engine import SemanticSearchEngine
@@ -53,6 +57,8 @@ from providers.source_groups import grupo_publico, GRUPOS_PUBLICOS
 
 BASE = Path(__file__).resolve().parent
 DB = BASE / "data" / "jobs.db"
+IA_PROVEEDOR_PATH = BASE / "data" / "ia_proveedor.txt"
+IA_MODELOS_PATH = BASE / "data" / "ia_modelos.json"
 
 # La UI abre con pythonw (jobpulse.cmd: cero ventanas de comandos). Alli
 # stdout/stderr no existen, y un print() de terceros (sentence-transformers
@@ -89,19 +95,269 @@ ESTADO_TXT = {
     "interrumpida": "Interrumpida (el proceso murió)",
     "nunca": "Sin corridas",
 }
-ESTADO_COLOR = {
-    "corriendo": "#0a7f24",
-    "ok": "#0a7f24",
-    "preflight": "#555555",
-    "error": "#b01818",
-    "detenida": "#a05a00",
-    "interrumpida": "#a05a00",
-    "nunca": "#555555",
+# Estado de la corrida (core.progreso) -> texto y estilo de color en la
+# pestana Corrida. Son ESTILOS ttk (no hexes fijos) para que se repinten
+# solos al cambiar de tema.
+ESTADO_ESTILO = {
+    "corriendo": "SemOK.TLabel",
+    "ok": "SemOK.TLabel",
+    "preflight": "SemNeutro.TLabel",
+    "error": "SemErr.TLabel",
+    "detenida": "SemAviso.TLabel",
+    "interrumpida": "SemAviso.TLabel",
+    "nunca": "SemNeutro.TLabel",
 }
 
 # Titulo de la ventana de consola VERDE donde corre el scraping (la unica
 # ventana de comandos visible cuando hay una corrida viva).
 CORRIDA_TITULO = "JobPulse CR - Scraping"
+
+# ------------------------------------------------------------------ temas
+# Sistema de temas: MODO claro/oscuro x TONO (teal, indigo, azul, esmeralda),
+# 8 en total, todos de paletas SaaS 2026 (ColorHexHub/Tailwind + guia de
+# dark mode 2026: canvas #0F172A, superficie #1E293B, acentos claros
+# desaturados y texto blanco suave). Regla 60-30-10 en ambos modos: 60%
+# fondo/superficies, 30% texto, 10% acento. El acento NO se reparte: lo
+# usan SOLO los botones, la pestana activa y la fila seleccionada de las
+# tablas — asi un objeto relleno del acento = algo con lo que se acciona,
+# y una pestana del acento = donde estas parado.
+#
+# En claro el acento es el tone-600 con TEXTO BLANCO encima (pasa contraste).
+# En oscuro se invierte: acento tone-400 (brillante, se ve sobre fondo
+# oscuro) con texto tone-950 — el patron "boton brillante, texto oscuro"
+# de los dashboards dark 2026 (GitHub dark hace lo mismo).
+#
+# sem_*: colores SEMANTICOS de textos de estado (exito/error/aviso/neutro).
+# En claro van en 600 (oscuros sobre fondo claro); en oscuro en 400
+# (claros sobre fondo oscuro), como recomienda la guia de dark mode.
+def _tema_claro(acento, acento_h, acento_p, acento_cl, fondo):
+    return {
+        "fondo": fondo,           # blanco tintado del tono: fondo general
+        "sup":         "#FFFFFF",   # superficies: tablas, cuadros de texto
+        "borde":       "#CBD5E1",   # bordes, separadores, boton deshabilitado
+        "texto":       "#0F172A",   # texto principal (casi negro azulado)
+        "suave":       "#64748B",   # texto secundario / ayuda
+        "acento": acento, "acento_h": acento_h, "acento_p": acento_p,
+        "acento_cl": acento_cl,   # tinte claro del tono: hover suave / foco
+        "acento_tx":   "#FFFFFF",   # texto sobre el acento
+        "inactiva":    "#E2E8F0",   # pestana sin seleccionar (color normal)
+        "inactiva_tx": "#334155",   # texto de la pestana inactiva
+        "peligro":     "#DC2626",   # acciones que cortan algo (Detener)
+        "peligro_h":   "#B91C1C",
+        "des_h":       "#94A3B8",   # texto de boton deshabilitado
+        "sem_ok":      "#059669", "sem_err": "#DC2626",
+        "sem_aviso":   "#D97706", "sem_neutro": "#475569",
+    }
+
+
+def _tema_oscuro(acento, acento_h, acento_p, acento_cl, acento_tx):
+    return {
+        "fondo":       "#0F172A",   # canvas oscuro (slate-900, no negro puro)
+        "sup":         "#1E293B",   # superficies elevadas (slate-800)
+        "borde":       "#475569",   # bordes, separadores, boton deshabilitado
+        "texto":       "#E2E8F0",   # texto principal (blanco suave, no puro)
+        "suave":       "#94A3B8",   # texto secundario / ayuda
+        "acento": acento, "acento_h": acento_h, "acento_p": acento_p,
+        "acento_cl": acento_cl,   # tinte profundo del tono: hover suave
+        "acento_tx": acento_tx,  # texto OSCURO del tono sobre el acento
+        "inactiva":    "#334155",   # pestana sin seleccionar (color normal)
+        "inactiva_tx": "#CBD5E1",   # texto de la pestana inactiva
+        "peligro":     "#EF4444",   # Detener: rojo brillante sobre oscuro
+        "peligro_h":   "#DC2626",
+        "des_h":       "#64748B",   # texto de boton deshabilitado
+        "sem_ok":      "#34D399", "sem_err": "#F87171",
+        "sem_aviso":   "#FBBF24", "sem_neutro": "#94A3B8",
+    }
+
+
+TEMAS = {
+    "Teal claro":       _tema_claro("#0D9488", "#0F766E", "#115E59",
+                                     "#CCFBF1", "#F0FDFA"),
+    "Teal oscuro":      _tema_oscuro("#2DD4BF", "#5EEAD4", "#14B8A6",
+                                      "#134E4A", "#042F2E"),
+    "Índigo claro":     _tema_claro("#4F46E5", "#4338CA", "#3730A3",
+                                    "#E0E7FF", "#EEF2FF"),
+    "Índigo oscuro":    _tema_oscuro("#818CF8", "#A5B4FC", "#6366F1",
+                                     "#312E81", "#1E1B4B"),
+    "Azul claro":       _tema_claro("#2563EB", "#1D4ED8", "#1E40AF",
+                                     "#DBEAFE", "#F8FAFC"),
+    "Azul oscuro":      _tema_oscuro("#60A5FA", "#93C5FD", "#3B82F6",
+                                      "#1E3A8A", "#172554"),
+    "Esmeralda claro":  _tema_claro("#059669", "#047857", "#065F46",
+                                    "#D1FAE5", "#F0FDF4"),
+    "Esmeralda oscuro": _tema_oscuro("#34D399", "#6EE7B7", "#10B981",
+                                     "#064E3B", "#022C22"),
+}
+TEMA_DEFECTO = "Teal claro"
+
+# Tema ACTIVO: PALETA apunta al dict del tema en uso y _usar_tema() lo
+# re-asigna. Todos los colores de la UI se leen de aqui (cero hexes sueltos).
+PALETA = dict(TEMAS[TEMA_DEFECTO])
+
+
+def _usar_tema(nombre: str) -> dict:
+    """Fija el tema activo (module-level) sin tocar widgets todavia."""
+    global PALETA
+    PALETA = dict(TEMAS.get(nombre, TEMAS[TEMA_DEFECTO]))
+    return PALETA
+
+
+def _tema_guardado() -> str | None:
+    """Nombre del tema elegido la ultima vez (data/ui_prefs.json)."""
+    try:
+        dato = json.loads((BASE / "data" / "ui_prefs.json")
+                           .read_text(encoding="utf-8"))
+        return dato.get("tema")
+    except (OSError, ValueError):
+        return None
+
+
+def _aplicar_tema(root: tk.Tk) -> None:
+    """Pinta TODA la UI desde un solo lugar (colores arriba, en PALETA).
+
+    Se usa el tema "clam" porque es el unico que trae Tkinter que respeta
+    background/foreground en botones y pestanas: el tema nativo de Windows
+    ignora esos colores y por eso todos los controles quedaban gris claro
+    (se veian igual una pestana que un boton que un cuadro de texto).
+    """
+    p = PALETA
+    root.configure(bg=p["fondo"])
+
+    # Colores de los cuadros tk.Text y de las listas de los Combobox
+    # (esos widgets no son ttk y no leen el estilo del tema; los Text de
+    # los dialogos nacen DESPUES de cada cambio y leen estos defaults).
+    root.option_add("*TCombobox*Listbox.background", p["sup"])
+    root.option_add("*TCombobox*Listbox.foreground", p["texto"])
+    root.option_add("*TCombobox*Listbox.selectBackground", p["acento"])
+    root.option_add("*TCombobox*Listbox.selectForeground", p["acento_tx"])
+    root.option_add("*Text.background", p["sup"])
+    root.option_add("*Text.foreground", p["texto"])
+    root.option_add("*Text.insertBackground", p["texto"])
+    root.option_add("*Text.selectBackground", p["acento"])
+    root.option_add("*Text.selectForeground", p["acento_tx"])
+    root.option_add("*Listbox.background", p["sup"])
+    root.option_add("*Listbox.foreground", p["texto"])
+    root.option_add("*Listbox.selectBackground", p["acento"])
+    root.option_add("*Listbox.selectForeground", p["acento_tx"])
+
+    st = ttk.Style(root)
+    try:
+        st.theme_use("clam")
+    except tk.TclError:
+        pass
+
+    # --- base: fondo y texto de todos los widgets ttk
+    st.configure(".", background=p["fondo"], foreground=p["texto"],
+                 font=("Segoe UI", 9))
+    st.configure("TFrame", background=p["fondo"])
+    st.configure("TLabel", background=p["fondo"], foreground=p["texto"])
+    # Etiquetas con color SEMANTICO (no hex fijo): al ser estilos, se
+    # repintan solas en TODAS las ventanas cuando cambia el tema.
+    #   Suave     -> texto secundario/ayuda
+    #   SemOK     -> exito (credencial guardada, corrida OK...)
+    #   SemErr    -> error (validaciones, modelos IA, login)
+    #   SemAviso  -> advertencia (no bloquea)
+    #   SemNeutro -> estado neutro (sin corridas, preflight)
+    for nom, clave in (("Suave.TLabel", "suave"),
+                       ("SemOK.TLabel", "sem_ok"),
+                       ("SemErr.TLabel", "sem_err"),
+                       ("SemAviso.TLabel", "sem_aviso"),
+                       ("SemNeutro.TLabel", "sem_neutro")):
+        st.configure(nom, background=p["fondo"], foreground=p[clave])
+    st.configure("TLabelframe", background=p["fondo"], foreground=p["texto"],
+                 borderwidth=1, relief="groove", bordercolor=p["borde"])
+    st.configure("TLabelframe.Label", background=p["fondo"],
+                 foreground=p["texto"], font=("Segoe UI", 9, "bold"))
+    st.configure("TCheckbutton", background=p["fondo"], foreground=p["texto"])
+    st.map("TCheckbutton", background=[("active", p["fondo"])])
+
+    # --- 1) BOTONES: relleno solido de acento y texto blanco en negrita.
+    #        A simple vista se distinguen de una pestana, de un cuadro de
+    #        texto (blanco con borde) y de una etiqueta (sin relleno).
+    st.configure("TButton",
+                 background=p["acento"], foreground=p["acento_tx"],
+                 bordercolor=p["acento"], lightcolor=p["acento"],
+                 darkcolor=p["acento_p"],
+                 font=("Segoe UI", 9, "bold"), padding=(12, 5),
+                 focusthickness=2, focuscolor=p["acento_cl"])
+    st.map("TButton",
+           background=[("active", p["acento_h"]), ("pressed", p["acento_p"]),
+                       ("disabled", p["borde"])],
+           foreground=[("disabled", p["des_h"])],
+           lightcolor=[("pressed", p["acento_p"])],
+           darkcolor=[("pressed", p["acento_p"])],
+           bordercolor=[("pressed", p["acento_p"]), ("disabled", p["borde"])])
+    # variante de alerta (mismo formato, otro color): solo "Detener"
+    st.configure("Danger.TButton",
+                 background=p["peligro"], foreground="#FFFFFF",
+                 bordercolor=p["peligro"], lightcolor=p["peligro"],
+                 darkcolor=p["peligro_h"],
+                 font=("Segoe UI", 9, "bold"), padding=(12, 5),
+                 focusthickness=2, focuscolor="#FECACA")
+    st.map("Danger.TButton",
+           background=[("active", p["peligro_h"]), ("pressed", "#991B1B"),
+                       ("disabled", p["borde"])],
+           foreground=[("disabled", p["des_h"])],
+           lightcolor=[("pressed", "#991B1B")],
+           darkcolor=[("pressed", "#991B1B")],
+           bordercolor=[("pressed", "#991B1B"), ("disabled", p["borde"])])
+
+    # --- 2) PESTANAS: la activa en acento, las demas en su color normal.
+    st.configure("TNotebook", background=p["fondo"], borderwidth=0,
+                 tabmargins=(6, 6, 0, 0))
+    st.configure("TNotebook.Tab",
+                 background=p["inactiva"], foreground=p["inactiva_tx"],
+                 font=("Segoe UI", 9, "bold"), padding=(16, 7),
+                 borderwidth=0, relief="flat")
+    # El orden importa: lo ultimo pisa lo anterior, asi "selected" (pestana
+    # activa) gana aunque el mouse este encima.
+    st.map("TNotebook.Tab",
+           background=[("active", p["acento_cl"]), ("selected", p["acento"])],
+           foreground=[("active", p["acento_h"]), ("selected", p["acento_tx"])])
+
+    # --- cuadros de texto y combos: borde visible, relleno blanco
+    st.configure("TEntry",
+                 background=p["sup"], fieldbackground=p["sup"],
+                 foreground=p["texto"], insertcolor=p["texto"],
+                 borderwidth=1, padding=4)
+    st.map("TEntry",
+           bordercolor=[("focus", p["acento"])],
+           lightcolor=[("focus", p["acento"])],
+           fieldbackground=[("disabled", p["inactiva"])],
+           foreground=[("disabled", p["suave"])])
+    st.configure("TCombobox",
+                 background=p["sup"], fieldbackground=p["sup"],
+                 foreground=p["texto"], arrowcolor=p["suave"],
+                 borderwidth=1, padding=4)
+    st.map("TCombobox",
+           fieldbackground=[("readonly", p["sup"]), ("disabled", p["inactiva"])],
+           foreground=[("readonly", p["texto"]), ("disabled", p["suave"])],
+           bordercolor=[("focus", p["acento"])],
+           lightcolor=[("focus", p["acento"])])
+
+    # --- tablas: filas blancas y seleccion en acento (mismo lenguaje)
+    st.configure("Treeview",
+                 background=p["sup"], fieldbackground=p["sup"],
+                 foreground=p["texto"], rowheight=25,
+                 borderwidth=0, relief="flat")
+    st.map("Treeview",
+           background=[("selected", p["acento"])],
+           foreground=[("selected", p["acento_tx"])])
+    st.configure("Treeview.Heading",
+                 background=p["inactiva"], foreground=p["texto"],
+                 font=("Segoe UI", 9, "bold"), relief="flat", padding=(6, 6))
+    st.map("Treeview.Heading", background=[("active", p["borde"])])
+
+    # --- barras de desplazamiento, progreso y separadores
+    for nom in ("Vertical.TScrollbar", "Horizontal.TScrollbar"):
+        st.configure(nom, background=p["borde"], troughcolor=p["fondo"],
+                     arrowcolor=p["suave"], bordercolor=p["fondo"],
+                     lightcolor=p["borde"], darkcolor=p["borde"])
+        st.map(nom, background=[("active", p["suave"]), ("pressed", p["suave"])])
+    st.configure("TProgressbar", background=p["acento"], troughcolor=p["inactiva"],
+                 bordercolor=p["fondo"], lightcolor=p["acento"],
+                 darkcolor=p["acento"], thickness=12)
+    st.configure("TSeparator", background=p["borde"])
 
 # (id, encabezado, ancho, alineacion)
 COLS_RANK = (
@@ -293,6 +549,69 @@ def _perfil_vacio(datos: dict) -> bool:
     return not (p.titulos or p.skills or p.temas)
 
 
+def _perfil_campos_faltantes(datos: dict) -> list:
+    """Datos importantes vacios o incompletos, en texto para el usuario."""
+    try:
+        p = CandidateProfile(datos)
+    except Exception:
+        return ["No se pudo interpretar el perfil."]
+
+    faltan = []
+    if not (p.nombre or "").strip():
+        faltan.append("Nombre del candidato.")
+
+    contacto = p.contacto or {}
+    if (not (contacto.get("email") or "").strip()
+            and not (contacto.get("telefono") or "").strip()):
+        faltan.append("Email o teléfono de contacto.")
+
+    if not (p.resumen_profesional or "").strip():
+        faltan.append("Resumen profesional.")
+
+    exp = p.experiencia or []
+    if not exp:
+        faltan.append("Experiencia laboral (no hay ninguna cargada).")
+    else:
+        sin_inicio = sum(1 for e in exp
+                         if not str(e.get("inicio") or "").strip())
+        sin_puesto = sum(1 for e in exp
+                         if not (e.get("puesto") or "").strip())
+        sin_empresa = sum(1 for e in exp
+                          if not (e.get("empresa") or "").strip())
+        if sin_inicio:
+            faltan.append(f"Experiencia sin fecha de inicio "
+                          f"({sin_inicio}/{len(exp)}).")
+        if sin_puesto:
+            faltan.append(f"Experiencia sin puesto ({sin_puesto}/{len(exp)}).")
+        if sin_empresa:
+            faltan.append(f"Experiencia sin empresa ({sin_empresa}/{len(exp)}).")
+
+    edu = p.educacion or []
+    if not edu:
+        faltan.append("Educación (no hay ninguna cargada).")
+    else:
+        if not (p.educacion_nivel or "").strip():
+            faltan.append("Educación sin título/nivel detectable.")
+        sin_inst = sum(1 for e in edu
+                       if not (e.get("institucion") or "").strip())
+        if sin_inst:
+            faltan.append(f"Educación sin institución ({sin_inst}/{len(edu)}).")
+        sin_inicio_edu = sum(1 for e in edu
+                             if not str(e.get("inicio") or "").strip())
+        if sin_inicio_edu:
+            faltan.append(f"Educación sin fecha de inicio "
+                          f"({sin_inicio_edu}/{len(edu)}).")
+
+    if not (p.habilidades or []):
+        faltan.append("Habilidades.")
+    if not (p.titulos or []):
+        faltan.append("Puestos objetivo.")
+    if not (p.busqueda.get("ubicaciones") or []):
+        faltan.append("Ubicaciones de búsqueda.")
+
+    return faltan
+
+
 def _resumen_cambios(viejo: dict, nuevo: dict):
     """Diferencias legibles antes de guardar, sobre el perfil ya derivado."""
     try:
@@ -398,6 +717,168 @@ def _hilo_verificar(empresa: str, url: str, cola: queue.Queue):
         cola.put(("err", exc))
 
 
+def _nombre_desde_cv(texto: str) -> str:
+    for linea in texto.splitlines():
+        limpio = re.sub(r"\s+", " ", linea).strip()
+        if limpio:
+            return limpio[:100]
+    return "Candidato"
+
+
+def _perfil_desde_cv_local(texto: str) -> dict:
+    """Extraccion sin embeddings (skills, contacto, ATS) para cuando el modelo
+    semantico no esta disponible (p.ej. torch bloqueado por una politica de
+    Control de aplicaciones en Windows)."""
+    from core.cv_analysis import (SKILL_LEXICON, deacc, detect_certifications,
+                                  detect_contact, detect_education_level,
+                                  detect_experience_years,
+                                  detect_languages_struct, detect_seniority)
+
+    low = deacc(re.sub(r"\s+", " ", texto)).strip()
+    skills = [
+        s for s in SKILL_LEXICON
+        if re.search(r"(?<![\w-])" + re.escape(deacc(s)) + r"(?![\w-])", low)
+    ]
+    idiomas = detect_languages_struct(texto)
+    for d in idiomas:
+        etiqueta = (d["idioma"] if d["nivel"] == "no especificado"
+                    else f"{d['idioma']} {d['nivel']}")
+        if not any(etiqueta.lower() in s.lower() for s in skills):
+            skills.append(etiqueta)
+    return {
+        "skills": skills,
+        "certificaciones": detect_certifications(texto),
+        "idiomas": idiomas,
+        "contacto": detect_contact(texto),
+        "experiencia_anios": detect_experience_years(texto),
+        "educacion_nivel": detect_education_level(texto),
+        "seniority": detect_seniority(texto),
+    }
+
+
+def _perfil_ia_desde_cv(texto: str, merged: dict, modelo: str,
+                        vacantes=None, proveedor: str = ""):
+    """Analisis OPCIONAL con el modelo de la API (IA externa, consume cuota).
+
+    Devuelve (perfil_fusionado, evaluacion, aviso). Si la IA falla, conserva
+    el resultado local y explica el motivo en `aviso`.
+    """
+    try:
+        from datetime import datetime
+
+        from core.ia_api import IAClient, cv_a_markdown, perfil_hash
+
+        cfg = {}
+        if proveedor:
+            cfg["proveedor"] = proveedor.strip().lower()
+        if modelo:
+            cfg["modelo"] = modelo.strip()
+        client = IAClient(cfg or None)
+        if not client.disponible:
+            return merged, {}, client.motivo_no_disponible()
+
+        perfil_obj = CandidateProfile(merged)
+        puesto = (perfil_obj.titulos or [""])[0]
+        evaluacion_raw = client.evaluar_cv(texto, perfil_obj, vacantes, puesto)
+        propuesta = evaluacion_raw.get("perfil")
+        if propuesta:
+            merged = merge_profile(merged, propuesta, replace=True)
+
+        meta = {
+            "ts": datetime.now().isoformat(timespec="seconds"),
+            "proveedor": client.proveedor,
+            "modelo": client.modelo,
+            "cv_path": "",
+            "cv_hash": client.hash_cv(texto, perfil_hash(perfil_obj), puesto),
+            "perfil_hash": perfil_hash(perfil_obj),
+            "puesto": puesto,
+            "tokens_in": client.tokens_in,
+            "tokens_out": client.tokens_out,
+            "cache": False,
+        }
+        CV_IA_JSON.parent.mkdir(parents=True, exist_ok=True)
+        CV_IA_JSON.write_text(
+            json.dumps({"meta": meta, "resultado": evaluacion_raw},
+                       ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        CV_IA_MD.write_text(cv_a_markdown(evaluacion_raw, meta),
+                            encoding="utf-8")
+        return merged, evaluacion_raw.get("evaluacion") or {}, ""
+    except Exception as exc:
+        log.exception("Importar CV: fallo el analisis con IA")
+        return merged, {}, f"La IA falló ({exc}). Se cargó la extracción local."
+
+
+def _hilo_importar_cv(ruta: str, actual: dict, cola: queue.Queue,
+                      usar_ia: bool = False, modelo: str = "",
+                      vacantes=None, proveedor: str = ""):
+    """Extrae un CV local (PDF/DOCX/TXT/MD) y lo fusiona como BORRADOR.
+
+    Va en segundo plano porque CVAnalyzer carga el modelo de embeddings y la
+    IA externa puede tardar. Nunca toca widgets: encola el perfil propuesto.
+    """
+    try:
+        cola.put(("cv_status", "Extrayendo texto del CV..."))
+        texto = extract_text(ruta)
+        if len(texto.strip()) < 40:
+            raise ValueError("el CV no tiene texto legible "
+                             "(¿PDF escaneado sin OCR?)")
+        try:
+            propuesta = CVAnalyzer(engine=motor()).analyze(texto)
+        except Exception as exc:
+            log.warning("Importar CV: sin modelo semantico (%s); uso "
+                        "extraccion local (skills/contacto/ATS).", exc)
+            propuesta = _perfil_desde_cv_local(texto)
+        novedad = {
+            "cv": {
+                "nombre": _nombre_desde_cv(texto),
+                "contacto": propuesta.get("contacto") or {},
+                "habilidades": propuesta.get("skills") or [],
+                "certificaciones": propuesta.get("certificaciones") or [],
+                "idiomas": propuesta.get("idiomas") or [],
+            },
+        }
+        merged = merge_profile(actual, novedad, replace=True)
+
+        # Años/educación/seniority detectados no llegan como secciones
+        # estructuradas: se guardan como overrides para que el ATS los use ya.
+        ov = merged.setdefault("busqueda", {}).setdefault("overrides", {})
+        ov_actual = (actual.get("busqueda") or {}).get("overrides") or {}
+        for clave in ("experiencia_anios", "educacion_nivel", "seniority"):
+            if propuesta.get(clave) and clave not in ov_actual:
+                ov[clave] = propuesta[clave]
+
+        # Copia local en data/usuario/cv/ para que el CV viva con los datos
+        # del usuario y no quede suelto en otra carpeta.
+        origen = Path(ruta)
+        try:
+            if origen.resolve().parent != CV_DIR.resolve():
+                CV_DIR.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(origen, CV_DIR / origen.name)
+        except OSError:
+            pass
+
+        evaluacion, aviso = {}, ""
+        if usar_ia:
+            cola.put(("cv_status",
+                      "CV extraído. Consultando el modelo de la API "
+                      "(puede tardar 1-2 minutos)..."))
+            merged, evaluacion, aviso = _perfil_ia_desde_cv(
+                texto, merged, modelo, vacantes, proveedor=proveedor)
+            if aviso:
+                cola.put(("cv_status",
+                          "La IA no completó el análisis; usando la "
+                          "extracción local..."))
+            else:
+                cola.put(("cv_status",
+                          "Análisis con IA completado. Preparando borrador..."))
+
+        cola.put(("cv", (origen.name, merged, evaluacion, aviso)))
+    except Exception as exc:
+        log.exception("Importar CV fallo")
+        cola.put(("cv_err", exc))
+
+
 # ------------------------------------------------------------ componente
 class Tabla(ttk.Frame):
     """Treeview con scrollbars y encabezados ordenables. Reutilizable por pestana."""
@@ -478,10 +959,60 @@ class Tabla(ttk.Frame):
             self._al_abrir(f)
 
 
+class MarcoScroll(ttk.Frame):
+    """Frame con canvas + scrollbar vertical.
+
+    Las pestañas con mucho contenido (Perfil > Mi CV) no caben en pantallas
+    de 1080p: sin esto, los campos de abajo (botones, certificaciones,
+    idiomas) quedaban fuera de la ventana y eran inalcanzables.
+    """
+
+    def __init__(self, master, canvases_tema=None):
+        super().__init__(master)
+        fondo = (ttk.Style(self).lookup("TFrame", "background")
+                 or PALETA["fondo"])
+        self.canvas = tk.Canvas(self, highlightthickness=0, borderwidth=0,
+                                background=fondo)
+        self.sb = ttk.Scrollbar(self, orient="vertical",
+                                command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.sb.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.sb.pack(side="right", fill="y")
+
+        self.interior = ttk.Frame(self.canvas)
+        self._win = self.canvas.create_window((0, 0), window=self.interior,
+                                              anchor="nw")
+        self.interior.bind("<Configure>", self._interior_cambio)
+        self.canvas.bind("<Configure>", self._canvas_cambio)
+        self.canvas.bind("<MouseWheel>", self._rueda)
+        self.interior.bind("<MouseWheel>", self._rueda)
+        if canvases_tema is not None:
+            canvases_tema.append(self.canvas)
+
+    def _interior_cambio(self, _e=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _canvas_cambio(self, e):
+        # el contenido acompaña el ancho disponible (sin scroll horizontal)
+        self.canvas.itemconfigure(self._win, width=e.width)
+
+    def _rueda(self, e):
+        self.canvas.yview_scroll(int(-e.delta / 120), "units")
+
+
 # ------------------------------------------------------------------ app
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
+        # Tema: el guardado en data/ui_prefs.json o el default. Se fija
+        # ANTES de crear widgets para que todos nazcan con sus colores.
+        self._texts_tema = []       # tk.Text vivos: se repintan al cambiar
+        self._canvas_tema = []      # tk.Canvas de scroll: idem
+        self._tema_nombre = _tema_guardado() or TEMA_DEFECTO
+        if self._tema_nombre not in TEMAS:
+            self._tema_nombre = TEMA_DEFECTO
+        _usar_tema(self._tema_nombre)
+        _aplicar_tema(self)
         self.title("JobPulse CR — Ofertas")
         self.geometry("1440x880")
         self.minsize(1000, 600)
@@ -517,8 +1048,18 @@ class App(tk.Tk):
 
         pie = ttk.Frame(self, padding=(10, 4))
         ttk.Label(pie, textvariable=self._conteo, anchor="w").pack(side="left")
-        ttk.Label(pie, textvariable=self._frescura, foreground="#666",
+        ttk.Label(pie, textvariable=self._frescura, style="Suave.TLabel",
                   anchor="e").pack(side="right")
+        # Selector de tema: readonly, a la izquierda de la frescura.
+        ttk.Label(pie, text="Tema:").pack(side="right", padx=(6, 0))
+        self._tema_var = tk.StringVar(value=self._tema_nombre)
+        cb_tema = ttk.Combobox(pie, textvariable=self._tema_var,
+                               state="readonly",
+                               width=max(len(n) for n in TEMAS),
+                               values=list(TEMAS))
+        cb_tema.pack(side="right", padx=(0, 10))
+        cb_tema.bind("<<ComboboxSelected>>",
+                     lambda *_: self._tema_cambiar(self._tema_var.get()))
 
         # El orden de pack fija el layout: pie y detalle abajo, notebook toma el resto.
         pie.pack(side="bottom", fill="x")
@@ -528,7 +1069,7 @@ class App(tk.Tk):
         self._recargar()
         for var in (self._busca, self._grupo_et, self._dias):
             var.trace_add("write", lambda *_: self._pintar_rank())
-        self.after(120, self._drenar)
+        self._after_drenar_id = self.after(120, self._drenar)
 
         # Observador de corridas: el hilo lee estado+logs cada 2 s y el hilo
         # de Tkinter solo pinta lo que llega por la cola (leer_estado dispara
@@ -536,9 +1077,54 @@ class App(tk.Tk):
         threading.Thread(target=_hilo_corrida,
                          args=(self._cola_corrida, self._corrida_stop),
                          daemon=True).start()
-        self.after(2000, self._corrida_refrescar)
+        self._after_corrida_id = self.after(2000, self._corrida_refrescar)
         self._corrida_pintar(leer_estado(), log_tail(120))
         self.protocol("WM_DELETE_WINDOW", self._al_cerrar)
+
+    def destroy(self):
+        """Cancela los timers periodicos ANTES de matar la ventana: si un
+        `after` disparara tras el destroy, Tcl imprimira "invalid command
+        name ..." en consola (feo cuando la UI corre con `python ui.py`)."""
+        for _id in (getattr(self, "_after_drenar_id", None),
+                    getattr(self, "_after_corrida_id", None)):
+            if _id is not None:
+                try:
+                    self.after_cancel(_id)
+                except tk.TclError:
+                    pass
+        super().destroy()
+
+    def _tema_cambiar(self, nombre):
+        """Cambia el tema EN VIVO: re-aplica estilos y defaults (todos los
+        widgets ttk se repintan solos), repinta los tk.Text vivos y guarda
+        la eleccion en data/ui_prefs.json para la proxima apertura."""
+        _usar_tema(nombre)
+        self._tema_nombre = nombre if nombre in TEMAS else TEMA_DEFECTO
+        if hasattr(self, "_tema_var"):
+            self._tema_var.set(self._tema_nombre)
+        _aplicar_tema(self)
+        p = PALETA
+        for t in self._texts_tema:
+            try:
+                t.configure(background=p["sup"], foreground=p["texto"],
+                            insertbackground=p["texto"],
+                            selectbackground=p["acento"],
+                            selectforeground=p["acento_tx"])
+            except tk.TclError:
+                pass                      # un dialogo ya cerrado
+        for c in self._canvas_tema:
+            try:
+                c.configure(background=p["fondo"])
+            except tk.TclError:
+                pass
+        if hasattr(self, "_detalle"):
+            self._detalle.tag_configure("rot", foreground=p["suave"])
+        try:
+            (BASE / "data" / "ui_prefs.json").write_text(
+                json.dumps({"tema": self._tema_nombre}, ensure_ascii=False,
+                           indent=1), encoding="utf-8")
+        except OSError:
+            pass
 
     # ------------------------------------------------------------- pestanas
     def _pestana_rank(self):
@@ -581,7 +1167,7 @@ class App(tk.Tk):
                                                                padx=(4, 14))
         self._btn_buscar = ttk.Button(barra, text="Buscar", command=self._buscar_libre)
         self._btn_buscar.pack(side="left")
-        ttk.Label(barra, foreground="#666",
+        ttk.Label(barra, style="Suave.TLabel",
                   text="Busca sobre TODAS las ofertas cargadas (sin filtro de días)."
                   ).pack(side="left", padx=(14, 0))
 
@@ -593,14 +1179,30 @@ class App(tk.Tk):
 
     def _detalle_construir(self):
         """Un solo panel de detalle, compartido por todas las pestanas."""
+        self._detalle_link = ""
         self._det_marco = ttk.LabelFrame(self, text="Detalle", padding=8)
-        fondo = ttk.Style(self).lookup("Treeview", "background") or "#ffffff"
+
+        # Fila superior: a la derecha, el boton para copiar la URL del puesto
+        # (la url tambien se ve abajo en el texto, pero asi se copia de un
+        # clic sin seleccionar nada).
+        enc = ttk.Frame(self._det_marco)
+        enc.pack(fill="x", pady=(0, 6))
+        ttk.Label(enc, text="Oferta seleccionada").pack(side="left")
+        self._btn_copiar_url = ttk.Button(
+            enc, text="Copiar URL del puesto", command=self._copiar_url)
+        self._btn_copiar_url.pack(side="right")
+        self._btn_copiar_url.configure(state="disabled")
+
+        fondo = ttk.Style(self).lookup("Treeview", "background") or PALETA["sup"]
         self._detalle = tk.Text(self._det_marco, height=8, wrap="word",
                                 state="disabled", relief="flat", background=fondo,
+                                foreground=PALETA["texto"],
+                                insertbackground=PALETA["texto"],
                                 highlightthickness=0)
         self._detalle.pack(fill="both", expand=True)
+        self._texts_tema.append(self._detalle)   # repintar al cambiar tema
         self._detalle.tag_configure("tit", font=("Segoe UI", 10, "bold"))
-        self._detalle.tag_configure("rot", foreground="#666",
+        self._detalle.tag_configure("rot", foreground=PALETA["suave"],
                                     font=("Segoe UI", 9, "bold"))
 
     # ------------------------------------------------------------ acciones
@@ -689,7 +1291,7 @@ class App(tk.Tk):
             return
         perfil = CandidateProfile.load()
         if perfil is None:
-            self._conteo.set("No hay perfil válido (data/profile.json). "
+            self._conteo.set("No hay perfil válido (data/usuario/profile.json). "
                              "Créalo antes de calcular el ranking.")
             return
 
@@ -787,14 +1389,30 @@ class App(tk.Tk):
                     self._libre_listo(*dato)
                 elif tipo == "sesion":
                     self._sesion_verificada(*dato)
+                elif tipo == "cv_status":
+                    self._perfil_estado.set(dato)
+                    self._cv_progreso_estado(dato)
+                elif tipo == "cv":
+                    self._importando_cv = False
+                    self._cv_progreso_cerrar()
+                    self._perfil_cv_importado(*dato)
+                elif tipo == "cv_err":
+                    self._importando_cv = False
+                    self._cv_progreso_cerrar()
+                    self._perfil_estado.set(f"No se pudo importar el CV: {dato}")
+                    messagebox.showerror("Importar CV", f"No se pudo importar: {dato}")
                 else:
                     self._conteo.set(f"Error: {dato}")
         except queue.Empty:
             pass
-        self.after(120, self._drenar)
+        self._cv_progreso_estado()
+        self._after_drenar_id = self.after(120, self._drenar)
 
     def _ver_detalle(self, f):
         t = self._detalle
+        self._detalle_link = (f or {}).get("link") or ""
+        self._btn_copiar_url.configure(
+            state="normal" if self._detalle_link else "disabled")
         t.configure(state="normal")
         t.delete("1.0", "end")
         if f:
@@ -812,7 +1430,12 @@ class App(tk.Tk):
             if f.get("ia_razon"):
                 t.insert("end", f"IA: {f['ia_razon']}\n", "rot")
             t.insert("end", "\n")
-            t.insert("end", (f.get("link") or "") + "\n\n")
+            if self._detalle_link:
+                t.insert("end", "Enlace\n", "rot")
+                t.insert("end", self._detalle_link + "\n")
+                t.insert("end", "(doble clic en la fila de la tabla para "
+                                "abrirlo, o el botón de arriba para copiarlo)"
+                                "\n\n")
             if f.get("faltantes"):
                 t.insert("end", "Keywords ATS que te faltan\n", "rot")
                 t.insert("end", ", ".join(f["faltantes"][:25]) + "\n\n")
@@ -827,6 +1450,19 @@ class App(tk.Tk):
         if f and f.get("link"):
             webbrowser.open(f["link"])
 
+    def _copiar_url(self):
+        """Copia la URL del puesto mostrado en el panel de Detalle."""
+        if not self._detalle_link:
+            self._conteo.set("La oferta seleccionada no tiene URL.")
+            return
+        self.clipboard_clear()
+        self.clipboard_append(self._detalle_link)
+        self.update_idletasks()   # la URL queda en el portapapeles al instante
+        self._conteo.set(f"URL copiada al portapapeles: {self._detalle_link}")
+        self._btn_copiar_url.configure(text="✓ URL copiada")
+        self.after(1800, lambda: self._btn_copiar_url.configure(
+            text="Copiar URL del puesto"))
+
     # ------------------------------------------------------------- perfil
     # ------------------------------------------------------------- perfil
     def _pestana_perfil(self):
@@ -838,8 +1474,14 @@ class App(tk.Tk):
                    command=self._perfil_guardar).pack(side="left")
         ttk.Button(barra, text="Descartar cambios",
                    command=self._perfil_descartar).pack(side="left", padx=6)
+        self._v_ia_cv = tk.BooleanVar(value=False)
+        ttk.Button(barra, text="Importar CV (PDF/DOCX/TXT/MD)",
+                   command=self._perfil_importar_cv).pack(side="left",
+                                                          padx=(18, 0))
+        ttk.Checkbutton(barra, text="Analizar con IA (API)",
+                        variable=self._v_ia_cv).pack(side="left", padx=(8, 0))
         ttk.Label(barra, textvariable=self._perfil_estado,
-                  foreground="#666").pack(side="left", padx=(12, 0))
+                  style="Suave.TLabel").pack(side="left", padx=(12, 0))
 
         self._perfil_nb = ttk.Notebook(tab)
         self._perfil_nb.pack(fill="both", expand=True, padx=10, pady=(0, 8))
@@ -852,10 +1494,13 @@ class App(tk.Tk):
 
     # -------------------------------------------------- pestana Mi CV
     def _perfil_tab_cv(self):
-        tab = ttk.Frame(self._perfil_nb, padding=8)
+        tab = ttk.Frame(self._perfil_nb)
         self._perfil_nb.add(tab, text="  Mi CV (Harvard/ATS)  ")
+        sc = MarcoScroll(tab, self._canvas_tema)
+        sc.pack(fill="both", expand=True)
+        sc.interior.configure(padding=8)
 
-        cont = ttk.LabelFrame(tab, text="Contacto", padding=8)
+        cont = ttk.LabelFrame(sc.interior, text="Contacto", padding=8)
         cont.pack(fill="x", pady=(0, 8))
         self._e_contacto = {}
         campos = (
@@ -875,7 +1520,7 @@ class App(tk.Tk):
         cont.columnconfigure(1, weight=1)
         cont.columnconfigure(3, weight=1)
 
-        cuerpo = ttk.Frame(tab)
+        cuerpo = ttk.Frame(sc.interior)
         cuerpo.pack(fill="both", expand=True)
         izq = ttk.Frame(cuerpo)
         izq.pack(side="left", fill="both", expand=True, padx=(0, 8))
@@ -919,15 +1564,18 @@ class App(tk.Tk):
         self._t_idiomas = self._caja_texto(
             der, "Idiomas — idioma | nivel", 3, expand=False)
 
-        ttk.Button(der, text="Cargar propuesta IA (data/cv_ia.json)",
+        ttk.Button(der, text="Cargar propuesta IA (data/usuario/cv_ia.json)",
                    command=self._perfil_cargar_ia).pack(fill="x", pady=(4, 0))
         ttk.Button(der, text="Vista previa del CV Harvard/ATS",
                    command=self._perfil_preview).pack(fill="x", pady=(4, 0))
-        ttk.Label(der, foreground="#666", wraplength=380, justify="left",
-                  text="La propuesta IA se carga como borrador para revisar; "
-                       "no se guarda hasta que aprietes Guardar perfil. La "
-                       "vista previa usa el mismo formato unicolumna que leen "
-                       "los ATS.").pack(anchor="w", pady=(4, 0))
+        ttk.Label(der, style="Suave.TLabel", wraplength=380, justify="left",
+                  text="Importar CV está arriba: lee PDF, DOCX, TXT o MD y "
+                       "precarga contacto, habilidades, certificaciones e "
+                       "idiomas como borrador. Con 'Analizar con IA (API)' "
+                       "activo también consulta el modelo elegido en Corrida: "
+                       "envía el CV al proveedor y consume cuota (si falla, "
+                       "queda la extracción local). Nada se guarda hasta que "
+                       "aprietes Guardar perfil.").pack(anchor="w", pady=(4, 0))
 
         self._edu_items = []
         self._exp_items = []
@@ -938,7 +1586,7 @@ class App(tk.Tk):
         tab = ttk.Frame(self._perfil_nb, padding=8)
         self._perfil_nb.add(tab, text="  Búsqueda (interno)  ")
 
-        ttk.Label(tab, justify="left", wraplength=950, foreground="#444",
+        ttk.Label(tab, justify="left", wraplength=950, style="Suave.TLabel",
                   text="Esto es lo que JobPulse usa para buscar y puntuar. "
                        "Las habilidades, los años, la educación y el seniority "
                        "se calculan desde tu CV y se actualizan solos. Si "
@@ -954,13 +1602,13 @@ class App(tk.Tk):
 
         self._t_titulos = self._caja_texto(
             izq, "Puestos objetivo (uno por línea)", 6, expand=False)
-        self._l_titulos_auto = ttk.Label(izq, foreground="#666", wraplength=400,
+        self._l_titulos_auto = ttk.Label(izq, style="Suave.TLabel", wraplength=400,
                                          justify="left", text="")
         self._l_titulos_auto.pack(anchor="w", pady=(0, 6))
 
         self._t_ubicaciones = self._caja_texto(
             izq, "Ubicaciones (una por línea)", 3, expand=False)
-        self._l_ubicaciones_auto = ttk.Label(izq, foreground="#666",
+        self._l_ubicaciones_auto = ttk.Label(izq, style="Suave.TLabel",
                                              wraplength=400, justify="left",
                                              text="")
         self._l_ubicaciones_auto.pack(anchor="w", pady=(0, 6))
@@ -968,11 +1616,11 @@ class App(tk.Tk):
         self._t_temas = self._caja_texto(
             izq, "Temas manuales — puesto | puesto (EN) | ubicación "
                  "(vacío = automático)", 5, expand=False)
-        self._l_temas_auto = ttk.Label(izq, foreground="#666", wraplength=400,
+        self._l_temas_auto = ttk.Label(izq, style="Suave.TLabel", wraplength=400,
                                        justify="left", text="")
         self._l_temas_auto.pack(anchor="w")
 
-        self._l_skills_auto = ttk.Label(der, foreground="#444", wraplength=400,
+        self._l_skills_auto = ttk.Label(der, style="Suave.TLabel", wraplength=400,
                                         justify="left", text="")
         self._l_skills_auto.pack(anchor="w", pady=(0, 4))
         self._t_skills_extra = self._caja_texto(
@@ -987,17 +1635,17 @@ class App(tk.Tk):
                                                        sticky="w", pady=2)
         self._e_ov_exp = ttk.Entry(ov, width=10)
         self._e_ov_exp.grid(row=0, column=1, sticky="w", pady=2)
-        self._l_auto_exp = ttk.Label(ov, foreground="#666", text="")
+        self._l_auto_exp = ttk.Label(ov, style="Suave.TLabel", text="")
         self._l_auto_exp.grid(row=0, column=2, sticky="w", padx=(8, 0))
         ttk.Label(ov, text="Educación:").grid(row=1, column=0, sticky="w", pady=2)
         self._e_ov_edu = ttk.Entry(ov, width=18)
         self._e_ov_edu.grid(row=1, column=1, sticky="w", pady=2)
-        self._l_auto_edu = ttk.Label(ov, foreground="#666", text="")
+        self._l_auto_edu = ttk.Label(ov, style="Suave.TLabel", text="")
         self._l_auto_edu.grid(row=1, column=2, sticky="w", padx=(8, 0))
         ttk.Label(ov, text="Seniority:").grid(row=2, column=0, sticky="w", pady=2)
         self._e_ov_sen = ttk.Entry(ov, width=14)
         self._e_ov_sen.grid(row=2, column=1, sticky="w", pady=2)
-        self._l_auto_sen = ttk.Label(ov, foreground="#666", text="")
+        self._l_auto_sen = ttk.Label(ov, style="Suave.TLabel", text="")
         self._l_auto_sen.grid(row=2, column=2, sticky="w", padx=(8, 0))
 
         pes = ttk.LabelFrame(der, text="Pesos de cada sección", padding=8)
@@ -1011,7 +1659,7 @@ class App(tk.Tk):
             ttk.Label(pes, text=et + ":").grid(row=i, column=0, sticky="w", pady=2)
             ttk.Spinbox(pes, from_=0.0, to=2.0, increment=0.05, width=6,
                         textvariable=v).grid(row=i, column=1, sticky="w", pady=2)
-        self._l_pats = ttk.Label(pes, foreground="#666", wraplength=380,
+        self._l_pats = ttk.Label(pes, style="Suave.TLabel", wraplength=380,
                                  justify="left", text="Score ATS: —")
         self._l_pats.grid(row=3, column=0, columnspan=2, sticky="w", pady=(6, 0))
 
@@ -1019,7 +1667,7 @@ class App(tk.Tk):
     def _perfil_tab_backups(self):
         tab = ttk.Frame(self._perfil_nb, padding=8)
         self._perfil_nb.add(tab, text="  Backups  ")
-        ttk.Label(tab, foreground="#666", wraplength=900, justify="left",
+        ttk.Label(tab, style="Suave.TLabel", wraplength=900, justify="left",
                   text="Cada guardado hace backup del perfil anterior. Si algo "
                        "sale mal, restaurá una versión desde acá.").pack(anchor="w")
         self._tree_bk = ttk.Treeview(tab, columns=("archivo", "fecha"),
@@ -1030,9 +1678,16 @@ class App(tk.Tk):
         self._tree_bk.column("archivo", width=520, anchor="w")
         self._tree_bk.column("fecha", width=180, anchor="center")
         self._tree_bk.pack(side="left", fill="both", expand=True, pady=(8, 0))
-        ttk.Button(tab, text="Restaurar seleccionado",
-                   command=self._perfil_restaurar).pack(side="left", padx=(10, 0),
-                                                        anchor="n", pady=(8, 0))
+        acciones = ttk.Frame(tab)
+        acciones.pack(side="left", fill="y", padx=(10, 0), pady=(8, 0))
+        ttk.Button(acciones, text="Restaurar seleccionado",
+                   command=self._perfil_restaurar).pack(fill="x")
+        ttk.Button(acciones, text="Eliminar seleccionado",
+                   command=self._perfil_eliminar_backup).pack(
+                       fill="x", pady=(8, 0))
+        ttk.Button(acciones, text="Eliminar todos los backups",
+                   command=self._perfil_eliminar_backups).pack(
+                       fill="x", pady=(8, 0))
 
     def _caja_texto(self, parent, titulo, alto, expand=False):
         """LabelFrame con un Text multilinea + scrollbar (lista editable)."""
@@ -1040,6 +1695,7 @@ class App(tk.Tk):
         marco.pack(fill="both" if expand else "x", expand=expand, pady=(0, 8))
         t = tk.Text(marco, height=alto, wrap="word", undo=True,
                     font=("Segoe UI", 10))
+        self._texts_tema.append(t)     # repintar al cambiar tema
         sb = ttk.Scrollbar(marco, orient="vertical", command=t.yview)
         t.configure(yscrollcommand=sb.set)
         t.pack(side="left", fill="both", expand=True)
@@ -1437,6 +2093,52 @@ class App(tk.Tk):
 
         return normalizar_perfil(nuevo)
 
+    def _advertir_perfil_incompleto(self, faltantes: list) -> bool:
+        """Ventana de advertencia; True si el usuario decide guardar igual."""
+        win = tk.Toplevel(self)
+        win.title("Perfil incompleto")
+        win.transient(self)
+        win.resizable(False, False)
+        marco = ttk.Frame(win, padding=16)
+        marco.pack(fill="both", expand=True)
+        ttk.Label(marco, text="Faltan datos importantes",
+                  font=("Segoe UI", 11, "bold")).pack(anchor="w")
+        ttk.Label(
+            marco, style="Suave.TLabel", wraplength=540, justify="left",
+            text="El perfil se puede guardar, pero el ranking y el ATS pueden "
+                 "quedar incompletos. Revisá estos puntos:").pack(
+                     anchor="w", pady=(4, 10))
+        for texto in faltantes:
+            ttk.Label(marco, text=f"• {texto}", style="Suave.TLabel",
+                      wraplength=540, justify="left").pack(
+                          anchor="w", pady=(0, 4))
+
+        botones = ttk.Frame(marco)
+        botones.pack(fill="x", pady=(12, 0))
+        resultado = {"guardar": False}
+
+        def volver(_e=None):
+            win.destroy()
+
+        def guardar_igual():
+            resultado["guardar"] = True
+            win.destroy()
+
+        ttk.Button(botones, text="Volver a revisar",
+                   command=volver).pack(side="right")
+        ttk.Button(botones, text="Guardar igual",
+                   command=guardar_igual).pack(side="right", padx=(0, 8))
+        win.protocol("WM_DELETE_WINDOW", volver)
+        win.bind("<Escape>", volver)
+        win.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() - win.winfo_width()) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - win.winfo_height()) // 2
+        win.geometry(f"+{max(0, x)}+{max(0, y)}")
+        win.lift()
+        win.grab_set()
+        self.wait_window(win)
+        return resultado["guardar"]
+
     def _perfil_guardar(self):
         nuevo = self._perfil_recolectar()
         if _perfil_vacio(nuevo):
@@ -1455,6 +2157,11 @@ class App(tk.Tk):
                 + ("\n..." if len(cambios) > 20 else "")
                 + "\n\n¿Guardar ahora?"):
             return
+        faltantes = _perfil_campos_faltantes(nuevo)
+        if faltantes and not self._advertir_perfil_incompleto(faltantes):
+            self._perfil_estado.set(
+                "Guardado cancelado: revisá los datos importantes faltantes.")
+            return
         bk = guardar_perfil(nuevo, DEFAULT_PROFILE_PATH)
         self._perfil_datos = nuevo
         msg = "Perfil guardado. El próximo ranking ya usa estos valores."
@@ -1466,16 +2173,166 @@ class App(tk.Tk):
         self._perfil_cargar(aviso="Cambios descartados: se recargó lo que "
                                    "hay en disco.")
 
+    def _perfil_importar_cv(self):
+        """Elegí un CV soportado y precargá sus datos en el editor (borrador)."""
+        if getattr(self, "_importando_cv", False):
+            self._perfil_estado.set("Ya estoy analizando un CV; esperá un momento.")
+            return
+        ruta = filedialog.askopenfilename(
+            title="Importar CV",
+            filetypes=[
+                ("CV soportado", "*.pdf *.docx *.txt *.md"),
+                ("PDF", "*.pdf"),
+                ("Word (.docx)", "*.docx"),
+                ("Texto / Markdown", "*.txt *.md"),
+                ("Todos los archivos", "*.*"),
+            ])
+        if not ruta:
+            return
+        usar_ia = bool(self._v_ia_cv.get()) if hasattr(self, "_v_ia_cv") else False
+        proveedor = ""
+        modelo = ""
+        if usar_ia:
+            pvar = getattr(self, "_ia_proveedor_var", None)
+            proveedor = ((pvar.get() if pvar else self._ia_proveedor_guardado())
+                         or "").strip().lower()
+            var = getattr(self, "_ia_modelo_var", None)
+            modelo = ((var.get() if var else self._ia_modelo_guardado(proveedor))
+                      or "").strip().replace('"', "")
+        vacantes = (list(getattr(self, "todas", None) or [])[:25]
+                    if usar_ia else None)
+        actual = self._perfil_recolectar()
+        self._importando_cv = True
+        if usar_ia:
+            self._cv_progreso_abrir(Path(ruta).name, proveedor, modelo)
+        que = " y consultando el modelo de la API" if usar_ia else ""
+        self._perfil_estado.set(
+            f"Analizando {Path(ruta).name}{que}... "
+            "(la primera vez tarda: carga el modelo)")
+        threading.Thread(target=_hilo_importar_cv,
+                         args=(ruta, actual, self._cola, usar_ia, modelo,
+                               vacantes, proveedor),
+                         daemon=True).start()
+
+    def _cv_progreso_abrir(self, nombre: str, proveedor: str = "",
+                           modelo: str = ""):
+        """Ventana con barra de progreso para el análisis opcional con IA.
+
+        El trabajo corre en un hilo; esta ventana solo muestra estado/tiempo
+        y se cierra sola al llegar el resultado o el error.
+        """
+        self._cv_progreso_cerrar()
+        win = tk.Toplevel(self)
+        win.title("Analizando CV con IA (API)")
+        win.transient(self)
+        win.resizable(False, False)
+        marco = ttk.Frame(win, padding=18)
+        marco.pack(fill="both", expand=True)
+        ttk.Label(marco, text=f"CV: {nombre}",
+                  font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        detalle = " · ".join(x for x in (proveedor, modelo) if x)
+        if detalle:
+            ttk.Label(marco, text=detalle, style="Suave.TLabel").pack(
+                anchor="w", pady=(2, 0))
+        self._cv_prog_txt = ttk.Label(
+            marco, text="Preparando el análisis...", style="Suave.TLabel",
+            wraplength=430, justify="left")
+        self._cv_prog_txt.pack(anchor="w", pady=(8, 10))
+        self._cv_prog_bar = ttk.Progressbar(marco, mode="indeterminate",
+                                            length=430)
+        self._cv_prog_bar.pack(fill="x")
+        self._cv_prog_bar.start(12)
+        self._cv_prog_tiempo = ttk.Label(marco, text="0 s",
+                                         style="Suave.TLabel")
+        self._cv_prog_tiempo.pack(anchor="w", pady=(8, 0))
+        ttk.Label(marco, style="Suave.TLabel", wraplength=430,
+                  justify="left",
+                  text="Se envía el texto del CV a la API elegida. Podés "
+                       "cerrar esta ventana: el análisis sigue y el resultado "
+                       "aparece al terminar.").pack(anchor="w", pady=(4, 0))
+        win.protocol("WM_DELETE_WINDOW", self._cv_progreso_cerrar)
+        win.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() - win.winfo_width()) // 2
+        y = self.winfo_rooty() + (self.winfo_height() - win.winfo_height()) // 2
+        win.geometry(f"+{max(0, x)}+{max(0, y)}")
+        self._cv_prog_win = win
+        self._cv_prog_inicio = time.monotonic()
+
+    def _cv_progreso_estado(self, texto: str = ""):
+        if not getattr(self, "_cv_prog_win", None):
+            return
+        if texto:
+            self._cv_prog_txt.configure(text=texto)
+        if getattr(self, "_cv_prog_inicio", None):
+            seg = int(time.monotonic() - self._cv_prog_inicio)
+            self._cv_prog_tiempo.configure(text=f"{seg} s transcurridos")
+
+    def _cv_progreso_cerrar(self):
+        bar = getattr(self, "_cv_prog_bar", None)
+        if bar is not None:
+            try:
+                bar.stop()
+            except tk.TclError:
+                pass
+        win = getattr(self, "_cv_prog_win", None)
+        if win is not None:
+            try:
+                win.destroy()
+            except tk.TclError:
+                pass
+        self._cv_prog_win = None
+        self._cv_prog_bar = None
+        self._cv_prog_txt = None
+        self._cv_prog_tiempo = None
+
+    def _perfil_cv_importado(self, nombre: str, merged: dict,
+                             evaluacion: dict, aviso: str):
+        """Muestra los cambios del CV importado y los aplica como borrador."""
+        actual = self._perfil_recolectar()
+        cambios = _resumen_cambios(actual, merged)
+        resumen = "\n".join(cambios[:18]) + ("\n..." if len(cambios) > 18 else "")
+        detalle = ""
+        if evaluacion:
+            punt = evaluacion.get("puntaje")
+            punt_txt = (f"{punt:g}/100"
+                        if isinstance(punt, (int, float)) else "sin puntaje")
+            detalle = (f"\n\nIA (API): {punt_txt} — "
+                       f"{evaluacion.get('resumen') or 'sin resumen'}")
+        if aviso:
+            detalle += f"\n\n⚠ {aviso}"
+        faltantes = _perfil_campos_faltantes(merged)
+        if faltantes:
+            detalle += ("\n\n⚠ Datos importantes incompletos:\n"
+                        + "\n".join(f"• {f}" for f in faltantes[:8])
+                        + ("\n..." if len(faltantes) > 8 else ""))
+        if not messagebox.askyesno(
+                "Importar CV (borrador)",
+                f"CV: {nombre}\n\nDatos detectados:\n\n"
+                + (resumen or "(sin cambios visibles en el editor)")
+                + detalle
+                + "\n\n¿Cargarlos en el editor? NO se guarda nada hasta que "
+                  "aprietes 'Guardar perfil' y revises el CV."):
+            self._perfil_estado.set("Importación de CV cancelada.")
+            return
+        self._perfil_datos = merged
+        self._perfil_pintar(merged)
+        msg = (f"CV «{nombre}» importado como borrador. "
+               "Revisá Mi CV y Guardar perfil.")
+        if evaluacion:
+            msg = (f"CV «{nombre}» importado (IA: {evaluacion.get('puntaje')}"
+                   "/100). Revisá Mi CV y Guardar perfil.")
+        self._perfil_estado.set(msg)
+
     def _perfil_cargar_ia(self):
-        """Carga data/cv_ia.json como BORRADOR en el editor, sin guardar.
+        """Carga data/usuario/cv_ia.json como BORRADOR en el editor, sin guardar.
 
         La IA solo propone: el usuario revisa, corrige y recién ahí guarda.
         """
-        ruta = BASE / "data" / "cv_ia.json"
+        ruta = CV_IA_JSON
         if not ruta.exists():
             messagebox.showinfo(
                 "Sin propuesta IA",
-                "Todavía no hay data/cv_ia.json.\n\nPrimero usá "
+                "Todavía no hay data/usuario/cv_ia.json.\n\nPrimero usá "
                 "'Evaluar CV con IA' en la pestaña Corrida (sin aplicar el "
                 "perfil), y después volvé acá para revisarlo.")
             return
@@ -1497,11 +2354,18 @@ class App(tk.Tk):
             return
         cambios = _resumen_cambios(actual, merged)
         resumen = "\n".join(cambios[:18]) + ("\n..." if len(cambios) > 18 else "")
+        faltantes = _perfil_campos_faltantes(merged)
+        aviso_falt = ""
+        if faltantes:
+            aviso_falt = ("\n\n⚠ Datos importantes incompletos:\n"
+                          + "\n".join(f"• {f}" for f in faltantes[:8])
+                          + ("\n..." if len(faltantes) > 8 else ""))
         if not messagebox.askyesno(
                 "Cargar propuesta IA (borrador)",
                 "La IA propone estos cambios:\n\n"
                 + (resumen or "(sin cambios visibles; puede ser solo "
                               "reordenamiento o datos internos)")
+                + aviso_falt
                 + "\n\n¿Cargarlos en el editor? NO se guarda nada hasta que "
                   "aprietes 'Guardar perfil' y revises el CV."):
             return
@@ -1572,6 +2436,57 @@ class App(tk.Tk):
             return
         self._perfil_cargar(aviso=f"Restaurado {bk.name}.")
 
+    def _perfil_eliminar_backup(self):
+        sel = self._tree_bk.selection()
+        if not sel:
+            self._perfil_estado.set("Elegí un backup de la lista primero.")
+            return
+        bk = self._bk_rutas.get(sel[0])
+        if bk is None or not bk.exists():
+            self._perfil_backups_pintar()
+            return
+        if not messagebox.askyesno(
+                "Eliminar backup",
+                f"¿Eliminar {bk.name}?\n\n"
+                "Esta acción no se puede deshacer.",
+                icon=messagebox.WARNING):
+            return
+        try:
+            bk.unlink()
+        except OSError as exc:
+            messagebox.showerror(
+                "Eliminar backup",
+                f"No se pudo eliminar {bk.name}: {exc}")
+            return
+        self._perfil_backups_pintar()
+        self._perfil_estado.set(f"Backup eliminado: {bk.name}")
+
+    def _perfil_eliminar_backups(self):
+        bks = backups_perfil(DEFAULT_PROFILE_PATH)
+        if not bks:
+            self._perfil_estado.set("No hay backups para eliminar.")
+            return
+        if not messagebox.askyesno(
+                "Eliminar todos los backups",
+                f"¿Eliminar los {len(bks)} backups del perfil?\n\n"
+                "Esta acción no se puede deshacer. El perfil actual NO se toca.",
+                icon=messagebox.WARNING):
+            return
+        errores = []
+        for bk in bks:
+            try:
+                bk.unlink()
+            except OSError as exc:
+                errores.append(f"{bk.name}: {exc}")
+        self._perfil_backups_pintar()
+        if errores:
+            messagebox.showerror(
+                "Eliminar backups",
+                f"Se eliminaron {len(bks) - len(errores)} de {len(bks)}.\n\n"
+                + "\n".join(errores[:8]))
+        else:
+            self._perfil_estado.set(f"Eliminados {len(bks)} backups.")
+
     # ------------------------------------------------------------ corrida
     def _pestana_corrida(self):
         tab = ttk.Frame(self.nb)
@@ -1589,7 +2504,7 @@ class App(tk.Tk):
         self._btn_todos = ttk.Button(barra, text="Corrida completa",
                                      command=self._corrida_arrancar)
         self._btn_todos.pack(side="left")
-        ttk.Label(barra, foreground="#666",
+        ttk.Label(barra, style="Suave.TLabel",
                   text="(equivalen a: main.py --solo ats · --solo boards · main.py)"
                   ).pack(side="left", padx=8)
 
@@ -1600,9 +2515,10 @@ class App(tk.Tk):
             command=lambda: self._corrida_arrancar(preflight=True))
         self._btn_preflight.pack(side="left")
         self._btn_detener = ttk.Button(barra2, text="Detener",
-                                       command=self._corrida_detener)
+                                       command=self._corrida_detener,
+                                       style="Danger.TButton")
         self._btn_detener.pack(side="left", padx=6)
-        ttk.Label(barra2, foreground="#666", wraplength=1000,
+        ttk.Label(barra2, style="Suave.TLabel", wraplength=1000,
                   text="Cada botón abre la corrida en su propia ventana de "
                        "consola VERDE (título \"JobPulse CR - Scraping\"): "
                        "la única ventana de comandos visible mientras corre, "
@@ -1624,7 +2540,7 @@ class App(tk.Tk):
             barra_ia, text="Calibrar IA local",
             command=lambda: self._corrida_arrancar(extra="--ia-reporte"))
         self._btn_ia_rep.pack(side="left")
-        ttk.Label(barra_ia, foreground="#666", wraplength=1000,
+        ttk.Label(barra_ia, style="Suave.TLabel", wraplength=1000,
                   text="IA externa (Gemini/NVIDIA, requiere IA_API_KEY en "
                        ".env): re-puntúa el crudo (no cambia qué entra a "
                        "jobs), evalúa/crea el perfil desde un CV, o mide el "
@@ -1633,22 +2549,36 @@ class App(tk.Tk):
 
         barra_mod = ttk.Frame(tab, padding=(10, 4))
         barra_mod.pack(fill="x")
+        from core.ia_api import PRESETS
+        ttk.Label(barra_mod, text="API:").pack(side="left")
+        self._ia_proveedor_var = tk.StringVar(
+            value=self._ia_proveedor_guardado())
+        self._ia_proveedor_cb = ttk.Combobox(
+            barra_mod, textvariable=self._ia_proveedor_var, state="readonly",
+            width=14, values=list(PRESETS.keys()))
+        self._ia_proveedor_cb.pack(side="left", padx=(6, 12))
+        self._ia_proveedor_cb.bind("<<ComboboxSelected>>",
+                                   lambda _e: self._ia_proveedor_cambio())
         ttk.Label(barra_mod, text="Modelo IA:").pack(side="left")
-        self._ia_modelo_var = tk.StringVar(value=self._ia_modelo_guardado())
+        self._ia_modelo_var = tk.StringVar(
+            value=self._ia_modelo_guardado(self._ia_proveedor_var.get()))
         self._ia_modelo_cb = ttk.Combobox(
             barra_mod, textvariable=self._ia_modelo_var, state="readonly",
-            width=54)
+            width=46)
         self._ia_modelo_cb.pack(side="left", padx=(6, 6))
+        self._ia_modelo_cb.bind("<<ComboboxSelected>>",
+                                lambda _e: self._ia_modelo_cambio())
         ttk.Button(barra_mod, text="Actualizar lista",
                    command=self._ia_cargar_modelos).pack(side="left")
         self._ia_modelos_estado = ttk.Label(barra_mod, text="",
-                                            foreground="#666")
+                                            style="Suave.TLabel")
         self._ia_modelos_estado.pack(side="left", padx=8)
-        ttk.Label(barra_mod, foreground="#666",
-                  text="(la lista la da el proveedor; cambia con el tiempo)"
+        ttk.Label(barra_mod, style="Suave.TLabel",
+                  text="(cada API tiene su propia lista; cambia con el tiempo)"
                   ).pack(side="left", padx=4)
         self._ia_modelos_cola = queue.Queue()
         self._ia_cargando = False
+        self._ia_carga_id = 0
         self._ia_cargar_modelos()
 
         panel = ttk.LabelFrame(tab, text="Estado de la corrida", padding=10)
@@ -1679,7 +2609,7 @@ class App(tk.Tk):
                                    font=("Segoe UI", 10, "bold"))
         self._cor_fase.grid(row=2, column=0, columnspan=8, sticky="w",
                             pady=(8, 2))
-        self._cor_msg = ttk.Label(panel, text="", wraplength=900, foreground="#444")
+        self._cor_msg = ttk.Label(panel, text="", wraplength=900, style="Suave.TLabel")
         self._cor_msg.grid(row=3, column=0, columnspan=8, sticky="w")
 
         logm = ttk.LabelFrame(tab, text="Log de la corrida (últimas líneas)",
@@ -1687,6 +2617,7 @@ class App(tk.Tk):
         logm.pack(fill="both", expand=True, padx=10, pady=(0, 10))
         self._cor_log = tk.Text(logm, height=10, wrap="none",
                                 font=("Consolas", 9), state="disabled")
+        self._texts_tema.append(self._cor_log)   # repintar al cambiar tema
         sb = ttk.Scrollbar(logm, orient="vertical", command=self._cor_log.yview)
         self._cor_log.configure(yscrollcommand=sb.set)
         self._cor_log.pack(side="left", fill="both", expand=True)
@@ -1694,82 +2625,182 @@ class App(tk.Tk):
 
         self.nb.add(tab, text="  Corrida  ")
 
-    # --------------------------------------------------- selector de modelo IA
-    def _ia_modelo_guardado(self) -> str:
-        """Ultimo modelo elegido en la UI; si no hay, IA_MODEL del .env."""
+    # ------------------------------------------------- selector de API/modelo IA
+    @staticmethod
+    def _leer_json(ruta: Path) -> dict:
         try:
-            ruta = BASE / "data" / "ia_modelo.txt"
-            if ruta.exists():
-                modelo = ruta.read_text(encoding="utf-8").strip()
-                if modelo:
-                    return modelo
+            datos = json.loads(ruta.read_text(encoding="utf-8"))
+            return datos if isinstance(datos, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _ia_proveedor_entorno(self) -> str:
+        """API definida en .env (o inferida por la clave); ignora la UI."""
+        from core.ia_api import IAClient, PRESETS
+        prov = (os.getenv("IA_PROVEEDOR") or "").strip().lower()
+        if prov in PRESETS:
+            return prov
+        try:
+            prov = IAClient().proveedor
+            return prov if prov in PRESETS else ""
+        except Exception:
+            return ""
+
+    def _ia_proveedor_guardado(self) -> str:
+        """API elegida en la UI; si no hay, IA_PROVEEDOR del .env o la inferida."""
+        from core.ia_api import IAClient, PRESETS
+        try:
+            prov = IA_PROVEEDOR_PATH.read_text(encoding="utf-8").strip().lower()
+            if prov in PRESETS:
+                return prov
         except OSError:
             pass
-        return (os.getenv("IA_MODEL") or "").strip()
+        prov = (os.getenv("IA_PROVEEDOR") or "").strip().lower()
+        if prov in PRESETS:
+            return prov
+        try:
+            return IAClient().proveedor
+        except Exception:
+            return "google"
+
+    def _ia_proveedor_guardar(self, proveedor: str):
+        prov = (proveedor or "").strip().lower()
+        if not prov:
+            return
+        try:
+            IA_PROVEEDOR_PATH.parent.mkdir(parents=True, exist_ok=True)
+            IA_PROVEEDOR_PATH.write_text(prov, encoding="utf-8")
+        except OSError:
+            pass
+
+    def _ia_modelo_guardado(self, proveedor: str = "") -> str:
+        """Modelo guardado para ESA api; si no, el default de su preset."""
+        from core.ia_api import PRESETS
+        var = getattr(self, "_ia_proveedor_var", None)
+        prov = (proveedor or (var.get() if var else "")
+                or self._ia_proveedor_guardado()).strip().lower()
+        guardados = self._leer_json(IA_MODELOS_PATH)
+        if prov and guardados.get(prov):
+            return str(guardados[prov])
+        # Compatibilidad con data/ia_modelo.txt (cuando habia una sola API).
+        try:
+            legacy = (BASE / "data" / "ia_modelo.txt").read_text(
+                encoding="utf-8").strip()
+            if legacy and prov == self._ia_proveedor_entorno():
+                return legacy
+        except OSError:
+            pass
+        env_model = (os.getenv("IA_MODEL") or "").strip()
+        env_prov = (os.getenv("IA_PROVEEDOR") or "").strip().lower()
+        if env_model and prov == env_prov:
+            return env_model
+        return (PRESETS.get(prov) or {}).get("modelo", "")
+
+    def _ia_modelo_guardar(self, proveedor: str, modelo: str):
+        prov = (proveedor or "").strip().lower()
+        mod = (modelo or "").strip().replace('"', "")
+        if not prov or not mod:
+            return
+        datos = self._leer_json(IA_MODELOS_PATH)
+        datos[prov] = mod
+        try:
+            IA_MODELOS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            IA_MODELOS_PATH.write_text(
+                json.dumps(datos, ensure_ascii=False, indent=2),
+                encoding="utf-8")
+            (BASE / "data" / "ia_modelo.txt").write_text(
+                mod, encoding="utf-8")
+        except OSError:
+            pass
+
+    def _ia_proveedor_cambio(self):
+        prov = (self._ia_proveedor_var.get() or "").strip().lower()
+        self._ia_proveedor_guardar(prov)
+        self._ia_modelo_var.set(self._ia_modelo_guardado(prov))
+        self._ia_modelos_estado.configure(text="", style="Suave.TLabel")
+        self._ia_cargar_modelos()
+
+    def _ia_modelo_cambio(self):
+        self._ia_modelo_guardar(self._ia_proveedor_var.get(),
+                                self._ia_modelo_var.get())
 
     def _ia_args(self) -> str:
-        """Flag --ia-modelo para la corrida y memoria para la proxima apertura."""
+        """Flag --ia-modelo y memoria de API/modelo para la proxima apertura."""
+        pvar = getattr(self, "_ia_proveedor_var", None)
+        prov = ((pvar.get() if pvar else "")
+                or self._ia_proveedor_guardado()).strip().lower()
         var = getattr(self, "_ia_modelo_var", None)
         modelo = ((var.get() if var else "") or "").strip().replace('"', "")
-        if not modelo:
-            return ""
-        try:
-            ruta = BASE / "data" / "ia_modelo.txt"
-            ruta.parent.mkdir(parents=True, exist_ok=True)
-            ruta.write_text(modelo, encoding="utf-8")
-        except OSError:
-            pass
-        return f'--ia-modelo "{modelo}"'
+        if prov:
+            self._ia_proveedor_guardar(prov)
+        if modelo:
+            self._ia_modelo_guardar(prov, modelo)
+        return f'--ia-modelo "{modelo}"' if modelo else ""
 
     def _ia_cargar_modelos(self):
-        """Pide la lista VIVA al proveedor en segundo plano (no bloquea la UI)."""
-        if getattr(self, "_ia_cargando", False):
-            return
+        """Pide la lista VIVA de ESA api en segundo plano (no bloquea la UI)."""
+        pvar = getattr(self, "_ia_proveedor_var", None)
+        prov = ((pvar.get() if pvar else "")
+                or self._ia_proveedor_guardado()).strip().lower()
+        self._ia_carga_id = getattr(self, "_ia_carga_id", 0) + 1
+        carga_id = self._ia_carga_id
         self._ia_cargando = True
-        self._ia_modelos_estado.configure(text="consultando modelos…",
-                                          foreground="#666")
+        self._ia_modelos_estado.configure(
+            text=f"consultando modelos de {prov}…", style="Suave.TLabel")
 
         def trabajo():
             try:
                 from core.ia_api import IAClient
-                modelos = IAClient().listar_modelos()
-                self._ia_modelos_cola.put((modelos, ""))
+                modelos = IAClient({"proveedor": prov}).listar_modelos()
+                self._ia_modelos_cola.put((carga_id, modelos, ""))
             except Exception as exc:
-                self._ia_modelos_cola.put(([], str(exc)))
+                self._ia_modelos_cola.put((carga_id, [], str(exc)))
 
         threading.Thread(target=trabajo, daemon=True).start()
         self.after(300, self._ia_modelos_poll)
 
     def _ia_modelos_poll(self):
         try:
-            modelos, error = self._ia_modelos_cola.get_nowait()
+            carga_id, modelos, error = self._ia_modelos_cola.get_nowait()
         except queue.Empty:
             if getattr(self, "_ia_cargando", False):
                 self.after(300, self._ia_modelos_poll)
+            return
+        if carga_id != getattr(self, "_ia_carga_id", 0):
+            self.after(50, self._ia_modelos_poll)   # respuesta vieja: descartar
             return
         self._ia_cargando = False
         self._ia_modelos_listos(modelos, error)
 
     def _ia_modelos_listos(self, modelos, error):
+        prov = (self._ia_proveedor_var.get() or "").strip().lower()
         actual = (self._ia_modelo_var.get() or "").strip()
         if not modelos:
             self._ia_modelos_estado.configure(
-                text=f"No se pudo cargar la lista: {(error or 'sin modelos')[:140]}",
-                foreground="#a00000")
+                text=f"No se pudo cargar la lista de {prov}: "
+                     f"{(error or 'sin modelos')[:140]}",
+                style="SemErr.TLabel")
             return
         valores = list(modelos)
         no_listado = bool(actual) and actual not in valores
         if no_listado:
             valores.insert(0, actual)     # que siga visible aunque haya cambiado
         self._ia_modelo_cb.configure(values=valores)
+        if not actual:
+            self._ia_modelo_var.set(valores[0])
+            self._ia_modelo_guardar(prov, valores[0])
+            self._ia_modelos_estado.configure(
+                text=f"{len(modelos)} modelos en {prov}",
+                style="Suave.TLabel")
+            return
         if no_listado:
             self._ia_modelos_estado.configure(
-                text=f"{len(modelos)} modelos · el actual no aparece "
-                     "(¿retirado?); elegí otro",
-                foreground="#a05a00")
+                text=f"{len(modelos)} modelos en {prov} · el actual no "
+                     "aparece (¿retirado?); elegí otro",
+                style="SemAviso.TLabel")
         else:
             self._ia_modelos_estado.configure(
-                text=f"{len(modelos)} modelos disponibles", foreground="#666")
+                text=f"{len(modelos)} modelos en {prov}", style="Suave.TLabel")
 
     def _corrida_arrancar(self, preflight: bool = False, solo: str = "todos",
                           extra: str = ""):
@@ -1805,11 +2836,16 @@ class App(tk.Tk):
         if py.name.lower() == "pythonw.exe":
             candidato = py.with_name("python.exe")
             py = candidato if candidato.exists() else py
+        # La API elegida en la UI viaja como variable de entorno para que
+        # main.py use ESA clave/modelo (pisa IA_PROVEEDOR del .env).
+        pvar = getattr(self, "_ia_proveedor_var", None)
+        prov = (pvar.get() if pvar else "").strip().lower()
+        env_prov = f"set IA_PROVEEDOR={prov} && " if prov else ""
         # `start` desde un cmd OCULTO (CREATE_NO_WINDOW) abre la ventana
         # verde como proceso INDEPENDIENTE: cerrar la UI no la mata, y no
         # queda ninguna otra consola visible.
         verde = (f'chcp 65001 >nul && color 0A && title {CORRIDA_TITULO}'
-                 f' && "{py}" -u -X utf8 main.py{args}')
+                 f' && {env_prov}"{py}" -u -X utf8 main.py{args}')
         subprocess.Popen(
             f'cmd /d /c start "{CORRIDA_TITULO}" cmd /d /s /c "{verde}"',
             cwd=str(BASE), stdin=subprocess.DEVNULL,
@@ -1827,8 +2863,9 @@ class App(tk.Tk):
             "Perfil desde el CV",
             "La IA solo propone. Lo recomendado es elegir No y revisar el "
             "borrador en Perfil > Mi CV > 'Cargar propuesta IA' antes de "
-            "guardar.\n\n¿Querés que además actualice data/profile.json "
-            "directamente? (Se guarda un backup del actual.)",
+            "guardar.\n\n¿Querés que además actualice "
+            "data/usuario/profile.json directamente? (Se guarda un backup "
+            "del actual.)",
             default=messagebox.NO)
         extra = f'--ia-cv "{ruta}"'
         if guardar:
@@ -1853,7 +2890,7 @@ class App(tk.Tk):
             pass
         if dato is not None:
             self._corrida_pintar(*dato)
-        self.after(2000, self._corrida_refrescar)
+        self._after_corrida_id = self.after(2000, self._corrida_refrescar)
 
     def _corrida_pintar(self, est, log):
         estado = est.get("estado", "nunca")
@@ -1861,7 +2898,7 @@ class App(tk.Tk):
 
         self._cor_estado.configure(
             text=ESTADO_TXT.get(estado, estado),
-            foreground=ESTADO_COLOR.get(estado, "#000000"))
+            style=ESTADO_ESTILO.get(estado, "TLabel"))
         ts = est.get("inicio_ts")
         self._cor_inicio.configure(text=ts[11:19] if ts else "—")
         enc = est.get("encontradas") or {}
@@ -1956,7 +2993,7 @@ class App(tk.Tk):
         tab = ttk.Frame(self.nb)
 
         ttk.Label(
-            tab, padding=(10, 8), foreground="#555", wraplength=1000,
+            tab, padding=(10, 8), style="Suave.TLabel", wraplength=1000,
             justify="left",
             text=("La lista de sitios que exigen password/sesión: seeds fijos + "
                   "lo que los providers detectan. Las credenciales se guardan SOLO "
@@ -2000,7 +3037,7 @@ class App(tk.Tk):
         )
         self._tabla_cred.pack(fill="both", expand=True)
 
-        self._cred_aviso = ttk.Label(tab, foreground="#a05a00", padding=(10, 2))
+        self._cred_aviso = ttk.Label(tab, style="SemAviso.TLabel", padding=(10, 2))
         self._cred_aviso.pack(fill="x")
 
         acc = ttk.LabelFrame(tab, text="Acciones sobre el sitio seleccionado",
@@ -2018,7 +3055,7 @@ class App(tk.Tk):
         self._btn_cred_abrir = ttk.Button(acc, text="Abrir sitio",
                                           command=self._cred_abrir)
         self._btn_cred_abrir.pack(side="left", padx=6)
-        ttk.Label(acc, foreground="#666",
+        ttk.Label(acc, style="Suave.TLabel",
                   text="Quitar del flujo solo aplica a sitios que agregaste a mano."
                   ).pack(side="left", padx=8)
 
@@ -2080,7 +3117,7 @@ class App(tk.Tk):
         pies.grid(row=5, column=0, columnspan=4, sticky="w", pady=(6, 0))
         ttk.Button(pies, text="Guardar credencial",
                    command=self._cred_guardar).pack(side="left")
-        self._cred_estado = ttk.Label(pies, text="", foreground="#0a7f24")
+        self._cred_estado = ttk.Label(pies, text="", style="SemOK.TLabel")
         self._cred_estado.pack(side="left", padx=10)
 
         self.nb.add(tab, text="  Credenciales  ")
@@ -2198,13 +3235,13 @@ class App(tk.Tk):
         if not nombre:
             self._cred_estado.configure(
                 text="Elegí un sitio de la lista o escribí el nombre del otro.",
-                foreground="#b01818")
+                style="SemErr.TLabel")
             return
         if not usuario or (not password and not sso):
             self._cred_estado.configure(
                 text="Falta el usuario, o bien la password o el acceso vía SSO "
                      "(marcá la casilla si la cuenta no tiene clave propia).",
-                foreground="#b01818")
+                style="SemErr.TLabel")
             return
         url = self._cred_url.get().strip()
         nuevo = not creds_store.sitio_en_flujo(nombre)
@@ -2224,7 +3261,7 @@ class App(tk.Tk):
         else:
             msg = (f"Credencial de {nombre} guardada localmente"
                    + (" (acceso vía Google, sin clave)" if sso else "") + ".")
-        self._cred_estado.configure(text=msg, foreground="#0a7f24")
+        self._cred_estado.configure(text=msg, style="SemOK.TLabel")
 
         # El form de Streamlit se limpiaba tras guardar (clear_on_submit).
         for v in (self._cred_usuario, self._cred_password, self._cred_otra,
@@ -2239,7 +3276,7 @@ class App(tk.Tk):
         tab = ttk.Frame(self.nb)
 
         ttk.Label(
-            tab, padding=(10, 8), foreground="#555", wraplength=1000,
+            tab, padding=(10, 8), style="Suave.TLabel", wraplength=1000,
             justify="left",
             text=("El navegador sigue siendo la bóveda preferida: abrís cada "
                   "sitio en tu Brave, te logueás una vez (con tu 2FA normal) y "
@@ -2280,7 +3317,7 @@ class App(tk.Tk):
         self._btn_ses_resuelto = ttk.Button(acc, text="Marcar resuelto",
                                             command=self._ses_resuelto)
         self._btn_ses_resuelto.pack(side="left")
-        self._ses_estado = ttk.Label(acc, text="", foreground="#555")
+        self._ses_estado = ttk.Label(acc, text="", style="Suave.TLabel")
         self._ses_estado.pack(side="left", padx=12)
 
         self.nb.add(tab, text="  Sesiones  ")
@@ -2332,11 +3369,11 @@ class App(tk.Tk):
         if abrir_en_brave(f["_s"]["url"]):
             self._ses_estado.configure(
                 text="Brave abierto. Logueate, cerrás la pestaña y volvés "
-                     "aquí para verificar.", foreground="#555")
+                     "aquí para verificar.", style="Suave.TLabel")
         else:
             self._ses_estado.configure(
                 text="No encontré brave.exe — configura BRAVE_BIN en .env",
-                foreground="#b01818")
+                style="SemErr.TLabel")
 
     def _ses_verificar(self):
         if self._ses_verificando:
@@ -2352,7 +3389,7 @@ class App(tk.Tk):
         self._btn_ses_verificar.configure(state="disabled")
         self._ses_estado.configure(
             text="Verificando (Brave se reinicia unos segundos)...",
-            foreground="#555")
+            style="Suave.TLabel")
         threading.Thread(target=_hilo_verificar,
                          args=(s["empresa"], url, self._cola),
                          daemon=True).start()
@@ -2364,7 +3401,7 @@ class App(tk.Tk):
         if res.get("ok"):
             self._ses_estado.configure(
                 text=f"Sesión OK — título: {res.get('titulo', '')}",
-                foreground="#0a7f24")
+                style="SemOK.TLabel")
             if f and f["_s"].get("pendiente"):
                 quitar_pendiente(empresa)   # resuelto: como hacia app.py
                 self._ses_pintar()
@@ -2372,7 +3409,7 @@ class App(tk.Tk):
             self._ses_estado.configure(
                 text=(f"Sin sesión aún — {res.get('motivo', '')} "
                       f"(título: {res.get('titulo') or '?'})"),
-                foreground="#b01818")
+                style="SemErr.TLabel")
 
     def _ses_resuelto(self):
         f = self._tabla_ses.seleccionada()
@@ -2383,4 +3420,5 @@ class App(tk.Tk):
 
 
 if __name__ == "__main__":
+    ensure_workspace()
     App().mainloop()

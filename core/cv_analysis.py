@@ -6,7 +6,7 @@ Pipeline:
   3. Skills: coincidencia literal contra un lexicon curado (ES+EN).
   4. Titulos: rankea vocabularios de puestos contra el encabezado del CV
      usando los embeddings del SemanticSearchEngine (sinonimos incluidos).
-  5. Devuelve un dict listo para fusionar en data/profile.json.
+  5. Devuelve un dict listo para fusionar en data/usuario/profile.json.
 
 Es el "contrato" esperado: cv -> dict -> ProfileWriter.
 """

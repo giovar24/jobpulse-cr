@@ -13,8 +13,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_PATH = BASE_DIR / "data" / "profile.json"
+from core.rutas import USER_DIR
+
+DEFAULT_PATH = USER_DIR / "profile.json"
 DEFAULT_PROFILE_PATH = DEFAULT_PATH
 
 SCHEMA = "harvard-ats-v1"

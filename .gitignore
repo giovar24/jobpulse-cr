@@ -1,8 +1,13 @@
 # --- Seguridad: nunca subir secretos ni datos personales ---
 .env
-# Perfil personal del candidato (contacto, experiencia real...). La plantilla
-# generica SI se sube: data/profile.example.json
+# Datos del usuario separados de los del scraper: perfil, backups, IA del CV
+# y los CV importados. La plantilla generica SI se sube:
+# data/profile.example.json
+data/usuario/
+# Compatibilidad con el layout viejo (antes de data/usuario/).
 data/profile.json
+data/cv_ia.json
+data/cv_ia.md
 # Credenciales de los portales (usuario/password escritos por el usuario):
 # solo viven en esta maquina. Se editan desde la pestaña Credenciales del
 # dashboard o con `python credenciales.py --set "Empresa"`.
@@ -16,11 +21,15 @@ __pycache__/
 
 # --- Datos generados (regenerables con main.py / cv2profile.py) ---
 data/jobs.db
+data/jobs.db.bak*
+data/jobs.db-*
+data/jobpulse.db
 data/jobs.backup_*.db
 data/embeddings_cache.*
 data/report*.csv
 data/*_backup_*.json
 data/recordatorio_estado.json
+data/ui_prefs.json
 
 # --- IA externa: informes y evaluaciones (pueden derivarse del CV real) ---
 data/ia_*.csv
@@ -29,6 +38,8 @@ data/ia_calibracion.md
 data/cv_ia.json
 data/cv_ia.md
 data/ia_modelo.txt
+data/ia_modelos.json
+data/ia_proveedor.txt
 
 # --- CVs personales: el CV real del candidato nunca viaja a git ---
 # Patrones globales (cualquier carpeta del repo incluida la raiz). El demo

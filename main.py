@@ -31,6 +31,7 @@ from providers.source_groups import (GROUP_BOARDS, GROUP_DIRECTOS,
 from core.dedupe import dedupe_boards_vs_directos
 from core.progreso import GRUPO_LABEL, GRUPO_RESTO, iniciar_corrida
 from core import credenciales as creds_store
+from core.rutas import CV_IA_JSON, CV_IA_MD
 
 ensure_workspace()   # crea data/, profile.json (generico) y .env si faltan
 load_dotenv()
@@ -302,7 +303,7 @@ async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
     if ia_max and ia_max > 0:
         client.max_vacantes = ia_max
     if profile is None:
-        logger.warning("IA: no hay data/profile.json; la evaluación será "
+        logger.warning("IA: no hay data/usuario/profile.json; la evaluación será "
                        "genérica (sin títulos ni skills del candidato).")
 
     raw = await db.get_raw_jobs()
@@ -415,9 +416,9 @@ async def evaluar_cv_ia(db, profile, cv_path: str, puesto: str = "",
                         modelo: str = "") -> dict:
     """Crea el perfil desde el CV (como cv2profile.py) y evalua el CV.
 
-    Por defecto NO toca data/profile.json: deja el informe en data/cv_ia.md
-    y el JSON completo en data/cv_ia.json. Con `guardar=True` escribe el
-    perfil (merge + backup) usando el CV como fuente de verdad.
+    Por defecto NO toca el perfil: deja el informe en data/usuario/cv_ia.md
+    y el JSON completo en data/usuario/cv_ia.json. Con `guardar=True` escribe
+    el perfil (merge + backup) usando el CV como fuente de verdad.
     """
     client = IAClient({"modelo": modelo} if modelo else None)
     if not client.disponible:
@@ -440,7 +441,7 @@ async def evaluar_cv_ia(db, profile, cv_path: str, puesto: str = "",
 
     p_hash = perfil_hash(profile)
     c_hash = client.hash_cv(cv_texto, p_hash, puesto)
-    ruta_json, ruta_md = "data/cv_ia.json", "data/cv_ia.md"
+    ruta_json, ruta_md = str(CV_IA_JSON), str(CV_IA_MD)
     previo = None
     if not forzar and os.path.exists(ruta_json):
         try:
@@ -480,7 +481,7 @@ async def evaluar_cv_ia(db, profile, cv_path: str, puesto: str = "",
             "tokens_in": client.tokens_in, "tokens_out": client.tokens_out,
             "cache": False,
         }
-        os.makedirs("data", exist_ok=True)
+        CV_IA_JSON.parent.mkdir(parents=True, exist_ok=True)
         with open(ruta_json, "w", encoding="utf-8") as f:
             json.dump({"meta": meta, "resultado": resultado}, f,
                       ensure_ascii=False, indent=2)
@@ -1123,12 +1124,13 @@ if __name__ == "__main__":
     parser.add_argument("--ia-cv", metavar="RUTA", default="",
                         help="Lee un CV (pdf/docx/txt/md), crea el perfil "
                              "propuesto y evalúa/adapta el CV. Deja el informe "
-                             "en data/cv_ia.md (no toca el perfil sin --ia-guardar).")
+                             "en data/usuario/cv_ia.md (no toca el perfil sin "
+                             "--ia-guardar).")
     parser.add_argument("--ia-puesto", default="",
                         help="Puesto objetivo para --ia-cv (ej. \"Soporte Técnico\")")
     parser.add_argument("--ia-guardar", action="store_true",
-                        help="Con --ia-cv: escribe data/profile.json (con backup) "
-                             "usando el CV como fuente de verdad.")
+                        help="Con --ia-cv: escribe data/usuario/profile.json "
+                             "(con backup) usando el CV como fuente de verdad.")
     parser.add_argument("--ia-forzar", action="store_true",
                         help="Ignora la caché de la IA y repite las consultas "
                              "(consume cuota).")

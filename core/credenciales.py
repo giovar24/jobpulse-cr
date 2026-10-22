@@ -23,7 +23,7 @@ Dos piezas que faltaban (pedido del usuario 2026-10-19):
    `providers/login/auto_login.py`).
 
 Decision de diseño que se mantiene: el repo NO contiene credenciales; solo
-esta bola de datos local (como `data/profile.json`).
+esta bola de datos local (como `data/usuario/profile.json`).
 """
 import json
 import logging

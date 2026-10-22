@@ -3,7 +3,7 @@
 Uso:
     python search.py "soporte tecnico bilingue"
     python search.py --top 5 --dias 7 --fuente indeed "analista de datos"
-    python search.py --perfil             # ranking segun data/profile.json
+    python search.py --perfil             # ranking segun data/usuario/profile.json
     python search.py --perfil mi.json     # ranking segun otro archivo de perfil
     python search.py                      # modo interactivo
 
@@ -159,7 +159,7 @@ def main():
     p.add_argument("--fuente", default=None, choices=SOURCES, help="Filtrar por portal")
     p.add_argument("--perfil", nargs="?", const=str(DEFAULT_PROFILE_PATH), default=None,
                    metavar="ARCHIVO",
-                   help="Ranking por perfil del candidato (default: data/profile.json)")
+                   help="Ranking por perfil del candidato (default: data/usuario/profile.json)")
     p.add_argument("--cache", default="embeddings_cache", help="Nombre base del cache de embeddings")
     args = p.parse_args()
 

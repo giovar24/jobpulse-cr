@@ -63,6 +63,14 @@ PRESETS = {
     },
 }
 
+# Nombres visibles en la UI (la clave interna sigue siendo el id del preset).
+PROVEEDOR_NOMBRES = {
+    "google": "Google (Gemini)",
+    "nvidia": "NVIDIA NIM",
+    "openai": "OpenAI",
+    "ollama": "Ollama Cloud",
+}
+
 DEFAULT_IA_MIN = 70.0     # score 0-100 a partir del cual "aplica"
 MAX_RAZON = 320
 MAX_DESC = 1800
@@ -247,8 +255,7 @@ class IAClient:
                          or preset["base"]).rstrip("/")
         self.modelo = (cfg.get("modelo") or os.getenv("IA_MODEL")
                        or preset["modelo"])
-        self.api_key = (cfg.get("api_key") or os.getenv("IA_API_KEY")
-                        or self._clave_entorno(preset["key_env"]))
+        self.api_key = cfg.get("api_key") or self._clave_proveedor(preset)
         self.lote = max(1, _entero("IA_LOTE", 8))
         self.max_vacantes = max(0, _entero("IA_MAX_VACANTES", 60))
         self.max_llamadas = max(1, _entero("IA_MAX_LLAMADAS", 12))
@@ -277,12 +284,19 @@ class IAClient:
         return "google"
 
     @staticmethod
-    def _clave_entorno(nombres) -> str:
-        for n in nombres:
+    def _clave_proveedor(preset: Dict) -> str:
+        """Clave del proveedor, priorizando la especifica sobre IA_API_KEY.
+
+        Asi se pueden tener varias APIs configuradas a la vez
+        (GEMINI_API_KEY + NVIDIA_API_KEY + ...) y elegir una en la UI.
+        """
+        for n in preset.get("key_env", ()):
+            if n == "IA_API_KEY":
+                continue
             v = os.getenv(n)
             if v:
                 return v
-        return ""
+        return os.getenv("IA_API_KEY") or ""
 
     @property
     def disponible(self) -> bool:
@@ -290,9 +304,9 @@ class IAClient:
 
     def motivo_no_disponible(self) -> str:
         return (
-            "Falta la clave de la IA. Definí IA_API_KEY en .env "
-            "(o GEMINI_API_KEY / NVIDIA_API_KEY) y IA_PROVEEDOR=google|nvidia. "
-            "Ver .env.example."
+            "Falta la clave de esta API. Definí GEMINI_API_KEY / "
+            "NVIDIA_API_KEY / OLLAMA_API_KEY / OPENAI_API_KEY (o IA_API_KEY) "
+            "en .env y elegí la API en la UI. Ver .env.example."
         )
 
     def resumen_uso(self) -> str:

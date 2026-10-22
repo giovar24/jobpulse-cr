@@ -2,7 +2,7 @@
 
 Uso:
     python cv2profile.py MiCV.pdf              # analiza, muestra y sugiere cambios
-    python cv2profile.py MiCV.pdf --save       # limpia y guarda data/profile.json: el CV reemplaza titulos/skills/temas/nombre (con backup)
+    python cv2profile.py MiCV.pdf --save       # limpia y guarda data/usuario/profile.json: el CV reemplaza titulos/skills/temas/nombre (con backup)
     python cv2profile.py MiCV.pdf --save --merge   # suma al perfil sin limpiar lo anterior
     python cv2profile.py MiCV.pdf --out otropath.json
 
@@ -113,7 +113,8 @@ def main():
     p.add_argument("--save", action="store_true", help="Guardar los cambios en el perfil")
     p.add_argument("--merge", action="store_true",
                    help="Sumar titulos/skills sin limpiar lo anterior (default: el CV reemplaza y limpia)")
-    p.add_argument("--out", default=None, help="Ruta del perfil destino (default: data/profile.json)")
+    p.add_argument("--out", default=None,
+                   help="Ruta del perfil destino (default: data/usuario/profile.json)")
     args = p.parse_args()
 
     logging.basicConfig(level=logging.WARNING, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
