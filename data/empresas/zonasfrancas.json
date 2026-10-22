@@ -1,0 +1,716 @@
+[
+ {
+  "nombre": "Sobre PROCOMER",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "Servicios",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "Exportador",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "Comprador Internacional",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "Inversionista Extranjero",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "Regímenes Especiales",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "Talento Humano de Costa Rica",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "Noticias",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "esencial Costa Rica",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "3102942875 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-942875",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Alajuela",
+  "ubicacion": "San Carlos, Quesada"
+ },
+ {
+  "nombre": "CORPORACION CAEST SOCIEDAD ANONIMA",
+  "cedula": "3-101-443271",
+  "actividad": "Administradora De Parques",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, Garita"
+ },
+ {
+  "nombre": "INVERSIONES SAUDARA SOCIEDAD ANONIMA",
+  "cedula": "3-101-924208",
+  "actividad": "Administradora De Parques",
+  "provincia": "San",
+  "ubicacion": "Puriscal, Mercedes Sur"
+ },
+ {
+  "nombre": "3102943587 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-943587",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "3102954198 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-954198",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San Antonio"
+ },
+ {
+  "nombre": "3101936510 SOCIEDAD ANONIMA",
+  "cedula": "3-101-936510",
+  "actividad": "Empresa Comercial De Exportación Y Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "Curridabat, Sánchez"
+ },
+ {
+  "nombre": "3102954950 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-954950",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Belén, La Ribera"
+ },
+ {
+  "nombre": "3102952796 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-952796",
+  "actividad": "Empresa De Servicios Y Procesadora Inciso F) (Proveedora)",
+  "provincia": "Cartago",
+  "ubicacion": "Cartago, Guadalupe O Arenilla"
+ },
+ {
+  "nombre": "LATAM INTEGRAL SERVICES SOLUTIONS SOCIEDAD ANONIMA",
+  "cedula": "3-101-926597",
+  "actividad": "Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "Escazú, San Rafael"
+ },
+ {
+  "nombre": "3102953025 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-953025",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San José"
+ },
+ {
+  "nombre": "3102941704 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-941704",
+  "actividad": "Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "San José, Pavas"
+ },
+ {
+  "nombre": "3102949502 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-949502",
+  "actividad": "Empresa Comercial De Exportación",
+  "provincia": "Alajuela",
+  "ubicacion": "San Carlos, Quesada"
+ },
+ {
+  "nombre": "NTECH SOLUCIONES EMPRESARIALES SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-916432",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, Río Segundo"
+ },
+ {
+  "nombre": "3102952302 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-952302",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "3101938421 SOCIEDAD ANONIMA",
+  "cedula": "3-101-938421",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Cartago",
+  "ubicacion": "Cartago, San Nicolás"
+ },
+ {
+  "nombre": "3102946801 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-946801",
+  "actividad": "Empresa Comercial De Exportación Y Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "3101938824 SOCIEDAD ANONIMA",
+  "cedula": "3-101-938824",
+  "actividad": "Empresa Comercial De Exportación",
+  "provincia": "Heredia",
+  "ubicacion": "Santo Domingo, Santa Rosa"
+ },
+ {
+  "nombre": "LASSO SOCIEDAD ANONIMA",
+  "cedula": "3-101-933089",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "San Carlos, Pocosol"
+ },
+ {
+  "nombre": "3102954982 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-954982",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Tacares"
+ },
+ {
+  "nombre": "3102947873 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-947873",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Orotina, La Ceiba"
+ },
+ {
+  "nombre": "3101951221 SOCIEDAD ANONIMA",
+  "cedula": "3-101-951221",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Belén, La Asunción"
+ },
+ {
+  "nombre": "3102943292 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-943292",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "ECO POLYMER COSTA RICA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-935258",
+  "actividad": "Empresa Comercial De Exportación Y Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San José"
+ },
+ {
+  "nombre": "AMPO RZF SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-933768",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Puntarenas",
+  "ubicacion": "Puntarenas, Barranca"
+ },
+ {
+  "nombre": "3101944970 SOCIEDAD ANONIMA",
+  "cedula": "3-101-944970",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "San",
+  "ubicacion": "San José, Uruca"
+ },
+ {
+  "nombre": "3102942377 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-942377",
+  "actividad": "Administradora De Parques",
+  "provincia": "San",
+  "ubicacion": "Santa Ana, Pozos"
+ },
+ {
+  "nombre": "3101943435 SOCIEDAD ANONIMA",
+  "cedula": "3-101-943435",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Lim",
+  "ubicacion": "Limón, Río Blanco"
+ },
+ {
+  "nombre": "3102949771 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-949771",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "3102939757 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-939757",
+  "actividad": "Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "Escazú, San Rafael"
+ },
+ {
+  "nombre": "PLASTICOS AGRICOLAS E INDUSTRIALES PQA COSTA RICA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-910394",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Puente De Piedra"
+ },
+ {
+  "nombre": "3102948127 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-948127",
+  "actividad": "Procesadora De Exportación Y Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Belén, La Asunción"
+ },
+ {
+  "nombre": "3102941378 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-941378",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Guanacaste",
+  "ubicacion": "Liberia, Liberia"
+ },
+ {
+  "nombre": "3102936558 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-936558",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "CALIFORNIA RS CREATIVE SOLUTIONS SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-923079",
+  "actividad": "Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "Pérez Zeledón, San Isidro De El General"
+ },
+ {
+  "nombre": "3102941276 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-941276",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Cartago",
+  "ubicacion": "Cartago, San Nicolás"
+ },
+ {
+  "nombre": "3102941044 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-941044",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "CLEANW LATAM SOCIEDAD ANONIMA",
+  "cedula": "3-101-926947",
+  "actividad": "Empresa Comercial De Exportación Y Empresa De Servicios",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Tacares"
+ },
+ {
+  "nombre": "3102944531 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-944531",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Belén, La Asuncion"
+ },
+ {
+  "nombre": "3102910623 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-910623",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Puente De Piedra"
+ },
+ {
+  "nombre": "RHYTHMLINK COSTA RICA SOCIEDAD ANONIMA",
+  "cedula": "3-101-920063",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San José"
+ },
+ {
+  "nombre": "3102939001 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-939001",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "3102939323 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-939323",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Cartago",
+  "ubicacion": "Cartago, San Nicolás"
+ },
+ {
+  "nombre": "NOVATEC FREE ZONE SOCIEDAD ANONIMA",
+  "cedula": "3-101-892078",
+  "actividad": "Empresa Comercial De Exportación Y Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, San Roque"
+ },
+ {
+  "nombre": "3102939777 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-939777",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Puente De Piedra"
+ },
+ {
+  "nombre": "SWITCHBACK MEDICAL CR SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-887131",
+  "actividad": "Empresa De Servicios Y Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Tacares"
+ },
+ {
+  "nombre": "3102942153 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-942153",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Cartago",
+  "ubicacion": "Cartago, San Nicolás"
+ },
+ {
+  "nombre": "AHR CONSULTING SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-890970",
+  "actividad": "Administradora De Parques",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San Antonio"
+ },
+ {
+  "nombre": "BIOVENKO INTERNACIONAL SOCIEDAD ANONIMA",
+  "cedula": "3-101-930552",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Cartago",
+  "ubicacion": "Cartago, Guadalupe O Arenilla"
+ },
+ {
+  "nombre": "3102937085 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-937085",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "3102939802 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-939802",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, Garita"
+ },
+ {
+  "nombre": "FIELD SERVICE ENGINEERING COMPANY SOCIEDAD ANONIMA",
+  "cedula": "3-101-935469",
+  "actividad": "Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "Escazú, San Rafael"
+ },
+ {
+  "nombre": "3102941356 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-941356",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "3102944030 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-944030",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "3101941672 SOCIEDAD ANONIMA",
+  "cedula": "3-101-941672",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Guanacaste",
+  "ubicacion": "Liberia, Curubandé"
+ },
+ {
+  "nombre": "TRUE SERVICES INT SOCIEDAD ANONIMA",
+  "cedula": "3-101-925512",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Puntarenas",
+  "ubicacion": "Puntarenas, Barranca"
+ },
+ {
+  "nombre": "EPFLEX SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-917855",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Puente De Piedra"
+ },
+ {
+  "nombre": "AUBRANT DIGITAL COSTA RICA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-923272",
+  "actividad": "Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "Escazú, San Rafael"
+ },
+ {
+  "nombre": "SAN PEDRO FREE ZONE SOCIEDAD ANONIMA",
+  "cedula": "3-101-933624",
+  "actividad": "Administradora De Parques",
+  "provincia": "San",
+  "ubicacion": "Montes De Oca, San Pedro"
+ },
+ {
+  "nombre": "GREEN HARVEST TRADING SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-908181",
+  "actividad": "Empresa Comercial De Exportación",
+  "provincia": "Lim",
+  "ubicacion": "Pococí, Roxana"
+ },
+ {
+  "nombre": "3102923432 SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-923432",
+  "actividad": "Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "Escazú, San Rafael"
+ },
+ {
+  "nombre": "ICFT STRAND CR SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-935175",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Guanacaste",
+  "ubicacion": "Liberia, Liberia"
+ },
+ {
+  "nombre": "3101939148 SOCIEDAD ANONIMA",
+  "cedula": "3-101-939148",
+  "actividad": "Administradora De Parques",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "DURACELL SERVICE OPERATIONS SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-930353",
+  "actividad": "Empresa De Servicios",
+  "provincia": "San",
+  "ubicacion": "Escazú, San Rafael"
+ },
+ {
+  "nombre": "META LOGISMQ SOCIEDAD ANONIMA",
+  "cedula": "3-101-921555",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San José"
+ },
+ {
+  "nombre": "3101937341 SOCIEDAD ANONIMA",
+  "cedula": "3-101-937341",
+  "actividad": "Empresa Comercial De Exportación",
+  "provincia": "Alajuela",
+  "ubicacion": "San Carlos, Quesada"
+ },
+ {
+  "nombre": "BOSPHORUS ZF SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-933779",
+  "actividad": "Empresa Comercial De Exportación",
+  "provincia": "Alajuela",
+  "ubicacion": "San Carlos, Quesada"
+ },
+ {
+  "nombre": "SERVICA LOGISTIC SEL SOCIEDAD ANONIMA",
+  "cedula": "3-101-925238",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San Antonio"
+ },
+ {
+  "nombre": "THREE SHAPE DS CR LIMITADA",
+  "cedula": "3-102-913250",
+  "actividad": "Empresa De Servicios",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "PRIVATE BRAND DEVELOPMENT PBD SOCIEDAD ANONIMA",
+  "cedula": "3-101-792963",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Guanacaste",
+  "ubicacion": "Carrillo, Filadelfia"
+ },
+ {
+  "nombre": "TROPICAL FROST SOCIEDAD ANONIMA",
+  "cedula": "3101904828",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "San Carlos, Florencia"
+ },
+ {
+  "nombre": "PSIDIUM GUAJAVA SOCIEDAD ANONIMA",
+  "cedula": "3-101-812308",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Guanacaste",
+  "ubicacion": "Abangares, Las Juntas"
+ },
+ {
+  "nombre": "PEKOFISH TM CORPORATION SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-907488",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Puntarenas",
+  "ubicacion": "Puntarenas, Puntarenas"
+ },
+ {
+  "nombre": "FERTIPEL SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-887733",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "San Carlos, Aguas Zarcas"
+ },
+ {
+  "nombre": "CORRUGADOS CARIBEÑOS SOCIEDAD ANONIMA",
+  "cedula": "3-101-891978",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Lim",
+  "ubicacion": "Guácimo, Guácimo"
+ },
+ {
+  "nombre": "COMPACT SEEDS & CLONES, S.A.",
+  "cedula": "3-101-392993",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Puntarenas",
+  "ubicacion": "Golfito, Guaycara"
+ },
+ {
+  "nombre": "CAFE BRITT EXPORTACIONES SOCIEDAD ANONIMA",
+  "cedula": "3-101-905038",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Puente De Piedra"
+ },
+ {
+  "nombre": "TECHTOP INDUSTRIAS CR SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-909094",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Orotina, La Ceiba"
+ },
+ {
+  "nombre": "POLYPLANTS COSTA RICA SOCIEDAD ANONIMA",
+  "cedula": "3-101-908594",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "San Carlos, La Palmera"
+ },
+ {
+  "nombre": "KELCO MOLDED PRODUCTS COSTA RICA INC SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-893792",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Puente De Piedra"
+ },
+ {
+  "nombre": "JOHNSON & JOHNSON MEDTECH CR LIMITADA",
+  "cedula": "3-102-874749",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Tacares"
+ },
+ {
+  "nombre": "CUT SEA FOOD SOCIEDAD ANONIMA",
+  "cedula": "3-101-872189",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Puntarenas",
+  "ubicacion": "Puntarenas, Barranca"
+ },
+ {
+  "nombre": "ANCHOR PERFORMANCE SOCIEDAD ANONIMA",
+  "cedula": "3-101-917103",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Puente De Piedra"
+ },
+ {
+  "nombre": "ACCUDYN DE COSTA RICA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-878810",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Grecia, Tacares"
+ },
+ {
+  "nombre": "TERUMO CARDIOVASCULAR COSTA RICA LLC SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-797054",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Cartago",
+  "ubicacion": "Cartago, San Nicolás"
+ },
+ {
+  "nombre": "TEGRA MEDICAL COSTA RICA S.R.L.",
+  "cedula": "3-101-425102",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "RELAXTECH INTERNACIONAL SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+  "cedula": "3-102-605886",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Cartago",
+  "ubicacion": "Cartago, Guadalupe"
+ },
+ {
+  "nombre": "NITINOL DEVICES & COMPONENTS COSTA RICA, S.R.L.",
+  "cedula": "3-102-607925",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San José"
+ },
+ {
+  "nombre": "MERRILL’S PACKAGING S.R.L.",
+  "cedula": "3-102-568942",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, San José"
+ },
+ {
+  "nombre": "FLEXTRONICS DE COSTA RICA SOCIEDAD ANONIMA",
+  "cedula": "3-101-843874",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Alajuela",
+  "ubicacion": "Alajuela, Río Segundo"
+ },
+ {
+  "nombre": "C&J INTERNATIONAL LLC, S.R.L.",
+  "cedula": "3-102-505322",
+  "actividad": "Procesadora Inciso F)",
+  "provincia": "Heredia",
+  "ubicacion": "Heredia, Ulloa"
+ },
+ {
+  "nombre": "Contáctenos",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "OFICINAS CENTRALES",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ },
+ {
+  "nombre": "VUCE SABANA",
+  "cedula": "",
+  "actividad": "",
+  "provincia": "",
+  "ubicacion": ""
+ }
+]

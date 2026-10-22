@@ -1,0 +1,44 @@
+[
+ {
+  "company": "bozemanhealth",
+  "token": "wd1/bozemanhealth/BozemanHealthCareers",
+  "api_url": "https://bozemanhealth.wd1.myworkdayjobs.com/wday/cxs/bozemanhealth/BozemanHealthCareers/jobs",
+  "estado": "HTTP 403"
+ },
+ {
+  "company": "mouvrh",
+  "token": "wd103/mouvrh/External_Career_Site_GRAND_FRAIS",
+  "api_url": "https://mouvrh.wd103.myworkdayjobs.com/wday/cxs/mouvrh/External_Career_Site_GRAND_FRAIS/jobs",
+  "estado": "HTTP 403"
+ },
+ {
+  "company": "salesforce",
+  "token": "wd12/salesforce/Mulesoft_Careersite",
+  "api_url": "https://salesforce.wd12.myworkdayjobs.com/wday/cxs/salesforce/Mulesoft_Careersite/jobs",
+  "estado": "HTTP 429"
+ },
+ {
+  "company": "salesforce",
+  "token": "wd12/salesforce/slack",
+  "api_url": "https://salesforce.wd12.myworkdayjobs.com/wday/cxs/salesforce/slack/jobs",
+  "estado": "HTTP 429"
+ },
+ {
+  "company": "if",
+  "token": "wd3/if/Careers",
+  "api_url": "https://if.wd3.myworkdayjobs.com/wday/cxs/if/Careers/jobs",
+  "estado": "HTTP 422"
+ },
+ {
+  "company": "redbulltechnology",
+  "token": "wd3/redbulltechnology/RB_Racing",
+  "api_url": "https://redbulltechnology.wd3.myworkdayjobs.com/wday/cxs/redbulltechnology/RB_Racing/jobs",
+  "estado": "HTTP 422"
+ },
+ {
+  "company": "liveramp",
+  "token": "wd5/liveramp/LiveRampCareers",
+  "api_url": "https://liveramp.wd5.myworkdayjobs.com/wday/cxs/liveramp/LiveRampCareers/jobs",
+  "estado": "HTTP 403"
+ }
+]

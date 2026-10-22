@@ -1,0 +1,1374 @@
+[
+ {
+  "slug": "cencora",
+  "nombre": "Cencora",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "viajero-hostels",
+  "nombre": "Viajero Hostels",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "dxc-technology",
+  "nombre": "DXC Technology",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "progress",
+  "nombre": "Progress",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "thermo-fisher-scientific",
+  "nombre": "Thermo Fisher Scientific",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "baxter-healthcare",
+  "nombre": "Baxter Healthcare",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "bourns-costa-rica",
+  "nombre": "Bourns Costa Rica",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "corimotors",
+  "nombre": "CoriMotors",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "procore-technologies",
+  "nombre": "Procore Technologies",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "beyondsoft-consulting",
+  "nombre": "Beyondsoft Consulting",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hakkoda",
+  "nombre": "Hakkoda",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hellmann-worldwide-logistics",
+  "nombre": "Hellmann Worldwide Logistics",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "theragenics-costa-rica",
+  "nombre": "Theragenics Costa Rica",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "l-l-bean-costa-rica",
+  "nombre": "L.L. Bean Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "smartsheet",
+  "nombre": "Smartsheet",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "officespace-software",
+  "nombre": "OfficeSpace Software",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "metricalq",
+  "nombre": "MetricalQ",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "g-rau-precision-metals",
+  "nombre": "G.RAU Precision Metals",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "zenoti",
+  "nombre": "Zenoti",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "envasa",
+  "nombre": "ENVASA",
+  "sector": "Fabricación ligera",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "greenlight-consulting",
+  "nombre": "Greenlight Consulting",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "merck",
+  "nombre": "Merck",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "te-connectivity",
+  "nombre": "TE Connectivity",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "ulteig",
+  "nombre": "Ulteig",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "datasoft",
+  "nombre": "Datasoft",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "laboratorios-quimicos-arvi",
+  "nombre": "Laboratorios químicos ARVI",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cafe-britt",
+  "nombre": "Café Britt",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "nearlinx",
+  "nombre": "NearLinx",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "3m",
+  "nombre": "3M",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "stewart-title-guaranty",
+  "nombre": "Stewart Title Guaranty",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "orametrix-s-r-l",
+  "nombre": "Orametrix S.R.L",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "jones-lang-lasalle-limitada",
+  "nombre": "Jones Lang Lasalle Limitada",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "equifax",
+  "nombre": "Equifax",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "auxis",
+  "nombre": "Auxis",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "tebra",
+  "nombre": "Tebra",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "intricon",
+  "nombre": "Intricon",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "health-prime",
+  "nombre": "Health Prime",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "globant-costa-rica",
+  "nombre": "Globant Costa Rica",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "moog-medical",
+  "nombre": "MOOG Medical",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "dole-shared-services-ltd",
+  "nombre": "Dole Shared Services LTD",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "crg-staffing",
+  "nombre": "CRG Staffing",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "red-de-desarrollo-integral-comunitario",
+  "nombre": "Red de Desarrollo Integral Comunitario",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "tas-consultoria",
+  "nombre": "TAS Consultoria",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "banco-davivienda",
+  "nombre": "Banco Davivienda",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hanesbrands",
+  "nombre": "Hanesbrands",
+  "sector": "Fabricación ligera",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "british-american-tobacco",
+  "nombre": "British American Tobacco",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "fifco",
+  "nombre": "FIFCO",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "babel",
+  "nombre": "Babel",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "expeditors-costa-rica",
+  "nombre": "Expeditors Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "randstad",
+  "nombre": "Randstad",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "boston-scientific",
+  "nombre": "Boston Scientific",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "spectrum-plastics",
+  "nombre": "Spectrum Plastics",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "viatris",
+  "nombre": "Viatris",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "samtec-inc",
+  "nombre": "Samtec Inc.",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "jsm-automotriz",
+  "nombre": "JSM Automotriz",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "the-lifetime-value-company",
+  "nombre": "The Lifetime Value Company",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "newmont",
+  "nombre": "Newmont",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "grupo-marta",
+  "nombre": "Grupo Marta",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "abbvie",
+  "nombre": "Abbvie",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "foundever",
+  "nombre": "Foundever",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "london-stock-exchange-group",
+  "nombre": "London Stock Exchange Group",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "inari-medical",
+  "nombre": "Inari Medical",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "detektor-costa-rica",
+  "nombre": "Detektor Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "svitla-systems",
+  "nombre": "Svitla Systems",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "concentrix-costa-rica",
+  "nombre": "Concentrix Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "spc-internacional",
+  "nombre": "SPC Internacional",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cuestamoras-inmobilaria",
+  "nombre": "Cuestamoras Inmobilaria",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "yara-costa-rica",
+  "nombre": "Yara Costa Rica",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "bosch",
+  "nombre": "Bosch",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cuestamoras-operativa",
+  "nombre": "Cuestamoras Operativa",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "kpo-alpha",
+  "nombre": "KPO Alpha",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "fisher-investments-costa-rica",
+  "nombre": "Fisher Investments Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "go-costa-rica-vision",
+  "nombre": "Go Costa Rica Visión",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "bcd-travel",
+  "nombre": "BCD Travel",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "spectraforce-costa-rica",
+  "nombre": "SPECTRAFORCE Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "acuity-knowledge-partners",
+  "nombre": "Acuity Knowledge Partners",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "eagle",
+  "nombre": "Eagle",
+  "sector": "Fabricación ligera",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "tegra-medical",
+  "nombre": "Tegra Medical",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "helm360",
+  "nombre": "Helm360",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "link-outsourcing",
+  "nombre": "Link Outsourcing",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "johnson-controls",
+  "nombre": "Johnson Controls",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "elite-technology",
+  "nombre": "Elite Technology",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "roche",
+  "nombre": "Roche",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cargo-safe",
+  "nombre": "CARGO SAFE",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "people-apps",
+  "nombre": "People Apps",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "admedes",
+  "nombre": "Admedes",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "pfizer",
+  "nombre": "Pfizer",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "transunion",
+  "nombre": "TransUnion",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "datasite-costa-rica",
+  "nombre": "Datasite Costa Rica",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "splunk-inc",
+  "nombre": "Splunk Inc.",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hospital-unibe",
+  "nombre": "Hospital UNIBE",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "lutron-electronics",
+  "nombre": "Lutron Electronics",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cretex-srl",
+  "nombre": "Cretex SRL",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "east-west-manufacturing",
+  "nombre": "East West Manufacturing",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "seff-cargo-agency",
+  "nombre": "SEFF Cargo & Agency",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "eci",
+  "nombre": "ECI",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "terumo-costa-rica",
+  "nombre": "Terumo Costa Rica",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "world-wide-technology",
+  "nombre": "World Wide Technology",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "alimentos-prosalud",
+  "nombre": "Alimentos Prosalud",
+  "sector": "Fabricación ligera",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "td-synnex-shyft",
+  "nombre": "TD SYNNEX | SHYFT",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "kyndryl",
+  "nombre": "Kyndryl",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "europro-multiservices",
+  "nombre": "EUROPRO Multiservices",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "surveymonkey",
+  "nombre": "SurveyMonkey",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "amadeus",
+  "nombre": "Amadeus",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "atl-technology",
+  "nombre": "ATL Technology",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "asociacion-proyecto-daniel",
+  "nombre": "Asociacion Proyecto Daniel",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "ey",
+  "nombre": "EY",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "world-fuel",
+  "nombre": "World Fuel",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "dynamic-advance",
+  "nombre": "Dynamic Advance",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "icx-consulting",
+  "nombre": "ICX Consulting",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "global-youth-congress",
+  "nombre": "Global Youth Congress",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "kaiser-permanente",
+  "nombre": "Kaiser Permanente",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "distel",
+  "nombre": "DISTEL",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "ng-systems",
+  "nombre": "NG Systems",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "matthews-international-corporation-costa-rica",
+  "nombre": "Matthews International Corporation Costa Rica",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "grupo-clima",
+  "nombre": "Grupo CLIMA",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "smith-nephew",
+  "nombre": "Smith+Nephew",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "wework-costa-rica",
+  "nombre": "WeWork Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "vyp-hidroasesores",
+  "nombre": "VYP HIDROASESORES",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "icu-medical",
+  "nombre": "ICU Medical",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "belcorp",
+  "nombre": "Belcorp",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "asociacion-grameen-costa-rica",
+  "nombre": "Asociación Grameen Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "infotree-global-solutions",
+  "nombre": "Infotree Global Solutions",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "right-people",
+  "nombre": "Right People",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cwt",
+  "nombre": "CWT",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "coloplast",
+  "nombre": "Coloplast",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "sistemas-especiales-para-edificios-sieesa",
+  "nombre": "Sistemas Especiales para Edificios (SIEESA)",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "akamai",
+  "nombre": "Akamai",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "eaton-electrical",
+  "nombre": "Eaton Electrical",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "western-union",
+  "nombre": "Western Union",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "viant-costa-rica",
+  "nombre": "Viant Costa Rica",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "grupo-dim-s-a",
+  "nombre": "Grupo DIM S.A",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "shockwave-medical-costa-rica",
+  "nombre": "Shockwave Medical Costa Rica",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "prent-costa-rica",
+  "nombre": "Prent Costa Rica",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hub-de-biomateriales-de-cinde",
+  "nombre": "Hub de Biomateriales de CINDE",
+  "sector": "Academia",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "genpact",
+  "nombre": "Genpact",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "bimbo-global-services",
+  "nombre": "Bimbo Global Services",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hotel-arenal-paraiso",
+  "nombre": "Hotel Arenal Paraiso",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "movate-technologies-costa-rica-limitada",
+  "nombre": "Movate Technologies Costa Rica Limitada",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "curtiss-wright",
+  "nombre": "Curtiss Wright",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "west-monroe",
+  "nombre": "West Monroe",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "granicus",
+  "nombre": "Granicus",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "ufinet-costa-rica",
+  "nombre": "Ufinet Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "element-system-s-a",
+  "nombre": "Element System S.A",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "stryker",
+  "nombre": "Stryker",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cooperativa-de-productores-de-leche-dos-pinos-r-l",
+  "nombre": "Cooperativa de Productores de Leche, Dos Pinos, R.L.",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "aiesec-costa-rica",
+  "nombre": "AIESEC Costa Rica",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "deloitte-us-costa-rica-offices",
+  "nombre": "Deloitte US Costa Rica Offices",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hologic",
+  "nombre": "Hologic",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "gener8",
+  "nombre": "Gener8",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hp-inc",
+  "nombre": "HP Inc.",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "experian-services",
+  "nombre": "Experian Services",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "representaciones-televisivas-repretel-s-a",
+  "nombre": "Representaciones Televisivas Repretel S.A",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "ulacit",
+  "nombre": "ULACIT",
+  "sector": "Academia",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "gestionadora-de-creditos",
+  "nombre": "Gestionadora de Créditos",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "metalub",
+  "nombre": "Metalub",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hospital-clinica-biblica",
+  "nombre": "Hospital Clínica Bíblica",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "servicenow",
+  "nombre": "ServiceNow",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "workday",
+  "nombre": "Workday",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "huntsman",
+  "nombre": "Huntsman",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "coopersurgical",
+  "nombre": "CooperSurgical",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "resco-brands",
+  "nombre": "RESCO Brands",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cloudpay-costa-rica",
+  "nombre": "CloudPay Costa Rica",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "camara-costarricense-de-corredores-de-bienes-raices",
+  "nombre": "Cámara Costarricense de Corredores de Bienes Raíces",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "avna",
+  "nombre": "AVNA",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cigniti-technologies",
+  "nombre": "Cigniti Technologies",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "mgs-healthcare-manufacturing",
+  "nombre": "MGS Healthcare Manufacturing",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "astrazeneca",
+  "nombre": "AstraZeneca",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "legrand-centroamerica-ecuador-y-caribe",
+  "nombre": "Legrand Centroamérica, Ecuador y Caribe",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "cognizant",
+  "nombre": "Cognizant",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "academia-4-0",
+  "nombre": "Academia 4.0",
+  "sector": "Academia",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "abbott",
+  "nombre": "Abbott",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "transperfect-connect",
+  "nombre": "Transperfect Connect",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "flowzone",
+  "nombre": "FlowZone",
+  "sector": "Fabricación ligera",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "vml",
+  "nombre": "VML",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "veeam-software",
+  "nombre": "Veeam Software",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "pollo-granjero",
+  "nombre": "Pollo Granjero",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "bill-gosling-outsourcing",
+  "nombre": "Bill Gosling Outsourcing",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "eagan-immigration",
+  "nombre": "Eagan Immigration",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "infosys-bpm",
+  "nombre": "Infosys BPM",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "universidad-creativa",
+  "nombre": "Universidad Creativa",
+  "sector": "Academia",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "resonetics",
+  "nombre": "Resonetics",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "asesorias-infinita",
+  "nombre": "Asesorías INFÍNITA",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "service-first",
+  "nombre": "Service First",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "haleon",
+  "nombre": "Haleon",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "emerson-electric",
+  "nombre": "Emerson Electric",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "collette-health",
+  "nombre": "Collette Health",
+  "sector": "Servicios",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "lonza",
+  "nombre": "Lonza",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "telecable",
+  "nombre": "Telecable",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "hcltech",
+  "nombre": "HCLTech",
+  "sector": "Tecnologías digitales",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "epi",
+  "nombre": "EPI",
+  "sector": "Academia",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "universidad-de-costa-rica-escuela-de-administracion-de-negocios",
+  "nombre": "Universidad de Costa Rica, Escuela de Administración de Negocios",
+  "sector": "Academia",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "lifesync-amphenol",
+  "nombre": "LifeSync - Amphenol",
+  "sector": "Ciencias biológicas",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "intel",
+  "nombre": "INTEL",
+  "sector": "",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "aliaxis-latam",
+  "nombre": "Aliaxis LATAM",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ },
+ {
+  "slug": "micro-stamping-corporation",
+  "nombre": "Micro Stamping Corporation",
+  "sector": "Fabricación avanzada",
+  "vacantes_cinde": 0,
+  "via": "directorio"
+ }
+]

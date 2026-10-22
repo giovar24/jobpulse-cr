@@ -1,0 +1,12 @@
+[
+ {"empresa": "Teleperformance", "host": "careers-teleperformance.icims.com",
+  "nota": "board general ~56 vacantes (se agota pr=1-2); CR no visibles 2026-10-19"},
+ {"empresa": "Teleperformance USA", "host": "careersus-teleperformance.icims.com",
+  "nota": "solo ubicaciones US; CR no visibles"},
+ {"empresa": "Teleperformance (global EN)", "host": "careerseng-teleperformance.icims.com",
+  "nota": "13 paginas (650 vish); CR 0 en pag 1-9"},
+ {"empresa": "DocuSign LatAm", "host": "latamcareers-docusign.icims.com",
+  "nota": "board listo pero 0 filas hoy; DocuSign front migrado a SPA"},
+ {"empresa": "DocuSign USA", "host": "uscareers-docusign.icims.com",
+  "nota": "0 filas"}
+]

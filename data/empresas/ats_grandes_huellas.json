@@ -1,0 +1,379 @@
+[
+ {
+  "empresa": "Amazon AWS CR",
+  "url_ok": "https://www.amazon.jobs/en/",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Intel CR",
+  "url_rayada": "https://jobs.intel.com/us/en/search-results",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Intel CR",
+  "url_rayada": "https://jobs.intel.com/",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Intel CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Autodesk CR",
+  "url_rayada": "https://www.autodesk.com/careers",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Concentrix CR",
+  "url_rayada": "https://www.concentrix.com/careers/",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Concentrix CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Broadcom CR",
+  "url_rayada": "https://broadcom.wd1.myworkdayjobs.com/Broadcom",
+  "estado": "HTTP 404"
+ },
+ {
+  "empresa": "Rockwell Automation CR",
+  "url_ok": "https://www.rockwellautomation.com/en-us/company/careers.html",
+  "estado": "HTTP 200",
+  "firma": [
+   "workday"
+  ]
+ },
+ {
+  "empresa": "Broadcom CR",
+  "url_ok": "https://www.broadcom.com/company/careers",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Autodesk CR",
+  "url_rayada": "https://marlin.wd1.myworkdayjobs.com/Autodesk_Careers",
+  "estado": "HTTP 500"
+ },
+ {
+  "empresa": "Foundever (Sykes) CR",
+  "url_ok": "https://jobs.foundever.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "successfactors"
+  ]
+ },
+ {
+  "empresa": "PayPal CR",
+  "url_rayada": "https://www.paypal.com/careers",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Cisco CR",
+  "url_ok": "https://jobs.cisco.com/us/en",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ },
+ {
+  "empresa": "Kimberly-Clark CR",
+  "url_rayada": "https://jobs.kimberly-clark.com/us/en/search-results",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Sutherland CR",
+  "url_ok": "https://careers.sutherlandglobal.com/en/sites/sutherlandglobalcareers/jobs",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Bosch CR",
+  "url_ok": "https://jobs.bosch.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "smartrecruiters"
+  ]
+ },
+ {
+  "empresa": "Becton Dickinson CR",
+  "url_ok": "https://jobs.bd.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "workday"
+  ]
+ },
+ {
+  "empresa": "Kimberly-Clark CR",
+  "url_rayada": "https://jobs.kimberly-clark.com/",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Kimberly-Clark CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Fiserv CR",
+  "url_ok": "https://careers.fiserv.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ },
+ {
+  "empresa": "KPMG CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Dell Technologies CR",
+  "url_ok": "https://jobs.dell.com/us/en/search-results",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Nestle CR",
+  "url_rayada": "https://jobs.nestle.com/jobs",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "PayPal CR",
+  "url_rayada": "https://paypal.wd5.myworkdayjobs.com/htdocs/jobs/paypal/",
+  "estado": "HTTP 500"
+ },
+ {
+  "empresa": "PayPal CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "UPS CR",
+  "url_ok": "https://www.jobs-ups.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ },
+ {
+  "empresa": "Johnson & Johnson CR",
+  "url_rayada": "https://www.jobs.jnj.com/",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Medtronic CR",
+  "url_rayada": "https://medtronic.wd5.myworkdayjobs.com/",
+  "estado": "HTTP 406"
+ },
+ {
+  "empresa": "Medtronic CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Nestle CR",
+  "url_rayada": "https://www.nestle.com/jobs",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Nestle CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Atento CR",
+  "url_rayada": "https://atento.wd1.myworkdayjobs.com/",
+  "estado": "HTTP 406"
+ },
+ {
+  "empresa": "NCR Voyix CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Johnson & Johnson CR",
+  "url_ok": "https://www.jnj.com/careers",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Autodesk CR",
+  "url_ok": "https://careers.autodesk.com/",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Oracle CR",
+  "url_ok": "https://careers.oracle.com/jobs/",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Deloitte CR",
+  "url_ok": "https://apply.deloitte.com/careers",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "IBM CR",
+  "url_ok": "https://www.ibm.com/careers/search",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Alorica CR",
+  "url_rayada": "https://jobs.alorica.com/",
+  "estado": "HTTP 403"
+ },
+ {
+  "empresa": "Alorica CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Microsoft CR",
+  "url_ok": "https://jobs.careers.microsoft.com/global/en/search?q=Costa%20Rica",
+  "estado": "HTTP 200",
+  "firma": [
+   "successfactors"
+  ]
+ },
+ {
+  "empresa": "EY CR",
+  "url_ok": "https://careers.ey.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "successfactors"
+  ]
+ },
+ {
+  "empresa": "Western Digital CR",
+  "url_ok": "https://jobs.westerndigital.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "smartrecruiters"
+  ]
+ },
+ {
+  "empresa": "Grupo Bimbo CR",
+  "url_rayada": "https://www.grupobimbo.com/careers",
+  "estado": "HTTP 404"
+ },
+ {
+  "empresa": "Grupo Bimbo CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "DocuSign CR",
+  "url_ok": "https://careers.docusign.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "icims"
+  ]
+ },
+ {
+  "empresa": "Salesforce CR",
+  "url_ok": "https://careers.salesforce.com/",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Snowflake CR",
+  "url_ok": "https://careers.snowflake.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ },
+ {
+  "empresa": "Walmart CR",
+  "url_ok": "https://careers.walmart.com/",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Coca-Cola FEMSA CR",
+  "url_ok": "https://www.coca-colafemsa.com/careers/",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Koch Industries CR",
+  "url_ok": "https://www.kochcareers.com/searchjobs",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Atento CR",
+  "url_rayada": "https://www.atento.com/careers/",
+  "estado": "HTTP 404"
+ },
+ {
+  "empresa": "Atento CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "Kuehne+Nagel CR",
+  "url_ok": "https://careers.kuehne-nagel.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "successfactors"
+  ]
+ },
+ {
+  "empresa": "Clear River/NCR CR",
+  "url_ok": "https://www.clearsource.com/careers/",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Thermo Fisher Scientific",
+  "url_ok": "https://jobs.thermofisher.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ },
+ {
+  "empresa": "P&G",
+  "url_ok": "https://www.pgcareers.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ },
+ {
+  "empresa": "DHL CR",
+  "url_ok": "https://careers.dhl.com/global/en/search-results",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ },
+ {
+  "empresa": "Instacart CR",
+  "url_ok": "https://careers.instacart.com/",
+  "estado": "HTTP 200",
+  "firma": []
+ },
+ {
+  "empresa": "Teleperformance CR",
+  "url_rayada": "https://www.teleperformance.com/en/careers/",
+  "estado": "HTTP 404"
+ },
+ {
+  "empresa": "Teleperformance CR",
+  "estado": "sin-exito"
+ },
+ {
+  "empresa": "HPE",
+  "url_ok": "https://careers.hpe.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ },
+ {
+  "empresa": "Zimmer Biomet CR",
+  "url_ok": "https://careers.zimmerbiomet.com/",
+  "estado": "HTTP 200",
+  "firma": [
+   "phenom"
+  ]
+ }
+]

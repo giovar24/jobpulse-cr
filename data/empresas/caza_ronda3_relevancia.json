@@ -1,0 +1,48 @@
+{
+ "_nota": "Ronda 3 (2026-10-19): sondeos API por orden de empleos en CR",
+ "Teleperformance": {
+  "empleado_cr": "miles (mayor BPO del pais)",
+  "board": "www.jobs-tp.cr = formulacion WP sin API (no publican titulo desde ahi)",
+  "backend_real": "tp.com (Umbraco) Careers API",
+  "api": {
+   "listing": "GET https://www.tp.com/Umbraco/Api/Careers/GetCareersBase?node=1780&country=Costa%20Rica&culture=en-us&pageSize=50&page=0&accumulated=true",
+   "filtros": "country/location/category/language/workFromHome/search/opportunityType; helpers GetLocationList, GetCategoryList, GetLanguageList (con ?country=)",
+   "formato": "JSON {resultado: [{title, location, description, url, nodeId, opportunityType, source}] , countFirst}",
+   "source_tipos": "Umbraco (tp.com propio) | icims (appends ?mode=job&iis=Teleperformance.com)",
+   "magic": "node=1780 sale del ctor careersFilter de /en-us/careers/job-opportunities/ (el 1er arg es hashCode, NO usar); sin cloudflare, httpx ok",
+   "verificado_cr": "2 vacantes (Representante de atencion al cliente Costa Rica, Full Time, /es-cr/job-opportunities/costa-rica/costarica-representante-de-atencion-al-cliente-wa/)"
+  },
+  "provider_propuesto": "tp_umbraco (GET JSON; paginar pageSize=50 hasta countFirst)"
+ },
+ "Dell": {
+  "empleado_cr": "2.5-4k",
+  "ats": "Oracle Recruiting Cloud (enterpriseplatform.dell.com/hcmUI/CandidateExperience, site CX_1001)",
+  "probe": "board global: keyword 'Costa Rica' -> 0 resultados (DOM verificado por browser); finder findReqs da 404 en fetch manual (el SPA usa su propio canal)",
+  "conclusion": "CR de Dell NO publica en el board global ORC hoy (LinkedIn/locales); provider ORC sin ganancia de momento"
+ },
+ "Deloitte": {
+  "empleado_cr": "miles (hub de servicios)",
+  "board": "apply.deloitte.com/en_US/careers/SearchJobs (HTML server-side propio)",
+  "probe": "GET con ?searchTerms=Costa+Rica no filtra (200 pero 0 hits y 0 enlaces de job); requiere POST del form o URL de filtro real",
+  "conclusion": "pendiente: decodificar el SearchJobs (POST / param correcto)"
+ },
+ "Salesforce": {
+  "empleado_cr": "cientos-miles",
+  "probe": "CXS wd1/salesforce/External_Career_Site -> HTTP 422 (nombre de site equivocado); el tenant/directorio tenia otro sitio - re-visitar ats_dir.csv fila salesforce"
+ },
+ "DocuSign": {
+  "empleado_cr": "cientos",
+  "ats": "iCIMS multi-board: apjcareers- / canadacareers- / emeacareers- / indiacareers- / latamcareers- / uscareers- / employees- docusign.icims.com",
+  "probe": "latamcareers-docusign.icims.com/jobs/intro 200 (445k) pero 0 CR hoy",
+  "conclusion": "provider iCIMS sigue siendo util (DocuSign-LatAm + TP-USA + otros); hoy 0 vacantes CR visibles"
+ },
+ "Sutherland": {"ats": "SeekOut CareerCompass; endpoint publico por verificar"},
+ "Nestle/Walmart/CCFEMSA": {"bloqeo": "Cloudflare / SPA propia; pendiente caza de API propia por browser"},
+ "orden_siguiente":
+  ["provider TP-Umbraco (mayor empleador CR de la lista; API json publica lista)",
+   "provider Greenhouse (Smartsheet 7 CR, Zuora 2, Fivetran - API boards publica barata)",
+   "provider iCIMS (DocuSign-LatAm + TP-USA)",
+   "Deloitte SearchJobs (decodificar filtro)",
+   "Salesforce CXS (site correcto del directorio)",
+   "SeekOut (Sutherland) / ORC (Dell): solo si gate muestra señal"]
+}

@@ -1,0 +1,1745 @@
+[
+ {
+  "platform": "greenhouse",
+  "company": "1uphealth",
+  "token": "1uphealth",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/1uphealth/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "7shifts",
+  "token": "7shifts",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/7shifts/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "actpowerservices",
+  "token": "actpowerservices",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/actpowerservices/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "adaptivewater",
+  "token": "adaptivewater",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/adaptivewater/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "akoya",
+  "token": "akoya",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/akoya/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "alpineinternships-private",
+  "token": "alpineinternships-private",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/alpineinternships-private/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "alpineinvestors",
+  "token": "alpineinvestors",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/alpineinvestors/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "alt",
+  "token": "alt",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/alt/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "amplitude",
+  "token": "amplitude",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/amplitude/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "anchanto",
+  "token": "anchanto",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/anchanto/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "anterix",
+  "token": "anterix",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/anterix/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "arcadiacareers",
+  "token": "arcadiacareers",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/arcadiacareers/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "berkadia",
+  "token": "berkadia",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/berkadia/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "berkadiatalentpool",
+  "token": "berkadiatalentpool",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/berkadiatalentpool/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "bitso",
+  "token": "bitso",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/bitso/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "blackforestlabs",
+  "token": "blackforestlabs",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/blackforestlabs/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "boston",
+  "token": "boston",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/boston/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "butlr",
+  "token": "butlr",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/butlr/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "buyersedgeplatformrecruiting",
+  "token": "buyersedgeplatformrecruiting",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/buyersedgeplatformrecruiting/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "buzzfeed",
+  "token": "buzzfeed",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/buzzfeed/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "byheart",
+  "token": "byheart",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/byheart/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "capitalize",
+  "token": "capitalize",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/capitalize/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "Carbon",
+  "token": "Carbon",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/Carbon/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "circleso",
+  "token": "circleso",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/circleso/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "clarityai",
+  "token": "clarityai",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/clarityai/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "clickhouse",
+  "token": "clickhouse",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/clickhouse/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "cloverly",
+  "token": "cloverly",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/cloverly/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "cocoon",
+  "token": "cocoon",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/cocoon/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "companycam",
+  "token": "companycam",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/companycam/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "deepmind",
+  "token": "deepmind",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/deepmind/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "dispatch",
+  "token": "dispatch",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/dispatch/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "dubber",
+  "token": "dubber",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/dubber/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "fundraiseup",
+  "token": "fundraiseup",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/fundraiseup/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "hala",
+  "token": "hala",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/hala/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "hextechnologies",
+  "token": "hextechnologies",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/hextechnologies/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "hightouch",
+  "token": "hightouch",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/hightouch/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "hivewatch",
+  "token": "hivewatch",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/hivewatch/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "hubspotjobs",
+  "token": "hubspotjobs",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/hubspotjobs/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "hyphenconnect",
+  "token": "hyphenconnect",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/hyphenconnect/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "ibanfirst",
+  "token": "ibanfirst",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/ibanfirst/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "instabase",
+  "token": "instabase",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/instabase/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "invoca",
+  "token": "invoca",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/invoca/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "irradianttechnologies",
+  "token": "irradianttechnologies",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/irradianttechnologies/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "isidor",
+  "token": "isidor",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/isidor/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "janeasystems",
+  "token": "janeasystems",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/janeasystems/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "liveviewtechnologiesinc",
+  "token": "liveviewtechnologiesinc",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/liveviewtechnologiesinc/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "magicleap",
+  "token": "magicleap",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/magicleap/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "marqeta",
+  "token": "marqeta",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/marqeta/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "meditelecare",
+  "token": "meditelecare",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/meditelecare/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "midpointmarkets",
+  "token": "midpointmarkets",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/midpointmarkets/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "mindgym",
+  "token": "mindgym",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/mindgym/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "mishimoto",
+  "token": "mishimoto",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/mishimoto/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "mobi",
+  "token": "mobi",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/mobi/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "mqreferrals",
+  "token": "mqreferrals",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/mqreferrals/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "navierai",
+  "token": "navierai",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/navierai/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "navierboat",
+  "token": "navierboat",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/navierboat/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "neoris",
+  "token": "neoris",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/neoris/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "outschool",
+  "token": "outschool",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/outschool/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "paradigm",
+  "token": "paradigm",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/paradigm/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "persefoniaiinc",
+  "token": "persefoniaiinc",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/persefoniaiinc/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "philo",
+  "token": "philo",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/philo/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "phonepe",
+  "token": "phonepe",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/phonepe/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "pomelocare",
+  "token": "pomelocare",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/pomelocare/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "postman",
+  "token": "postman",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/postman/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "radixark",
+  "token": "radixark",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/radixark/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "rdccareers",
+  "token": "rdccareers",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/rdccareers/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "realm",
+  "token": "realm",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/realm/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "regscale",
+  "token": "regscale",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/regscale/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "remotecom",
+  "token": "remotecom",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/remotecom/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "remotereferralboardinternaluseonly",
+  "token": "remotereferralboardinternaluseonly",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/remotereferralboardinternaluseonly/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "residenthome",
+  "token": "residenthome",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/residenthome/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "russett",
+  "token": "russett",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/russett/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "sendcloudnew",
+  "token": "sendcloudnew",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/sendcloudnew/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "shelf",
+  "token": "shelf",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/shelf/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "silvr",
+  "token": "silvr",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/silvr/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "sisense",
+  "token": "sisense",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/sisense/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "sixthstreet",
+  "token": "sixthstreet",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/sixthstreet/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "skinlaundry",
+  "token": "skinlaundry",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/skinlaundry/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "skyscanner",
+  "token": "skyscanner",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/skyscanner/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "sorcero",
+  "token": "sorcero",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/sorcero/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "springhealth66",
+  "token": "springhealth66",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/springhealth66/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "starcloud",
+  "token": "starcloud",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/starcloud/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "stressfree",
+  "token": "stressfree",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/stressfree/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "supernal",
+  "token": "supernal",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/supernal/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "temporaltechnologies",
+  "token": "temporaltechnologies",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/temporaltechnologies/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "thedoulanetwork",
+  "token": "thedoulanetwork",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/thedoulanetwork/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "thinkmarkets",
+  "token": "thinkmarkets",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/thinkmarkets/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "tlatechinc",
+  "token": "tlatechinc",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/tlatechinc/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "tireseasycom",
+  "token": "tireseasycom",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/tireseasycom/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "toogoodtogo",
+  "token": "toogoodtogo",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/toogoodtogo/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "trident",
+  "token": "trident",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/trident/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "trustedhealth",
+  "token": "trustedhealth",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/trustedhealth/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "up",
+  "token": "up",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/up/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "verkada2",
+  "token": "verkada2",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/verkada2/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "victory",
+  "token": "victory",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/victory/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "visia",
+  "token": "visia",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/visia/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "visiersolutionsinc",
+  "token": "visiersolutionsinc",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/visiersolutionsinc/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "wayve",
+  "token": "wayve",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/wayve/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "greenhouse",
+  "company": "worldlabs",
+  "token": "worldlabs",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/worldlabs/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "ace-1-media",
+  "token": "ace-1-media",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/ace-1-media",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "agreena",
+  "token": "agreena",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/agreena",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "alpic",
+  "token": "alpic",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/alpic",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "Anon",
+  "token": "Anon",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/Anon",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "artemisanalytics",
+  "token": "artemisanalytics",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/artemisanalytics",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "base",
+  "token": "base",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/base",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "Bhblasted",
+  "token": "Bhblasted",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/Bhblasted",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "clarisights",
+  "token": "clarisights",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/clarisights",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "cloudtrucks",
+  "token": "cloudtrucks",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/cloudtrucks",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "commonroom",
+  "token": "commonroom",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/commonroom",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "corgi",
+  "token": "corgi",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/corgi",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "daydreamlive",
+  "token": "daydreamlive",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/daydreamlive",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "deductive",
+  "token": "deductive",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/deductive",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "egra",
+  "token": "egra",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/egra",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "empora",
+  "token": "empora",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/empora",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "finvest",
+  "token": "finvest",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/finvest",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "furiosa-ai",
+  "token": "furiosa-ai",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/furiosa-ai",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "gamut",
+  "token": "gamut",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/gamut",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "goodship",
+  "token": "goodship",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/goodship",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "govworx",
+  "token": "govworx",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/govworx",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "grand",
+  "token": "grand",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/grand",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "hiive",
+  "token": "hiive",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/hiive",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "inspiration-commerce-group",
+  "token": "inspiration-commerce-group",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/inspiration-commerce-group",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "Leapsome",
+  "token": "Leapsome",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/Leapsome",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "Lynk",
+  "token": "Lynk",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/Lynk",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "mach",
+  "token": "mach",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/mach",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "madecard",
+  "token": "madecard",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/madecard",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "material",
+  "token": "material",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/material",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "moonshot-ai",
+  "token": "moonshot-ai",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/moonshot-ai",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "nava-benefits",
+  "token": "nava-benefits",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/nava-benefits",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "ocean",
+  "token": "ocean",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/ocean",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "pluto-health",
+  "token": "pluto-health",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/pluto-health",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "polaranalytics",
+  "token": "polaranalytics",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/polaranalytics",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "pryzm",
+  "token": "pryzm",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/pryzm",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "puzzle.io",
+  "token": "puzzle.io",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/puzzle.io",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "real",
+  "token": "real",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/real",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "shield-ai",
+  "token": "shield-ai",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/shield-ai",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "solva",
+  "token": "solva",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/solva",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "squadformers",
+  "token": "squadformers",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/squadformers",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "sybill-ai",
+  "token": "sybill-ai",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/sybill-ai",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "themindcompany",
+  "token": "themindcompany",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/themindcompany",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "todyl",
+  "token": "todyl",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/todyl",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "truthsystems",
+  "token": "truthsystems",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/truthsystems",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "twin-so",
+  "token": "twin-so",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/twin-so",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "verge-genomics",
+  "token": "verge-genomics",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/verge-genomics",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "vinci4d",
+  "token": "vinci4d",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/vinci4d",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "windmill",
+  "token": "windmill",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/windmill",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "ashby",
+  "company": "yutori",
+  "token": "yutori",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/yutori",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "workable",
+  "company": "beeflow",
+  "token": "beeflow",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/beeflow",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "workable",
+  "company": "berryvirtual",
+  "token": "berryvirtual",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/berryvirtual",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "workable",
+  "company": "bezos",
+  "token": "bezos",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/bezos",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "workable",
+  "company": "cosmote-global-solutions-nv",
+  "token": "cosmote-global-solutions-nv",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/cosmote-global-solutions-nv",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "recruitee",
+  "company": "aidence",
+  "token": "aidence",
+  "api_url": "https://aidence.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "allright",
+  "token": "allright",
+  "api_url": "https://allright.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "allstate",
+  "token": "allstate",
+  "api_url": "https://allstate.recruitee.com/api/offers/",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "recruitee",
+  "company": "devfinders",
+  "token": "devfinders",
+  "api_url": "https://devfinders.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "distribusiontechnologies",
+  "token": "distribusiontechnologies",
+  "api_url": "https://distribusiontechnologies.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "driven",
+  "token": "driven",
+  "api_url": "https://driven.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "dvt",
+  "token": "dvt",
+  "api_url": "https://dvt.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "ism",
+  "token": "ism",
+  "api_url": "https://ism.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "it",
+  "token": "it",
+  "api_url": "https://it.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "itg",
+  "token": "itg",
+  "api_url": "https://itg.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "janus",
+  "token": "janus",
+  "api_url": "https://janus.recruitee.com/api/offers/",
+  "estado": "HTTP 403"
+ },
+ {
+  "platform": "recruitee",
+  "company": "jobsatlanticlabsfoodlabs",
+  "token": "jobsatlanticlabsfoodlabs",
+  "api_url": "https://jobsatlanticlabsfoodlabs.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "jobsatlanticvcfoodlabs",
+  "token": "jobsatlanticvcfoodlabs",
+  "api_url": "https://jobsatlanticvcfoodlabs.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "quartz",
+  "token": "quartz",
+  "api_url": "https://quartz.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "rbcprojectsbv",
+  "token": "rbcprojectsbv",
+  "api_url": "https://rbcprojectsbv.recruitee.com/api/offers/",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "recruitee",
+  "company": "recruitsa",
+  "token": "recruitsa",
+  "api_url": "https://recruitsa.recruitee.com/api/offers/",
+  "estado": "HTTP 302"
+ },
+ {
+  "platform": "recruitee",
+  "company": "relay",
+  "token": "relay",
+  "api_url": "https://relay.recruitee.com/api/offers/",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "acretrader-jobs",
+  "token": "acretrader-jobs",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/acretrader-jobs/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "airbox",
+  "token": "airbox",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/airbox/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "amplify",
+  "token": "amplify",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/amplify/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "burgmann",
+  "token": "burgmann",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/burgmann/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "cabrini-care",
+  "token": "cabrini-care",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/cabrini-care/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "cbts",
+  "token": "cbts",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/cbts/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "cbtsindia",
+  "token": "cbtsindia",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/cbtsindia/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "dadosfera-carreiras",
+  "token": "dadosfera-carreiras",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/dadosfera-carreiras/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "droneshield",
+  "token": "droneshield",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/droneshield/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "fullmind",
+  "token": "fullmind",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/fullmind/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "gitar-careers",
+  "token": "gitar-careers",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/gitar-careers/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "hqo",
+  "token": "hqo",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/hqo/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "hutch-ads-job-board",
+  "token": "hutch-ads-job-board",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/hutch-ads-job-board/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "letterhead",
+  "token": "letterhead",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/letterhead/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "leaflabs",
+  "token": "leaflabs",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/leaflabs/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "linqcare-careers",
+  "token": "linqcare-careers",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/linqcare-careers/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "meritus-property-group",
+  "token": "meritus-property-group",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/meritus-property-group/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "momentum-behavior-services",
+  "token": "momentum-behavior-services",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/momentum-behavior-services/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "praos-smart-security",
+  "token": "praos-smart-security",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/praos-smart-security/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "rippling",
+  "company": "qu-careers",
+  "token": "qu-careers",
+  "api_url": "https://api.rippling.com/platform/api/ats/v1/board/qu-careers/jobs",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "agile-robots-se",
+  "token": "agile-robots-se",
+  "api_url": "https://agile-robots-se.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "arx",
+  "token": "arx",
+  "api_url": "https://arx.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "dr-schauer-partgmbb",
+  "token": "dr-schauer-partgmbb",
+  "api_url": "https://dr-schauer-partgmbb.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "ecosia",
+  "token": "ecosia",
+  "api_url": "https://ecosia.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "govradar",
+  "token": "govradar",
+  "api_url": "https://govradar.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "hand-werk-gmbh",
+  "token": "hand-werk-gmbh",
+  "api_url": "https://hand-werk-gmbh.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "huk-autowelt",
+  "token": "huk-autowelt",
+  "api_url": "https://huk-autowelt.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "just-virtual-food",
+  "token": "just-virtual-food",
+  "api_url": "https://just-virtual-food.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "koro-handels-gmbh",
+  "token": "koro-handels-gmbh",
+  "api_url": "https://koro-handels-gmbh.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "maxl-baeck-gmbh-co-kg",
+  "token": "maxl-baeck-gmbh-co-kg",
+  "api_url": "https://maxl-baeck-gmbh-co-kg.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "nordantech",
+  "token": "nordantech",
+  "api_url": "https://nordantech.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "periti-digital-ltd",
+  "token": "periti-digital-ltd",
+  "api_url": "https://periti-digital-ltd.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "proveg",
+  "token": "proveg",
+  "api_url": "https://proveg.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "quattron",
+  "token": "quattron",
+  "api_url": "https://quattron.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "simpleshow",
+  "token": "simpleshow",
+  "api_url": "https://simpleshow.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "therapiezentrum-snoek",
+  "token": "therapiezentrum-snoek",
+  "api_url": "https://therapiezentrum-snoek.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "unite-ggmbh",
+  "token": "unite-ggmbh",
+  "api_url": "https://unite-ggmbh.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "varm",
+  "token": "varm",
+  "api_url": "https://varm.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "personio",
+  "company": "weicon",
+  "token": "weicon",
+  "api_url": "https://weicon.jobs.personio.de/xml",
+  "estado": "HTTP 404"
+ },
+ {
+  "platform": "workable",
+  "company": "payfuture",
+  "token": "payfuture",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/payfuture",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "workable",
+  "company": "sanction-scanner",
+  "token": "sanction-scanner",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/sanction-scanner",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "workable",
+  "company": "stafi",
+  "token": "stafi",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/stafi",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "workable",
+  "company": "talent3600",
+  "token": "talent3600",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/talent3600",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "workable",
+  "company": "trio-scs",
+  "token": "trio-scs",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/trio-scs",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "andersrecruitmentservices",
+  "token": "andersrecruitmentservices",
+  "api_url": "https://andersrecruitmentservices.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "batitprotect",
+  "token": "batitprotect",
+  "api_url": "https://batitprotect.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "billwerk",
+  "token": "billwerk",
+  "api_url": "https://billwerk.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "bp",
+  "token": "bp",
+  "api_url": "https://bp.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "context",
+  "token": "context",
+  "api_url": "https://context.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "corebackbonegmbh1",
+  "token": "corebackbonegmbh1",
+  "api_url": "https://corebackbonegmbh1.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "data",
+  "token": "data",
+  "api_url": "https://data.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "embrace",
+  "token": "embrace",
+  "api_url": "https://embrace.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "fidusheinenoord",
+  "token": "fidusheinenoord",
+  "api_url": "https://fidusheinenoord.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "focushomeinteractive",
+  "token": "focushomeinteractive",
+  "api_url": "https://focushomeinteractive.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "forcit",
+  "token": "forcit",
+  "api_url": "https://forcit.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "headfirst",
+  "token": "headfirst",
+  "api_url": "https://headfirst.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "hrjobmatcher",
+  "token": "hrjobmatcher",
+  "api_url": "https://hrjobmatcher.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "interothesniffers",
+  "token": "interothesniffers",
+  "api_url": "https://interothesniffers.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "intralot",
+  "token": "intralot",
+  "api_url": "https://intralot.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "lassnerkarriere",
+  "token": "lassnerkarriere",
+  "api_url": "https://lassnerkarriere.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "mag",
+  "token": "mag",
+  "api_url": "https://mag.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "maris",
+  "token": "maris",
+  "api_url": "https://maris.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "meddy1",
+  "token": "meddy1",
+  "api_url": "https://meddy1.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "meliorategmbh1",
+  "token": "meliorategmbh1",
+  "api_url": "https://meliorategmbh1.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "meta",
+  "token": "meta",
+  "api_url": "https://meta.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "metamundo",
+  "token": "metamundo",
+  "api_url": "https://metamundo.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "momomedicalbv",
+  "token": "momomedicalbv",
+  "api_url": "https://momomedicalbv.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "nencofoodgroup",
+  "token": "nencofoodgroup",
+  "api_url": "https://nencofoodgroup.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "nowatch",
+  "token": "nowatch",
+  "api_url": "https://nowatch.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "oculus",
+  "token": "oculus",
+  "api_url": "https://oculus.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "oil",
+  "token": "oil",
+  "api_url": "https://oil.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "pon22",
+  "token": "pon22",
+  "api_url": "https://pon22.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "robert",
+  "token": "robert",
+  "api_url": "https://robert.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "schenktanktransport",
+  "token": "schenktanktransport",
+  "api_url": "https://schenktanktransport.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "skmgroup",
+  "token": "skmgroup",
+  "api_url": "https://skmgroup.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "sl",
+  "token": "sl",
+  "api_url": "https://sl.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "stacvalley",
+  "token": "stacvalley",
+  "api_url": "https://stacvalley.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "te",
+  "token": "te",
+  "api_url": "https://te.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "thesjefgroup",
+  "token": "thesjefgroup",
+  "api_url": "https://thesjefgroup.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "viterramagdeburggmbh",
+  "token": "viterramagdeburggmbh",
+  "api_url": "https://viterramagdeburggmbh.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ },
+ {
+  "platform": "recruitee",
+  "company": "wordbankllc",
+  "token": "wordbankllc",
+  "api_url": "https://wordbankllc.recruitee.com/api/offers/",
+  "estado": "HTTP 429"
+ }
+]

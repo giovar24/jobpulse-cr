@@ -1,0 +1,42 @@
+[
+ {
+  "empresa": "CommandLink",
+  "slug": "commandlink",
+  "nota": "8 CR (CS/Billing/NetOps/SWE Senior/Staff)"
+ },
+ {
+  "empresa": "Aubrant Digital",
+  "slug": "epic-software",
+  "nota": "15 CR (Escazu, remoto LATAM)"
+ },
+ {
+  "empresa": "Havenly",
+  "slug": "havenlybrands",
+  "nota": "1 CR Trade Sales LATAM"
+ },
+ {
+  "empresa": "InAir",
+  "slug": "inair",
+  "nota": "1 CR Implementation Consultant"
+ },
+ {
+  "empresa": "Lisinski Law Firm",
+  "slug": "lisinski-law-firm",
+  "nota": "6 CR (Salesforce/QA/Marketing)"
+ },
+ {
+  "empresa": "Pythian",
+  "slug": "pythian",
+  "nota": "2 CR (DevOps, AI/ML Lead)"
+ },
+ {
+  "empresa": "Sparq",
+  "slug": "sparq",
+  "nota": "8 CR (Senior Devs/Cloud)"
+ },
+ {
+  "empresa": "Venn",
+  "slug": "venncareers",
+  "nota": "2 CR (GTM/RevOps)"
+ }
+]

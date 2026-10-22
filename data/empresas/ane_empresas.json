@@ -1,0 +1,2222 @@
+[
+ {
+  "nombre": "Confidencial",
+  "vacantes_ane": 296,
+  "ejemplo_puesto": "Program Leader 2027 (Guide)"
+ },
+ {
+  "nombre": "GRUPO SFA",
+  "vacantes_ane": 11,
+  "ejemplo_puesto": "Mecánico de mantenimiento"
+ },
+ {
+  "nombre": "Digital Sat S.A.",
+  "vacantes_ane": 11,
+  "ejemplo_puesto": "Promotor / Gestor de Tiendas - San José"
+ },
+ {
+  "nombre": "Carnes Don Fernando",
+  "vacantes_ane": 11,
+  "ejemplo_puesto": "Asistente de recursos humanos"
+ },
+ {
+  "nombre": "Contrataciones MMC",
+  "vacantes_ane": 9,
+  "ejemplo_puesto": "Electromecánico de maquinaria pesada"
+ },
+ {
+  "nombre": "Opticas Munkel",
+  "vacantes_ane": 9,
+  "ejemplo_puesto": "Auxiliar Contable CXP"
+ },
+ {
+  "nombre": "Soluciones Creativas",
+  "vacantes_ane": 9,
+  "ejemplo_puesto": "Supervisor de Logistica Inversa"
+ },
+ {
+  "nombre": "Hotel Crowne Plaza Corobici",
+  "vacantes_ane": 8,
+  "ejemplo_puesto": "PASTELERO(A)/PANADERO"
+ },
+ {
+  "nombre": "Homy CR",
+  "vacantes_ane": 8,
+  "ejemplo_puesto": "Técnico Fontanería"
+ },
+ {
+  "nombre": "Hotel Hyatt Centric San José Escazú",
+  "vacantes_ane": 7,
+  "ejemplo_puesto": "Recepcionista"
+ },
+ {
+  "nombre": "Almacenes Siman S.A",
+  "vacantes_ane": 7,
+  "ejemplo_puesto": "Asesor de Ventas Alajuela"
+ },
+ {
+  "nombre": "Traygo",
+  "vacantes_ane": 7,
+  "ejemplo_puesto": "MECÁNICO DE CUREÑAS"
+ },
+ {
+  "nombre": "KleeGlobal-Bolsa de Empleo",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Encargado de Control de Calidad (Paqueteria)"
+ },
+ {
+  "nombre": "MAP Soluciones",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Técnico Medio en informática"
+ },
+ {
+  "nombre": "Yeril",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Soldador"
+ },
+ {
+  "nombre": "Central de Mangueras",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Vendedor(a) de Baterías"
+ },
+ {
+  "nombre": "CIAMESA",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Ayudante Proceso"
+ },
+ {
+  "nombre": "Nacion sushi",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Bartender"
+ },
+ {
+  "nombre": "Grupo Montecristo",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Host / Anfitrion de restaurante ( Medio tiempo)"
+ },
+ {
+  "nombre": "Banana Consulting",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Mensajero"
+ },
+ {
+  "nombre": "REPUESTOS EL CAMIONERO",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Técnico en frenos"
+ },
+ {
+  "nombre": "MCDONALDS",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "COLABORADOR REGULAR"
+ },
+ {
+  "nombre": "InFood",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Acompañante - Domestico"
+ },
+ {
+  "nombre": "Coprose",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Auxiliar de Bodega (La Valencia, Heredia)"
+ },
+ {
+  "nombre": "Marketing Desing",
+  "vacantes_ane": 6,
+  "ejemplo_puesto": "Impulsadora GAM"
+ },
+ {
+  "nombre": "Importaciones GM",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Coordinador de ruta"
+ },
+ {
+  "nombre": "HR Consulting",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Encargado de tienda retail"
+ },
+ {
+  "nombre": "HiperMascotas",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Community Manager"
+ },
+ {
+  "nombre": "Zermat corporación",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Reclutadora"
+ },
+ {
+  "nombre": "Café Britt",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Asistente de Cocina (Escazú)"
+ },
+ {
+  "nombre": "Ofimensajeros",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Auxiliar de limpieza (por horas)"
+ },
+ {
+  "nombre": "Forza Cash Logistics S.A.",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Chofer B3/B4"
+ },
+ {
+  "nombre": "Claro",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Supervisor de Territorio"
+ },
+ {
+  "nombre": "Azucarera El Viejo",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Operario de Proceso"
+ },
+ {
+  "nombre": "Talentum MVR",
+  "vacantes_ane": 5,
+  "ejemplo_puesto": "Vendedor de Vehículos"
+ },
+ {
+  "nombre": "AyA",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "AyA-Oficial General Sistema De Aguas Diversas Dependencias- GAM. Plaza N°3749, Concurso externo."
+ },
+ {
+  "nombre": "INFESA",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Jefatura de Ventas"
+ },
+ {
+  "nombre": "Techshop Internacional SA",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Técnico de Mantenimiento"
+ },
+ {
+  "nombre": "METALES FLIX S.A.",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Supervisor de bodega y logística"
+ },
+ {
+  "nombre": "DEL CARIBE",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Chofer de Camión"
+ },
+ {
+  "nombre": "Inprefa S.A.",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Operario de construcción"
+ },
+ {
+  "nombre": "Refrigeración Omega",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Auxiliar de Bodega I - CEDI, Santa Ana, Piedades, San José."
+ },
+ {
+  "nombre": "Lili Pink",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Supervisora de zona"
+ },
+ {
+  "nombre": "UNO COSTA RICA",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Pistero(a)- Limon"
+ },
+ {
+  "nombre": "COLYPRO",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "COLYPRO-PEÓN DE FINCA"
+ },
+ {
+  "nombre": "PARTSELECT",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Técnico Electromecánico"
+ },
+ {
+  "nombre": "Infotree Global Solutions.",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Supervisor(a) de Distribución y Flota"
+ },
+ {
+  "nombre": "Lucida",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Agente Vendedor"
+ },
+ {
+  "nombre": "Multivex",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Vendedora Ferretera"
+ },
+ {
+  "nombre": "Comercializadora Internacional ALFA S.A.",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Agente Preventa"
+ },
+ {
+  "nombre": "Grupo ANC CAR",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Agente Rentista Flamingo"
+ },
+ {
+  "nombre": "AM PM",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Asistente administrativo de Punto de Venta"
+ },
+ {
+  "nombre": "Electrik Consultants S.A",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Técnico en sistemas detección contra incendios"
+ },
+ {
+  "nombre": "SigloBPO",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Auxiliar de Recursos Humanos Medio tiempo (TEMPORAL)"
+ },
+ {
+  "nombre": "Irex de Costa Rica S.A",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Supervisor(a) de Estación Serviindoor"
+ },
+ {
+  "nombre": "GRUPO LTCR S.A",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Auxiliar de Bodega"
+ },
+ {
+  "nombre": "Bejarano Y Asociados",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Bodeguero"
+ },
+ {
+  "nombre": "BEL INGENIERIA, S.A.",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "ASISTENTE DE RRHH"
+ },
+ {
+  "nombre": "Hospital La Católica",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Secretaria de Consultorios"
+ },
+ {
+  "nombre": "Manejo Profesional de Desechos S,A",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Asiste de Calidad y Administrativo"
+ },
+ {
+  "nombre": "Jirón",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "VENDEDOR DE TIENDA"
+ },
+ {
+  "nombre": "Gestionadora de Créditos",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Gestor de Cobros"
+ },
+ {
+  "nombre": "LA TAPACHULA",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "PINTOR DE CARROCERIA"
+ },
+ {
+  "nombre": "Innovadora Médica",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Coordinador de flota vehicular"
+ },
+ {
+  "nombre": "Burger King.",
+  "vacantes_ane": 4,
+  "ejemplo_puesto": "Anfitrionas"
+ },
+ {
+  "nombre": "Clinica Studio Visual",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Asesor de ventas San josé"
+ },
+ {
+  "nombre": "Fantini",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Bodeguero"
+ },
+ {
+  "nombre": "Grupo Fanast",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Chofer de camión"
+ },
+ {
+  "nombre": "Sogo Amarillo",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Coordinador(a) de Proyectos y Logística Comercial"
+ },
+ {
+  "nombre": "Instituto Mixto de Ayuda Social",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "IMAS CAJERO/A TIENDAS DUTY FREE"
+ },
+ {
+  "nombre": "REM Soluciones",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Operario en mantenimiento Sabana"
+ },
+ {
+  "nombre": "Manpalider",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Chofer camión B3 Temporal"
+ },
+ {
+  "nombre": "Exporpack, S.A.",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Operadores de Chapulín"
+ },
+ {
+  "nombre": "Microbiólogos Asociados S.A.",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Asistente Contable Junior"
+ },
+ {
+  "nombre": "Prides S.A.",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Analista en Contratación Administrativa y SICOP"
+ },
+ {
+  "nombre": "Asesorías Infinita",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "CONSULTOR(A) FREELANCE DE DESARROLLO DE NEGOCIOS Y GESTIÓN COMERCIAL"
+ },
+ {
+  "nombre": "Seguridad Privada 511",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Oficial de seguridad privada - Tamarindo Guanacaste Nocturno"
+ },
+ {
+  "nombre": "ICE PROYECTOS",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Profesional en Ingeniería Eléctrica"
+ },
+ {
+  "nombre": "SOLU TEC ROWSE S.A",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "MENSAJERO (RECOLECTOR)"
+ },
+ {
+  "nombre": "Grupo A",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Administrador de Tienda Calzado - Multiplaza Curridabat"
+ },
+ {
+  "nombre": "Centro Cars S.A.",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "CHOFER CON LICENCIA B1 Y AYUDANTE"
+ },
+ {
+  "nombre": "Construplaza",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Auxiliar de bodega ferretería (Picking) HEREDIA"
+ },
+ {
+  "nombre": "Groom Luxury Vet Costa Rica",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Asistente de Groomer"
+ },
+ {
+  "nombre": "cecorsa",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "agente de ventas con experiencia cosumo masivo con B3"
+ },
+ {
+  "nombre": "Grupo especializado de asistencia GEA de Costa Rica S.A",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "EJECUTIVO DE VENTAS DE TARJETAS DE CREDITO CON EXPERIENCIA"
+ },
+ {
+  "nombre": "Grupo Sur",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Operario de Construcción (Plaza Fija, Uruca, San José)"
+ },
+ {
+  "nombre": "REX CARGO",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Oficial de Operaciones"
+ },
+ {
+  "nombre": "Acciona Agua SA",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Fontanero"
+ },
+ {
+  "nombre": "Grupo Forte",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Ayudante de Pintor automotriz estructuras Metalicas"
+ },
+ {
+  "nombre": "Job solutions",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Asesor de Ventas Cajas(bilingüe) - San Isidro, Pérez Zeledón. Para nuestro cliente Coopealianza"
+ },
+ {
+  "nombre": "SPORTLINE",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Analista de Soporte Técnico"
+ },
+ {
+  "nombre": "Human Axis Latam",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Chofer de Ruta"
+ },
+ {
+  "nombre": "GRUPO TUASA",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Oficial de Seguridad"
+ },
+ {
+  "nombre": "Outsource Empresarial SRL",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Promotor de Tecnología-San José-Zapote-San Sebastián Escazú"
+ },
+ {
+  "nombre": "FORESTALES",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "BODEGUERO DE MADERAS"
+ },
+ {
+  "nombre": "Cefa central farmacéutica",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Auxiliar de almacén"
+ },
+ {
+  "nombre": "Grupo Servica",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Requerimos Choferes con licencia B3"
+ },
+ {
+  "nombre": "Grupo Transremont",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Especialista senior en regimen de zona franca"
+ },
+ {
+  "nombre": "Seguridad G4S",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "OFICIAL DE SEGURIDAD"
+ },
+ {
+  "nombre": "Restaurante Sapore Trattoria",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Salonero"
+ },
+ {
+  "nombre": "Cargill",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Operario(a) para Inyección"
+ },
+ {
+  "nombre": "COMIDAS",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "AYUDANTE DE REPOSTERIA"
+ },
+ {
+  "nombre": "Red de Servicios de Salud-INS S.A.",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Farmacéutico (a) I Hospitalario"
+ },
+ {
+  "nombre": "Instituto Profesional",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Profesores Salud Ocupacional"
+ },
+ {
+  "nombre": "Seaboard Marine",
+  "vacantes_ane": 3,
+  "ejemplo_puesto": "Mecánico de Chasis (Contenedores) Belén"
+ },
+ {
+  "nombre": "Climatisa",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "INSPECTOR DE SALUD Y SEGURIDAD OCUPACIONAL PROYECTOS HVAC."
+ },
+ {
+  "nombre": "Central Azucarera Tempisque",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "OPERADOR DE COSECHADORAS"
+ },
+ {
+  "nombre": "Expat Senior CR",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asistente doméstica con inglés – Cocina, lavandería y mandados"
+ },
+ {
+  "nombre": "Ñambaro",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ingeniero en Salud Ocupacional"
+ },
+ {
+  "nombre": "Talentopia CR",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "MECÁNICO AUTOMOTRIZ"
+ },
+ {
+  "nombre": "Inversiones Florem FMR S.A",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asistente Contable"
+ },
+ {
+  "nombre": "Santillana S. A.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asistente de Mercadeo"
+ },
+ {
+  "nombre": "CORBANA S.A.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Supervisor de Proyectos"
+ },
+ {
+  "nombre": "Giacomin",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ayudante de Cocina-Santo Domingo Heredia"
+ },
+ {
+  "nombre": "AISA MILLENIUM",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Back Office de Proyectos"
+ },
+ {
+  "nombre": "VMA SEGURIDAD Y LIMPIEZA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Mensajero en zona de puntarenas"
+ },
+ {
+  "nombre": "Indudi S.A.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Agente de Ventas"
+ },
+ {
+  "nombre": "AVALRENTAL",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "MECANICO equipo liviano y motores 4 tiempos"
+ },
+ {
+  "nombre": "Charq Estudio S.A",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ingeniero en Salud Ocupacional"
+ },
+ {
+  "nombre": "FERRETERIA COSTANERA SUR",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "AYUDANTE DE BODEGA"
+ },
+ {
+  "nombre": "ASOHTRAUMA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Cajero- dependiente punto de venta ( Cafetería)"
+ },
+ {
+  "nombre": "Foundever",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Customer Service Representative San Pedro"
+ },
+ {
+  "nombre": "Trading Blue Mountain",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "EJECUTIVO DE VENTAS INTERNACIONALES"
+ },
+ {
+  "nombre": "Instituto Nacional de las Mujeres",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Persona Gestora 1 Cooperación y Relaciones Internacionales"
+ },
+ {
+  "nombre": "Presto Servicios de Alimentos",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ayudante de Alisto"
+ },
+ {
+  "nombre": "Distribuidora Mundial",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asistente Administrativo y de Facturación"
+ },
+ {
+  "nombre": "casino concorde",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "DEALER"
+ },
+ {
+  "nombre": "El Exito Betancur",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asesora - cajera - Flotante de Sucursales Pretty Woman"
+ },
+ {
+  "nombre": "INTACO Costa Rica, S.A.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Operario de Producción Santa Ana"
+ },
+ {
+  "nombre": "MATRA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Pintor"
+ },
+ {
+  "nombre": "Agencias Vibo de Centroamerica S,A",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asesor Ventas Externas"
+ },
+ {
+  "nombre": "La Vete",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asesor Comercial Lindora"
+ },
+ {
+  "nombre": "MONKEYSCRUBS",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Coordinador(a) de Recursos Humanos y Gestión del Talento"
+ },
+ {
+  "nombre": "Espacios Positivos",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Gestor de cobros"
+ },
+ {
+  "nombre": "NaNa Family Support",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Teacher de Preescolar, I y II ciclo"
+ },
+ {
+  "nombre": "AGILEWAY LOGISTICS",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Auxiliar Operativo"
+ },
+ {
+  "nombre": "Laboratorio San Martín",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Muestreador"
+ },
+ {
+  "nombre": "GL Ingenieria Electromecánica",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Dibujante Tecnico - Estudiante de Ingenieria"
+ },
+ {
+  "nombre": "ALCAMES",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "CHOFER"
+ },
+ {
+  "nombre": "Profesionales en Lubricación S.A.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Mecánico Industrial - Ciudad Quesada"
+ },
+ {
+  "nombre": "Intelec",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asesor de Ventas- Sucursal de Heredia"
+ },
+ {
+  "nombre": "La Guaca",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Administrador de Sucursal Cartago"
+ },
+ {
+  "nombre": "AMSA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "OFICIAL DE SEGURIDAD"
+ },
+ {
+  "nombre": "AYP Costa Rica",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "MERCADERISTA DESAMPARADOS"
+ },
+ {
+  "nombre": "Recluta Talenthunter",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Técnico de Mantenimiento"
+ },
+ {
+  "nombre": "TIPS",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Chofér B3"
+ },
+ {
+  "nombre": "Little Tropics",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Encargada de Tienda"
+ },
+ {
+  "nombre": "IMPORTADORA BREJIM S.A.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Encargado(a) de control operativo de carga y despachos"
+ },
+ {
+  "nombre": "ALPISTE",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Cajero/a Bottega Tamarindo"
+ },
+ {
+  "nombre": "Salesland CR SRL",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Promotor de Ventas / Experiencia en Ferretería & Pinturas / Todo el País"
+ },
+ {
+  "nombre": "Selección Corporativa",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "JARDINERO"
+ },
+ {
+  "nombre": "Hotel Fiesta Resort",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Salonero"
+ },
+ {
+  "nombre": "People Dynamic",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ayudante de Cocina / Industriales"
+ },
+ {
+  "nombre": "RAHSO",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "AUXILIAR DE CONTABILIDAD"
+ },
+ {
+  "nombre": "Instituto Nacional de Aprendizaje - URHN",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Docente en ingeniería Electrica (Licenciatura)"
+ },
+ {
+  "nombre": "Corporación CSB",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Operador de Equipo Pesado"
+ },
+ {
+  "nombre": "SIGMA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "AUXILIAR DE REPARTO"
+ },
+ {
+  "nombre": "Biogeneris de Costa Rica",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Técnico en trabajos en alturas"
+ },
+ {
+  "nombre": "Grow Human",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ayudante de Cocina"
+ },
+ {
+  "nombre": "SOLUCIONES INTEGRALES",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Gerente de Supply Chain y Logística"
+ },
+ {
+  "nombre": "Gollo - La Curacao - RadioShak - Gollo Ópticas - ServiTotal",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Técnico en Refrigeración y Línea Blanca"
+ },
+ {
+  "nombre": "Claro Telecomunicaciones",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ejecutivo de Ventas Corporativo Sr"
+ },
+ {
+  "nombre": "Hotel Presidente Gudes & Scriba S.A",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Salonero(a) Bilingüe"
+ },
+ {
+  "nombre": "Universidad Central",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "ASESOR (A) VENTAS ACADÉMICO - UNIVERSIDAD CENTRAL"
+ },
+ {
+  "nombre": "Grupo Mora",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Apilador"
+ },
+ {
+  "nombre": "ESOSA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asistente de Ventas"
+ },
+ {
+  "nombre": "Amecsa SA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Agente Comercial San Carlos"
+ },
+ {
+  "nombre": "Akila CR Experiencias Inmobiliarias",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Miceláneo/a"
+ },
+ {
+  "nombre": "SPS Security",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Supervisor de Seguridad"
+ },
+ {
+  "nombre": "Rythmia Life Advancement Center",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Operario de mantenimiento"
+ },
+ {
+  "nombre": "SUBWAY",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ingeniero de Infraestructura de TI"
+ },
+ {
+  "nombre": "Grupo Marta",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Camarera (o) - Uruca"
+ },
+ {
+  "nombre": "Kuanta Bridge",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Profesional de Ventas y Servicio al Cliente"
+ },
+ {
+  "nombre": "Impresion actual",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Instalador"
+ },
+ {
+  "nombre": "Helados Sensación Ltda.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Técnico Electromecánico"
+ },
+ {
+  "nombre": "Caribe Hospitality",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Gerente de Asset Managment"
+ },
+ {
+  "nombre": "Rocca Portafolio Comercial",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Operario de mantenimiento"
+ },
+ {
+  "nombre": "Consultores del Talento",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Diseñador Web"
+ },
+ {
+  "nombre": "Electro Plast",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Operador de Preparación de MP de Inyección"
+ },
+ {
+  "nombre": "Ctvs",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asesor de ventas"
+ },
+ {
+  "nombre": "ULATINA-UAM",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Misceláneo(a)_Universidad Latina Sede de San Pedro"
+ },
+ {
+  "nombre": "JINCA FOODS",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Auxiliar Contable Alajuela"
+ },
+ {
+  "nombre": "People Working Corp",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ayudante de Técnico Instalador de puertas automáticas"
+ },
+ {
+  "nombre": "ÉNHMED",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asistente de Ventas (Licitaciones -Contratación Pública)."
+ },
+ {
+  "nombre": "Vine por Vino",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Salonero para Wine Bar"
+ },
+ {
+  "nombre": "Grupo Confrut",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Supervisor Operativo"
+ },
+ {
+  "nombre": "Sencha Tea Co.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Dependiente de Tienda- Santa Ana"
+ },
+ {
+  "nombre": "Tecnofijaciones",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "ASESOR COMERCIAL TIENDA (LA URUCA)"
+ },
+ {
+  "nombre": "CACSA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Montacarguista"
+ },
+ {
+  "nombre": "Costa Rica tennis Club",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Tecnico Salud Ocupacional"
+ },
+ {
+  "nombre": "Fideicomiso CS",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ejecutivo de gestión cobranza"
+ },
+ {
+  "nombre": "ESPIRALES Y ANILLADOS S.A",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Auxiliar Comercial - SICOP"
+ },
+ {
+  "nombre": "Medtronic Medical CR",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Mecánico de Precisión I."
+ },
+ {
+  "nombre": "iCon",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asesor (a) de ventas Jr. Multiplaza Escazú"
+ },
+ {
+  "nombre": "Trixo Solutions LTDA",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Operador de transportes"
+ },
+ {
+  "nombre": "Centro Médico Aruma",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Secretariado Medico"
+ },
+ {
+  "nombre": "Repuestos Gigante",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asesor de Ventas Motocicletas Zapote"
+ },
+ {
+  "nombre": "Mondaisa",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Técnico en Producción"
+ },
+ {
+  "nombre": "Restaurante Chez Christophe",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Personal para Cafetería en Multiplaza"
+ },
+ {
+  "nombre": "Corporación Rosti",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Ayudante de cocina"
+ },
+ {
+  "nombre": "REFRINZA S.A.",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Técnico electromecánico / Soldador / Electricista"
+ },
+ {
+  "nombre": "Bill Gosling Outsourcing",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Business Development Representative"
+ },
+ {
+  "nombre": "Streetfiber",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Asistente administrativa enfoque en ventas"
+ },
+ {
+  "nombre": "Parque del Lago Boutique Hotel",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Mucama"
+ },
+ {
+  "nombre": "Smurfit Westrock",
+  "vacantes_ane": 2,
+  "ejemplo_puesto": "Pasante Control de Calidad"
+ },
+ {
+  "nombre": "Alimer S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente de Contabilidad"
+ },
+ {
+  "nombre": "AYA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "CONCURSO EXTERNO 00005140 GESTOR EXPERTO SISTEMAS DE AGUA PRODUCCION Y DISTRIBUCION"
+ },
+ {
+  "nombre": "Agrícola Industrial La Lydia S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "ANALISTA DE COSTOS Y PRESUPUESTO - San Carlos"
+ },
+ {
+  "nombre": "CONSULTORA KAROL PORRAS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer con licencia B3 para Cartago, minimo B2"
+ },
+ {
+  "nombre": "Outlet Boom Deals",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cajera-Dependiente"
+ },
+ {
+  "nombre": "Coopecostura RL",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario de máquina de coser industrial"
+ },
+ {
+  "nombre": "La Miga y la Hormiga",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente de cocina"
+ },
+ {
+  "nombre": "Hotel Hacienda Guachipelin",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ejecutiva(o) Reservas"
+ },
+ {
+  "nombre": "RAMSA Internacional",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "ASESOR (A) DE VENTAS PARA LA ZONA DE GUAPILES"
+ },
+ {
+  "nombre": "SOSELEC",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico Electromecánico o Eléctrico"
+ },
+ {
+  "nombre": "Vinculamos Talento Humano",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Promotor de Marca"
+ },
+ {
+  "nombre": "Seguridad 3-102",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Contador privado incorporado"
+ },
+ {
+  "nombre": "AMERICAN TROPIC FOODS S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "AYUDANTE DE SANITIZACIÓN"
+ },
+ {
+  "nombre": "Laboratorios Compañía Farmacéutica S,A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Dispensador"
+ },
+ {
+  "nombre": "Dytaz",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente Administrativo"
+ },
+ {
+  "nombre": "Corporacion FCT",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar contable"
+ },
+ {
+  "nombre": "Colegio Profesional",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente Administrativa Contable Filial Brunca"
+ },
+ {
+  "nombre": "GRUPO SURETKA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "ASISTENTE CONTABLE CON ENFOQUE EN CREDITO Y COBRO"
+ },
+ {
+  "nombre": "Jordomex / Espartaco",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar Contable"
+ },
+ {
+  "nombre": "Davibank",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Representante de Servicio al cliente- Cajas (Temporal)"
+ },
+ {
+  "nombre": "VYMISA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Supervisor de Producción"
+ },
+ {
+  "nombre": "Distribuidora Retana y Salmeron RYS S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar de Despacho"
+ },
+ {
+  "nombre": "Grupo Agroindustrial Numar",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Montacarguista"
+ },
+ {
+  "nombre": "Dacotrans",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar Contable"
+ },
+ {
+  "nombre": "Entre Migas La Boutique del Pan",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ayudante de Cocina"
+ },
+ {
+  "nombre": "Supermercado Gingko",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Analista de datos"
+ },
+ {
+  "nombre": "INEC",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Concurso Externo N° 231-2026 Profesional Licenciado Economía"
+ },
+ {
+  "nombre": "Importadora y Distribuidora Gingko S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "TECNICO INFORMATICO - ANALISTA DE DATOS"
+ },
+ {
+  "nombre": "Servicio Infotree SRL",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecánico Carrocero"
+ },
+ {
+  "nombre": "Vidrios Obando",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente de ventas"
+ },
+ {
+  "nombre": "Equipos AB",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico en refrigeración"
+ },
+ {
+  "nombre": "Corporación Pura Vida",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar de Activos"
+ },
+ {
+  "nombre": "strategic Human Resources",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Muestrador"
+ },
+ {
+  "nombre": "3101011167",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Agente de Ventas para la zona de Guanacaste"
+ },
+ {
+  "nombre": "Hotel y Restaurante Casa Romántica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cocinero/a para restaurante de comida internacional y mediterránea (a partir de finales de noviembre)"
+ },
+ {
+  "nombre": "Repuestos y Maquinaria Remaq",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cajero (a)"
+ },
+ {
+  "nombre": "TRI FRIO S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "tecnico en aire acondicionado"
+ },
+ {
+  "nombre": "ARPINSA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "AUXILIAR DE TIENDA"
+ },
+ {
+  "nombre": "Esquinas Rainforest Lodge",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Guía Naturalista"
+ },
+ {
+  "nombre": "Mazdatec",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asesor de ventas y servicios de taller"
+ },
+ {
+  "nombre": "AIE.BUILD",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ingeniero (a) en Salud Ocupacional y Ambiente"
+ },
+ {
+  "nombre": "El Trapiche, Restaurante y Hospedaje Rural",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Salonero(a)"
+ },
+ {
+  "nombre": "SAUBER",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico en Mantenimiento"
+ },
+ {
+  "nombre": "Grupo ARH",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mensajero motociclista"
+ },
+ {
+  "nombre": "Starbucks Costa Rica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistencia de Gerencia"
+ },
+ {
+  "nombre": "Corporacion USA CR S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Vendedor de repuestos de auto"
+ },
+ {
+  "nombre": "International Precision Molds",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecánico de Precisión"
+ },
+ {
+  "nombre": "Vulcor S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer -Ayudante General"
+ },
+ {
+  "nombre": "Luz Verde",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico en rotulación"
+ },
+ {
+  "nombre": "Uniempaques S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer repartidor"
+ },
+ {
+  "nombre": "Negocios en Tacones",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Bodeguero"
+ },
+ {
+  "nombre": "CENTRO INFANTIL LA CASITA SOCIEDAD ANONIMA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "DOCENTE PREESCOLAR (CARTAGO)"
+ },
+ {
+  "nombre": "Fundación Costa Rica Canadá",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Gestor Social"
+ },
+ {
+  "nombre": "BOS International",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer de camión"
+ },
+ {
+  "nombre": "Distribuidora Carnes San Martin",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Vendedora de Tienda"
+ },
+ {
+  "nombre": "Grupo Corporativo Chess",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente de inventario de bodega"
+ },
+ {
+  "nombre": "Solid car rental",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Alistador automotriz"
+ },
+ {
+  "nombre": "Equitrón,S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Oficial de Contratación Administrativa"
+ },
+ {
+  "nombre": "Almacenadora Heredia",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chequeador"
+ },
+ {
+  "nombre": "Elastica Surqui S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Vendedor Materiales Construccion"
+ },
+ {
+  "nombre": "INA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Formador para el trabajo 1A, (Docencia INA), 506388"
+ },
+ {
+  "nombre": "Zumi",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "chofer de reparto"
+ },
+ {
+  "nombre": "SBS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Handyman"
+ },
+ {
+  "nombre": "Yobel Logistics",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operador de carretilla electrica"
+ },
+ {
+  "nombre": "Premafarma",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer - Bodeguero"
+ },
+ {
+  "nombre": "Corporación Pagraf",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "MENSAJERO/CONDUCTOR"
+ },
+ {
+  "nombre": "Hotel y Restaurante Isla Verde",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Recepcionista de Hotel"
+ },
+ {
+  "nombre": "Raul Castaño",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "SALONERO EN VAZQUES DE CORONADO"
+ },
+ {
+  "nombre": "Senara",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Regente Ambiental SETENA"
+ },
+ {
+  "nombre": "CRFULLPACK",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario para Producción"
+ },
+ {
+  "nombre": "Grupo Preseleccion",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecánico Automotriz"
+ },
+ {
+  "nombre": "Corporación de Servicios Múltiples del Magisterio Nacional",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Promotor(a) de Ventas"
+ },
+ {
+  "nombre": "Pasteleria Merayo",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "cajera dependiente cafeteria y panaderia"
+ },
+ {
+  "nombre": "BMNS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Soldador (Mecánica Pesada/Chasis)"
+ },
+ {
+  "nombre": "INNOVABLENDS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "VENDEDOR"
+ },
+ {
+  "nombre": "Conobra",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Maestro de Obras"
+ },
+ {
+  "nombre": "Distribuciones Horizontales S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "AUXILIAR DE CONTROL DE INVENTARIOS"
+ },
+ {
+  "nombre": "National Building Maintenance CO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Personal para limpieza en áreas medicas"
+ },
+ {
+  "nombre": "BIOMETRA LAB",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Gerente de Ventas y Mercadeo"
+ },
+ {
+  "nombre": "CNP",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Bodeguero"
+ },
+ {
+  "nombre": "ICE",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Analista de Fraude (INVE)"
+ },
+ {
+  "nombre": "LABIN",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Supervisor de Servicio al cliente y Ventas"
+ },
+ {
+  "nombre": "Morpho Travel Experience",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Lider de Turno Alimentos y Bebidas"
+ },
+ {
+  "nombre": "Gaia",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operador de plantas de tratamiento"
+ },
+ {
+  "nombre": "Grupo Rimet",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Sub Administrador de Tienda - Zona de San José - Adidas"
+ },
+ {
+  "nombre": "FOGEL",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico en Refrigeración"
+ },
+ {
+  "nombre": "INA-Staff Recursos Humanos",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "FORMADOR PARA EL TRABAJO 1C (Para personas Afrodescendientes)"
+ },
+ {
+  "nombre": "Grupo Trisan",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar de Bodega"
+ },
+ {
+  "nombre": "UWC Costa Rica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chef Ejecutivo(a)"
+ },
+ {
+  "nombre": "Pescadería Océano S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Caja/Vendedor en marisqueria"
+ },
+ {
+  "nombre": "SCM Metrología y laboratorios S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico Metrólogo"
+ },
+ {
+  "nombre": "Condominio Ventanas de Playa Grande",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico Electromecánico en Sistemas de Agua Potable (Bombeo y Acueducto)"
+ },
+ {
+  "nombre": "ASECCSS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Recepcionista (AV Resorts)"
+ },
+ {
+  "nombre": "Nueces Industriales",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar de bodega"
+ },
+ {
+  "nombre": "Ralex S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "TECNICO ELECTROMECANICO"
+ },
+ {
+  "nombre": "CNET TECHNOLOGY SYSTEM",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Vendedor(a) Presencial"
+ },
+ {
+  "nombre": "Crispy Churros",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cajera"
+ },
+ {
+  "nombre": "Creativamente",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Vendedor"
+ },
+ {
+  "nombre": "Estilos",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Compradora Internacional"
+ },
+ {
+  "nombre": "Costa Rica Marriott",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cocinero A"
+ },
+ {
+  "nombre": "Colegio de Enfermeras de C.R.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "TÉCNICO EN MANTENIMIENTO GENERAL"
+ },
+ {
+  "nombre": "GASPRO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "TECNICO EN SISTEMAS"
+ },
+ {
+  "nombre": "Hogar de Niños Baik",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Personal de Cuido Directo"
+ },
+ {
+  "nombre": "PREVASSA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Gestor@ de Licitaciones"
+ },
+ {
+  "nombre": "Trescientos Sesenta Servicios Corporativos S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Supervisor de Ventas"
+ },
+ {
+  "nombre": "Hoteles Marriott",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Supervisor de Recepcion Bilingue - Ingles"
+ },
+ {
+  "nombre": "Gas Tomza de Costa Rica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Agente de Granel Cartago"
+ },
+ {
+  "nombre": "COACHMCF360",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Demostrador Vendedor"
+ },
+ {
+  "nombre": "Vega Voltios, S. A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Encargado de limpieza"
+ },
+ {
+  "nombre": "JCDecaux",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente de Recursos Humanos"
+ },
+ {
+  "nombre": "Sueños del Bosque Lodge.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cocinero A"
+ },
+ {
+  "nombre": "Casa Paz y Bien",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Jefe de cocina"
+ },
+ {
+  "nombre": "Censa Internacional",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Coach en neurociencias, neuroeducación, otros."
+ },
+ {
+  "nombre": "GRUPO IVAN RANC",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Coordinador Operativo"
+ },
+ {
+  "nombre": "CONTIMACA DE COSTA RICA S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar Contable"
+ },
+ {
+  "nombre": "Office Depot",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar General ALAJUELA CITY MALL"
+ },
+ {
+  "nombre": "Arrocera San Pedro",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecánico industrial"
+ },
+ {
+  "nombre": "MCL",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ingeniero de Procesos"
+ },
+ {
+  "nombre": "NEOS Mayorista",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asesor Comercial"
+ },
+ {
+  "nombre": "VMV COSMETIC GROUP.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Display"
+ },
+ {
+  "nombre": "Holcim Costa Rica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operador/a de Mixer - Heredia"
+ },
+ {
+  "nombre": "Sieesa",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico en BMS y Sistemas de Detección y Alarma de Incendio"
+ },
+ {
+  "nombre": "TecnoAnalítica Internacional S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ayudante de Servicios Técnicos"
+ },
+ {
+  "nombre": "IMCD",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario de producción"
+ },
+ {
+  "nombre": "SERRANO CONTROL DE PLAGAS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Tecnico en control de plagas"
+ },
+ {
+  "nombre": "Transportes La Lima A y M",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "GUARDA DE SEGURIDAD"
+ },
+ {
+  "nombre": "Chirripo Material",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer de Vagoneta"
+ },
+ {
+  "nombre": "Impresos Fenix",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "DISEÑADOR(A) GRÁFICO(A)"
+ },
+ {
+  "nombre": "Mundo Empaque La Vendimia",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ayudante Atención al Cliente"
+ },
+ {
+  "nombre": "Decoraplant",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Peon de Jardin con Licencia B2 o B3"
+ },
+ {
+  "nombre": "Innovett Animal Care",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente de Almacén."
+ },
+ {
+  "nombre": "Panaderias PPK Santa Cruz",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Panadero"
+ },
+ {
+  "nombre": "Acofi SA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Armador mobiliario de oficina"
+ },
+ {
+  "nombre": "INCO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Supervisor de Proyectos"
+ },
+ {
+  "nombre": "AGENCIA VOLVO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "ATENCION A TALLER MECANICO INTERNO"
+ },
+ {
+  "nombre": "WAYRA Instituto de Español",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario"
+ },
+ {
+  "nombre": "DISTRIBUIDORA CARBONE",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Misceláneo"
+ },
+ {
+  "nombre": "Grupo Sur Química",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Auxiliar de Producción"
+ },
+ {
+  "nombre": "Mapache Rent a Car",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "CONDUCTOR - LAVADOR"
+ },
+ {
+  "nombre": "Grupo Orosi",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Encargado de torre de control"
+ },
+ {
+  "nombre": "Right People",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer B3"
+ },
+ {
+  "nombre": "Grupo Santamaría S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Administrador(a) de tienda - Alajuela"
+ },
+ {
+  "nombre": "PORTAFOLIO INMOBILIARIO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario (a) de Residuos"
+ },
+ {
+  "nombre": "Electrificar S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operarios y Ayudantes Eléctricos - PALMARES"
+ },
+ {
+  "nombre": "Restaurante Kami´s",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cajero"
+ },
+ {
+  "nombre": "RESCO (Taco Bell - Spoon)",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ayudante de Cocina restaurantes Spoon"
+ },
+ {
+  "nombre": "HONDA MOTOS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ejecutivo de ventas de motocicletas"
+ },
+ {
+  "nombre": "Grupo CP",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Encargado de producción"
+ },
+ {
+  "nombre": "Calzatica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ejecutivo/a de Cobro y Recuperación de Cartera"
+ },
+ {
+  "nombre": "MOBAI TACTICAL URBAN SOLUTIONS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ingeniero(a) Residente-Infraestructura Vial"
+ },
+ {
+  "nombre": "ASEBIMBO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer B4 CEDIS"
+ },
+ {
+  "nombre": "Petroleos Delta Costa Rica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Encargado (a) de Mantenimiento"
+ },
+ {
+  "nombre": "Polykret S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario en Colocación de Piso Epóxico"
+ },
+ {
+  "nombre": "Ecolab",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Representante de control integrado de plagas - Alajuela"
+ },
+ {
+  "nombre": "CODOCSA SA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "MECANICO MAQUINARIA PESADA"
+ },
+ {
+  "nombre": "Muebles Metálicos Alvarado",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Pintor industrial (pintura electrostática en polvo) 40012737"
+ },
+ {
+  "nombre": "BUSQUEDA EFECTIVA DE PERSONAL",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Pedimentador"
+ },
+ {
+  "nombre": "PEXS",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente administrativo"
+ },
+ {
+  "nombre": "Corporación del Valle Metropolitano, S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico en Transformación de Plásticos"
+ },
+ {
+  "nombre": "Agromec",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Encargada(o) de limpieza"
+ },
+ {
+  "nombre": "VITAECR",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Enfermero"
+ },
+ {
+  "nombre": "BUDGET CAR RENTAL",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Jefe(a) de Sucursal en Paseo Colón"
+ },
+ {
+  "nombre": "Metrocom",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asesor de Ventas Puerta Puerta Zona Desamparados"
+ },
+ {
+  "nombre": "Carne San Martin",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ejecutivo(a) de Ventas para Tienda"
+ },
+ {
+  "nombre": "Ingeniería Hospitalaria",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico en Servicio de Mantenimiento (Rotativo por días)"
+ },
+ {
+  "nombre": "Red Logistic",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mensajero GAM conocimiento zona Alajuela"
+ },
+ {
+  "nombre": "Taller Mecánico",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecánico Automotriz"
+ },
+ {
+  "nombre": "Walmart Centroamérica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Coordinador(a) de área"
+ },
+ {
+  "nombre": "ECOKHEMIA SA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Supervisor"
+ },
+ {
+  "nombre": "AUTOTRANSPORTES CESMAG S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecánico de vehículos pesados (Autobuses)"
+ },
+ {
+  "nombre": "Industria Los Andes",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Bodeguero"
+ },
+ {
+  "nombre": "Servicio Automotriz Marin",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "técnico de mecánica automotríz"
+ },
+ {
+  "nombre": "Capacitaciones Excellent",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Instructor(a) / Facilitador(a) en Servicio al Cliente y Habilidades Blandas"
+ },
+ {
+  "nombre": "Ofi bodegas",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Anfitrión / Anfitriona Servicio al cliente y eventos infantiles"
+ },
+ {
+  "nombre": "CORODE",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Dependiente/Cajero Temporal (San José, Heredia, Alajuela, Cartago)"
+ },
+ {
+  "nombre": "Club Union S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Miscelaneo de cocina"
+ },
+ {
+  "nombre": "Embalajes Cemusa",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operador Flexográfico"
+ },
+ {
+  "nombre": "BIOECO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario de Producción con Licencia D3"
+ },
+ {
+  "nombre": "Asociación Génesis TAG",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Tutor(a) para cuido directo de Adolescentes"
+ },
+ {
+  "nombre": "Pasta Mia",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "SALONERO-BARTENDER"
+ },
+ {
+  "nombre": "IMPORTEC S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "MENSAJERO MOTO Y AUTOMOVIL"
+ },
+ {
+  "nombre": "Cine House Costa Rica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Administrador-Mercadeo-Comercio internacional-Publicidad- Relaciones publicas-Informatica y Desarrollo web"
+ },
+ {
+  "nombre": "Hotel Aguas Claras",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Coordinador de Mantenimiento"
+ },
+ {
+  "nombre": "EcoFarma",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Regencia de Farmacia"
+ },
+ {
+  "nombre": "INA Región Occidental RRHH",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Formador Para El Trabajo 1D clave 506432 (vacante pura) TURISMO"
+ },
+ {
+  "nombre": "Cortadora de Materiales",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "OPERARIO DE PRODUCCIÓN"
+ },
+ {
+  "nombre": "BN Centro de Excelencia S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mensajero"
+ },
+ {
+  "nombre": "TINKEL",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cajero vendedor"
+ },
+ {
+  "nombre": "Smart Service",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecanico Automotriz mecanica pesada"
+ },
+ {
+  "nombre": "3102896211 Sociedad de Responsabilidad Limitada",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ejecutivo/a de ventas"
+ },
+ {
+  "nombre": "Nutricare S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ingeniero en Electromedicina"
+ },
+ {
+  "nombre": "Infotree Global Solutions",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario de Dispositivos Medicos"
+ },
+ {
+  "nombre": "D506",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Analista Planificación Financiera (Zona Santa Ana y Escazú 100% presencial)"
+ },
+ {
+  "nombre": "Servicios de RRHH MJ",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer B3"
+ },
+ {
+  "nombre": "EEMSA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Jefe de Planta"
+ },
+ {
+  "nombre": "Salesland",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asesores de Ventas"
+ },
+ {
+  "nombre": "Grupo Lazuma",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Diseñador(a) Gráfico(a) Junior"
+ },
+ {
+  "nombre": "Aroma de Flores",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chef para cafetería"
+ },
+ {
+  "nombre": "Repuestos CQ",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Agente de ventas de repuestos de carro y despacho"
+ },
+ {
+  "nombre": "Juliette Cafetería",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Dependiente y Auxiliares"
+ },
+ {
+  "nombre": "Puratos de Costa Rica S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Chofer Repartidor"
+ },
+ {
+  "nombre": "Tres Erres S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Coordinador de Servicio al Cliente (Indispensable experiencia con Aseguradoras)"
+ },
+ {
+  "nombre": "TRAA Repuestos",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "ASESOR TECNICO COMERCIAL DE MAQUINARIA"
+ },
+ {
+  "nombre": "Repuestos Anfra",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Encargado de compras"
+ },
+ {
+  "nombre": "Human Solutions",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Botones-chofer"
+ },
+ {
+  "nombre": "P&F",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Motorizado - Display"
+ },
+ {
+  "nombre": "PEOPLE AT WORK",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario"
+ },
+ {
+  "nombre": "IHO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Técnico en Electrodomésticos"
+ },
+ {
+  "nombre": "Global Kemical",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operador de Planta"
+ },
+ {
+  "nombre": "ITS InfoCom",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asesor Call Center (Sin experiencia laboral)"
+ },
+ {
+  "nombre": "Alimentos Jacks",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecánico Automotriz"
+ },
+ {
+  "nombre": "Is Electromedica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "ASESOR DE VENTAS"
+ },
+ {
+  "nombre": "Asfalto CR",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Ejecutivo de Ventas Técnicas"
+ },
+ {
+  "nombre": "DO Gestion de Talento",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Operario/Fontanero (Lindora-Santa Ana)"
+ },
+ {
+  "nombre": "CIMO",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "MISCELANEO"
+ },
+ {
+  "nombre": "Fundación DEHVI",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Maestro de Educación Preescolar"
+ },
+ {
+  "nombre": "Restaurant Josefina",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cocinero"
+ },
+ {
+  "nombre": "BIMBO S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Mecánico de Mantenimiento"
+ },
+ {
+  "nombre": "Lasastudio",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Instalador y Armadores de Muebles"
+ },
+ {
+  "nombre": "The Kosher Center",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente de Servicio al Cliente y Ventas"
+ },
+ {
+  "nombre": "Bonanza Asistencia",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Coordinador Centros Medicos"
+ },
+ {
+  "nombre": "Securitas",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Oficial de Seguridad Heredia"
+ },
+ {
+  "nombre": "Quimusa",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Soldador"
+ },
+ {
+  "nombre": "Grupo Syntepro",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Panadero"
+ },
+ {
+  "nombre": "Hilos AyE de Costa Rica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Empaque"
+ },
+ {
+  "nombre": "LGB Costa Rica S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "SUPERVISOR DTH"
+ },
+ {
+  "nombre": "Harmony Hotel",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Cocineros BC"
+ },
+ {
+  "nombre": "C SITES",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Gestora de Permisos"
+ },
+ {
+  "nombre": "Once Mil Uno",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente administrativo para tienda"
+ },
+ {
+  "nombre": "Colegio de Farmacéuticos de Costa Rica",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Conserje"
+ },
+ {
+  "nombre": "ATC Auditores & Consultores S.A",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asistente Contable en Heredia"
+ },
+ {
+  "nombre": "Banco Davivienda",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Asesor de Servicios Temporal Sucursal Guapiles"
+ },
+ {
+  "nombre": "Ortomedica del Ahorro",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Estudiante avanzado de Terapia Fisica"
+ },
+ {
+  "nombre": "ESCUELA ANGLO AMERICANA",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Personal de Mantenimiento / Reparaciones"
+ },
+ {
+  "nombre": "CONSTRUCTORA COPT",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "EBANISTA CON EXPERIENCIA"
+ },
+ {
+  "nombre": "CARLOS GARCIA SALAZAR",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "alistador, pintor, soldador, pulidor y labores de detayling automotriz"
+ },
+ {
+  "nombre": "Portones Salas y Sistemas Automáticos",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Bodeguero"
+ },
+ {
+  "nombre": "Alserro S.A.",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "Encargado de bodega"
+ },
+ {
+  "nombre": "ALLIANCE CONSULTING GROUP",
+  "vacantes_ane": 1,
+  "ejemplo_puesto": "ADMINISTRADOR DE ALMACEN EL BUEN GUSTO #2"
+ }
+]

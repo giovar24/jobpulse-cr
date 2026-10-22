@@ -1,0 +1,392 @@
+[
+ {
+  "nombre": "Empleos.net",
+  "legal_name": "AMBI.SA",
+  "org_id": 145,
+  "vacantes_procomer": 57
+ },
+ {
+  "nombre": "AMAZON",
+  "legal_name": "",
+  "org_id": 27,
+  "vacantes_procomer": 50
+ },
+ {
+  "nombre": "Multivex",
+  "legal_name": "",
+  "org_id": 23,
+  "vacantes_procomer": 47
+ },
+ {
+  "nombre": "Talent Costa Rica",
+  "legal_name": "",
+  "org_id": 199,
+  "vacantes_procomer": 27
+ },
+ {
+  "nombre": "East West Manufacturing Costa Rica",
+  "legal_name": "East West Manufacturing Costa Rica, S.R.L",
+  "org_id": 324,
+  "vacantes_procomer": 16
+ },
+ {
+  "nombre": "RECLUTA",
+  "legal_name": "Recluta Talenthunter",
+  "org_id": 31,
+  "vacantes_procomer": 13
+ },
+ {
+  "nombre": "Four Seasons Resort",
+  "legal_name": "Four Seasons Resort",
+  "org_id": 369,
+  "vacantes_procomer": 13
+ },
+ {
+  "nombre": "American English",
+  "legal_name": "",
+  "org_id": 153,
+  "vacantes_procomer": 12
+ },
+ {
+  "nombre": "POPS Costa Rica",
+  "legal_name": "COMPAÑÍA AMERICANA DE HELADOS SOCIEDAD ANONIMA",
+  "org_id": 331,
+  "vacantes_procomer": 11
+ },
+ {
+  "nombre": "Böëna Lodges",
+  "legal_name": "Sitio Web Info CR, S.A.",
+  "org_id": 291,
+  "vacantes_procomer": 10
+ },
+ {
+  "nombre": "JW Marriott Guanacaste Beach Resort",
+  "legal_name": "JW Marriott Guanacaste Beach Resort",
+  "org_id": 371,
+  "vacantes_procomer": 10
+ },
+ {
+  "nombre": "PORTAFOLIO INMOBILIARIO",
+  "legal_name": "PORTAFOLIO INMOBILIARIO S.A.",
+  "org_id": 333,
+  "vacantes_procomer": 10
+ },
+ {
+  "nombre": "TCS",
+  "legal_name": "3-101-951221, S.A.",
+  "org_id": 329,
+  "vacantes_procomer": 9
+ },
+ {
+  "nombre": "Infotree Global",
+  "legal_name": "",
+  "org_id": 86,
+  "vacantes_procomer": 8
+ },
+ {
+  "nombre": "BAC",
+  "legal_name": "BAC San José",
+  "org_id": 286,
+  "vacantes_procomer": 8
+ },
+ {
+  "nombre": "JLL Costa Rica",
+  "legal_name": "JONES LANG LASALLE LIMITADA",
+  "org_id": 190,
+  "vacantes_procomer": 8
+ },
+ {
+  "nombre": "Prysmian",
+  "legal_name": "Conducen SRL",
+  "org_id": 226,
+  "vacantes_procomer": 8
+ },
+ {
+  "nombre": "Hotel Andaz Península Papagayo",
+  "legal_name": "Hotel Playa Sombrero S.R.L",
+  "org_id": 267,
+  "vacantes_procomer": 6
+ },
+ {
+  "nombre": "Los Sueños Marriott Ocean & Golf Resort",
+  "legal_name": "Marina de Herradura SRL",
+  "org_id": 358,
+  "vacantes_procomer": 6
+ },
+ {
+  "nombre": "Deloitte US - Costa Rica",
+  "legal_name": "DSS Delivery Costa Rica Sociedad de Responsabilidad Limitada",
+  "org_id": 300,
+  "vacantes_procomer": 6
+ },
+ {
+  "nombre": "Intaco Costa Rica S.A.",
+  "legal_name": "Intaco Costa Rica S.A",
+  "org_id": 320,
+  "vacantes_procomer": 5
+ },
+ {
+  "nombre": "THE COSTA RICA COLLECTION",
+  "legal_name": "THE COSTA RICA COLLECTION",
+  "org_id": 341,
+  "vacantes_procomer": 5
+ },
+ {
+  "nombre": "PRICESMART",
+  "legal_name": "PRISMAR S.A.",
+  "org_id": 240,
+  "vacantes_procomer": 5
+ },
+ {
+  "nombre": "Finca Comercial de Banano - Universidad EARTH",
+  "legal_name": "Finca Comercial de Banano - Universidad EARTH",
+  "org_id": 379,
+  "vacantes_procomer": 4
+ },
+ {
+  "nombre": "Concentrix + Webhelp Costa Rica",
+  "legal_name": "",
+  "org_id": 62,
+  "vacantes_procomer": 4
+ },
+ {
+  "nombre": "Trixo Solutions S.A",
+  "legal_name": "Trixo Solutions S.A",
+  "org_id": 373,
+  "vacantes_procomer": 4
+ },
+ {
+  "nombre": "Hasa Hospitality Group",
+  "legal_name": "Hospedaje Aeropuerto SM S.A.",
+  "org_id": 288,
+  "vacantes_procomer": 4
+ },
+ {
+  "nombre": "MEPREZUH",
+  "legal_name": "MEPREZUH",
+  "org_id": 351,
+  "vacantes_procomer": 4
+ },
+ {
+  "nombre": "Enjoy Group",
+  "legal_name": "Enjoy Group de Costa Rica S.A.",
+  "org_id": 335,
+  "vacantes_procomer": 4
+ },
+ {
+  "nombre": "KUEHNE NAGEL",
+  "legal_name": "",
+  "org_id": 14,
+  "vacantes_procomer": 4
+ },
+ {
+  "nombre": "ICFT Strand CR",
+  "legal_name": "ICFT Strand CR",
+  "org_id": 372,
+  "vacantes_procomer": 3
+ },
+ {
+  "nombre": "Fisher Investments Costa Rica",
+  "legal_name": "Fisher Investments Costa Rica",
+  "org_id": 191,
+  "vacantes_procomer": 3
+ },
+ {
+  "nombre": "Rosti",
+  "legal_name": "Corporación Rostipollos S.A",
+  "org_id": 327,
+  "vacantes_procomer": 3
+ },
+ {
+  "nombre": "FRUTILIGHT S.A.",
+  "legal_name": "FRUTILIGHT S.A.",
+  "org_id": 374,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "GPS Grupo Preselección",
+  "legal_name": "",
+  "org_id": 123,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "ALIGN",
+  "legal_name": "",
+  "org_id": 35,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "Bill Gosling Outsourcing",
+  "legal_name": "",
+  "org_id": 162,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "RQL",
+  "legal_name": "RQL INGENIERÍA SOCIEDAD ANÓNIMA",
+  "org_id": 346,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "Ssangyong E&C",
+  "legal_name": "Ssangyong E&C",
+  "org_id": 367,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "Power Design",
+  "legal_name": "PDG ENTERPRISE SERVICE MANAGMENT SOCIEDAD RESPONSABILIDAD LIMITADA",
+  "org_id": 228,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "Service First",
+  "legal_name": "",
+  "org_id": 74,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "FOUNDEVER",
+  "legal_name": "",
+  "org_id": 34,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "Educatum - Sinergia Skills",
+  "legal_name": "Educatum - Sinergia Skills",
+  "org_id": 92,
+  "vacantes_procomer": 2
+ },
+ {
+  "nombre": "Pastas Roma",
+  "legal_name": "Roma Prince S.A.",
+  "org_id": 332,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "CCS Global Tech",
+  "legal_name": "Helm Analytics Sociedad de R.L",
+  "org_id": 194,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "MANPOWER GROUP",
+  "legal_name": "",
+  "org_id": 36,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Arch Latam",
+  "legal_name": "",
+  "org_id": 99,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "BMNS",
+  "legal_name": "BMNS SRL.",
+  "org_id": 234,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Grupo Marta",
+  "legal_name": "Grupo Marta",
+  "org_id": 344,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "BC Ingeniería y Desarrollo S.A.",
+  "legal_name": "BC Ingeniería y Desarrollo S.A.",
+  "org_id": 370,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Zimworx",
+  "legal_name": "WorxConnect Limitada",
+  "org_id": 172,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "El Pelon de la Bajura S.A",
+  "legal_name": "El Pelon de la Bajura S.A",
+  "org_id": 274,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Hotel Hacienda Guachipelín",
+  "legal_name": "Rincón de la Vieja SRL",
+  "org_id": 293,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Johnson & Johnson",
+  "legal_name": "",
+  "org_id": 61,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Johnson Controls Costa Rica",
+  "legal_name": "Circuito S.A",
+  "org_id": 218,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Alimentos Pro Salud",
+  "legal_name": "Alimentos Pro Salud Sociedad Anonima",
+  "org_id": 366,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Hotel Santa Lucia Jungle Hacienda",
+  "legal_name": "Hotel Santa Lucia Jungle Hacienda",
+  "org_id": 362,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Central de Mariscos CEMAR - Pekofish",
+  "legal_name": "Central de Mariscos CEMAR",
+  "org_id": 361,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "ARCELOR MITTAL",
+  "legal_name": "",
+  "org_id": 25,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "ITS InfoCom",
+  "legal_name": "IT Servicios Infocomunicacion SA",
+  "org_id": 328,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "CITI",
+  "legal_name": "",
+  "org_id": 9,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "TransPerfect Costa Rica Limitada",
+  "legal_name": "",
+  "org_id": 12,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Philips",
+  "legal_name": "Philips",
+  "org_id": 308,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "FTZ Services Costa Rica SRL",
+  "legal_name": "FTZ Services Costa Rica Sociedad de Responsabilidad Limitada",
+  "org_id": 227,
+  "vacantes_procomer": 1
+ },
+ {
+  "nombre": "Proquinal Costa Rica S.A",
+  "legal_name": "Proquinal Costa Rica S.A",
+  "org_id": 302,
+  "vacantes_procomer": 1
+ }
+]

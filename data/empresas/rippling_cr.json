@@ -1,0 +1,277 @@
+{
+ "fecha": "2026-10-19",
+ "total": 43,
+ "boards": [
+  {
+   "tok": "commandlink",
+   "company": "Current Openings | CommandLink",
+   "cr": 8,
+   "items": [
+    {
+     "titulo": "Customer Success Coordinator",
+     "link": "https://ats.rippling.com/commandlink/jobs/86ffa8c7-77c7-400a-87fc-0f271e1d72f3",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Billing \\u0026 Collections Specialist",
+     "link": "https://ats.rippling.com/commandlink/jobs/743d3003-a8b5-4301-8c1b-8fd0ec52a2f0",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Cost Optimization Analyst",
+     "link": "https://ats.rippling.com/commandlink/jobs/10201d7c-a6e2-4ec7-a4d2-d5cbd39b9eab",
+     "loc": "Remote (Costa Rica)"
+    },
+    {
+     "titulo": "Network Engineer",
+     "link": "https://ats.rippling.com/commandlink/jobs/918f78fd-d246-455b-a13f-508c1868da2c",
+     "loc": "Remote (Costa Rica)"
+    },
+    {
+     "titulo": "Circuit Delivery Coordinator",
+     "link": "https://ats.rippling.com/commandlink/jobs/7913eca9-9406-46b4-9c38-d85f789541e6",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Software Engineer",
+     "link": "https://ats.rippling.com/commandlink/jobs/ad58e4e6-c285-42cc-b6de-d78bf19fd1c5",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Software Engineer, Alerting Platform",
+     "link": "https://ats.rippling.com/commandlink/jobs/d9f4e50d-351d-4f8e-a9cb-ac39c97c1acd",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Staff Software Engineer, Platform Engineering",
+     "link": "https://ats.rippling.com/commandlink/jobs/6465f5f8-fa92-4e4c-a402-71e5208b313d",
+     "loc": "Costa Rica"
+    }
+   ]
+  },
+  {
+   "tok": "epic-software",
+   "company": "Careers at Aubrant Digitial  | Aubrant Digital ",
+   "cr": 15,
+   "items": [
+    {
+     "titulo": "Architect and Lead Software Engineer ",
+     "link": "https://ats.rippling.com/epic-software/jobs/11505a2f-952c-4612-93cc-43590eed2687",
+     "loc": "Remote (Costa Rica)"
+    },
+    {
+     "titulo": "Cloud Engineer",
+     "link": "https://ats.rippling.com/epic-software/jobs/2d4e9bbd-2e7f-42a1-bf83-deadb754592d",
+     "loc": "Remote (Costa Rica)"
+    },
+    {
+     "titulo": "FullStack Engineer ",
+     "link": "https://ats.rippling.com/epic-software/jobs/b12fe14b-cb93-4542-98a9-cfb279132d66",
+     "loc": "Remote (Costa Rica)"
+    },
+    {
+     "titulo": "GenAI Engineer",
+     "link": "https://ats.rippling.com/epic-software/jobs/9abad870-e58b-4432-af6f-4961bda4b802",
+     "loc": "Escazu, Costa Rica"
+    },
+    {
+     "titulo": "IAM Engineer - LATAM",
+     "link": "https://ats.rippling.com/epic-software/jobs/1bc8a280-0325-4802-a722-afae84717a5e",
+     "loc": "Escazu, Costa Rica"
+    },
+    {
+     "titulo": "Infrastructure Automation Engineer (LATAM)",
+     "link": "https://ats.rippling.com/epic-software/jobs/5ef125aa-29ca-4df4-bb31-234c1f752cb7",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "OS Administrator (Linux \\u0026 Windows) – Infrastructure Operations - LATAM",
+     "link": "https://ats.rippling.com/epic-software/jobs/db90340c-8d6a-4121-b99d-8364ad62ed04",
+     "loc": "Escazu, Costa Rica"
+    },
+    {
+     "titulo": "QA Automation Lead ",
+     "link": "https://ats.rippling.com/epic-software/jobs/ff5742e1-8b10-4ed2-b5d5-72685c9f94a0",
+     "loc": "LATAM, Remote"
+    },
+    {
+     "titulo": "QA Engineer – Manual \\u0026 Automation Testing (LATAM)",
+     "link": "https://ats.rippling.com/epic-software/jobs/6cba5a1f-9ba2-4c62-ac08-0eda0e051df6",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Business Analyst ",
+     "link": "https://ats.rippling.com/epic-software/jobs/2c4d057d-4e29-4fa5-9c58-cde4d5cad827",
+     "loc": "Escazu, Costa Rica"
+    },
+    {
+     "titulo": "Senior Data Engineer - Snowflake (LATAM Only)",
+     "link": "https://ats.rippling.com/epic-software/jobs/59978b39-b59b-40ef-8c87-1cce833f78c4",
+     "loc": "Escazu, Costa Rica"
+    },
+    {
+     "titulo": "Senior Data Engineer - Snowflake (LATAM Only)",
+     "link": "https://ats.rippling.com/epic-software/jobs/59978b39-b59b-40ef-8c87-1cce833f78c4",
+     "loc": "Escazu, Costa Rica"
+    },
+    {
+     "titulo": "Senior DevOps Engineer",
+     "link": "https://ats.rippling.com/epic-software/jobs/fc8f682e-894a-47f6-a869-f06556013220",
+     "loc": "LATAM, Remote"
+    },
+    {
+     "titulo": "Senior Java Engineer (LATAM)",
+     "link": "https://ats.rippling.com/epic-software/jobs/1c776b59-aa38-4850-aa54-1bfd7008b627",
+     "loc": "Escazu, Costa Rica"
+    },
+    {
+     "titulo": "Senior Software Engineer - LATAM",
+     "link": "https://ats.rippling.com/epic-software/jobs/2bad1362-a640-4ea6-b5d2-5c3af9e82d97",
+     "loc": "Escazu, Costa Rica"
+    }
+   ]
+  },
+  {
+   "tok": "havenlybrands",
+   "company": "Havenly, Inc.",
+   "cr": 1,
+   "items": [
+    {
+     "titulo": "Trade Sales \\u0026 Enablement Manager (LATAM - Remote)",
+     "link": "https://ats.rippling.com/havenlybrands/jobs/224b3f5f-9be4-4b8d-b6e3-e34451b5312b",
+     "loc": "Costa Rica"
+    }
+   ]
+  },
+  {
+   "tok": "inair",
+   "company": "InAir",
+   "cr": 1,
+   "items": [
+    {
+     "titulo": "Implementation \\u0026 Systems Consultant (Remote: US, Canada \\u0026 Latin America)",
+     "link": "https://ats.rippling.com/inair/jobs/9e51b0c0-2cc3-4244-91c4-2243acfdd5cd",
+     "loc": "Costa Rica"
+    }
+   ]
+  },
+  {
+   "tok": "lisinski-law-firm",
+   "company": "Careers at The Lisinski Law Firm",
+   "cr": 6,
+   "items": [
+    {
+     "titulo": "Performance Marketing Specialist",
+     "link": "https://ats.rippling.com/lisinski-law-firm/jobs/d48819b8-9c97-4650-aa3d-f8118e14adeb",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "QA Engineer ",
+     "link": "https://ats.rippling.com/lisinski-law-firm/jobs/95eb9e21-620a-4da6-850f-8e8f502d07f3",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Salesforce Architect",
+     "link": "https://ats.rippling.com/lisinski-law-firm/jobs/d00d82b4-b6f5-4604-9982-a63c86bc5d86",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Salesforce Development Supervisor",
+     "link": "https://ats.rippling.com/lisinski-law-firm/jobs/e79fde42-7a1d-4bc1-8128-a249dd02bcdf",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Salesforce Developer",
+     "link": "https://ats.rippling.com/lisinski-law-firm/jobs/bb9a93f0-046b-459c-b67d-d3031ae5c994",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "SharePoint Administrator",
+     "link": "https://ats.rippling.com/lisinski-law-firm/jobs/b05a1df9-9a19-4448-b793-bb05a17fff2c",
+     "loc": "Costa Rica"
+    }
+   ]
+  },
+  {
+   "tok": "pythian",
+   "company": "Pythian",
+   "cr": 2,
+   "items": [
+    {
+     "titulo": "DevOps Engineer",
+     "link": "https://ats.rippling.com/pythian/jobs/9cd647df-0857-4768-954e-9d71468c311b",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Lead AI/ML Engineer",
+     "link": "https://ats.rippling.com/pythian/jobs/b94669c0-6fc4-44f5-95e8-2e3f80c06a93",
+     "loc": "Costa Rica"
+    }
+   ]
+  },
+  {
+   "tok": "sparq",
+   "company": "Sparq Opportunities | Sparq Holdings, Inc.",
+   "cr": 8,
+   "items": [
+    {
+     "titulo": "Principal Solutions Architect",
+     "link": "https://ats.rippling.com/sparq/jobs/df57dceb-ef12-4675-b90e-f0a141fdb2af",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Android Developer",
+     "link": "https://ats.rippling.com/sparq/jobs/f042848e-dd13-445d-a062-1e65f52e71c7",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Cloud Engineer",
+     "link": "https://ats.rippling.com/sparq/jobs/ce4c1e55-d605-4649-95ba-89e5e3fa8e5b",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Full Stack Developer",
+     "link": "https://ats.rippling.com/sparq/jobs/808bb533-70c8-40a7-86c5-5fdd6d42c31f",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Lead Full Stack Developer (Entra ID/API) ",
+     "link": "https://ats.rippling.com/sparq/jobs/1eea96a7-52a6-4c03-b0b4-6339d6c00936",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Lead Full Stack Engineer (.NET/Vue)",
+     "link": "https://ats.rippling.com/sparq/jobs/4314c6fb-a575-4692-a661-5d6186c5752c",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior Software Developer (Golang/Terraform)",
+     "link": "https://ats.rippling.com/sparq/jobs/3f83936b-aedc-47a6-bc87-1da6219906fd",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Senior T-SQL Engineer ",
+     "link": "https://ats.rippling.com/sparq/jobs/05c0fcea-fe41-40ae-a37b-27b7b3f4e940",
+     "loc": "Costa Rica"
+    }
+   ]
+  },
+  {
+   "tok": "venncareers",
+   "company": "Careers at Venn",
+   "cr": 2,
+   "items": [
+    {
+     "titulo": "Go To Market Operations ",
+     "link": "https://ats.rippling.com/venncareers/jobs/42bc4f50-e8cd-40e0-8c6a-1341f345b9e7",
+     "loc": "Costa Rica"
+    },
+    {
+     "titulo": "Revenue Operations Engineer",
+     "link": "https://ats.rippling.com/venncareers/jobs/d5686f9e-f9e9-4ee8-a9ca-8615e794fdf7",
+     "loc": "Costa Rica"
+    }
+   ]
+  }
+ ]
+}

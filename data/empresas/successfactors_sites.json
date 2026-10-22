@@ -1,0 +1,10 @@
+ [
+  {"empresa": "Kuehne+Nagel", "base": "https://careers.kuehne-nagel.com",
+   "nota": "RSS keywords=(Costa Rica): 6 items (4 CR Barreal de Heredia, frescos sep-oct 2026)"},
+  {"empresa": "Foundever", "base": "https://jobs.foundever.com",
+   "nota": "RSS: 5 CS Reps CR (Moravia/San Pedro/Heredia), sept-oct 2026, frescos"},
+  {"empresa": "EY", "base": "https://careers.ey.com",
+   "nota": "RSS: 4 CR San Jose (interns/telecom); el q trae tambien Buenos Aires -> filtro client"},
+  {"empresa": "Nestlé", "base": "https://jobdetails.nestle.com",
+   "nota": "Descubierto 2026-10-19: el front www.nestle.com/jobs es Drupal+SearchStax tras Cloudflare, pero el ATS real es SF j2w: el feed RSS responde 200 por httpx con 3 CR (Mercaderista, Tecnico de Taller, Especialista de Proyectos — Heredia). Sin login: cf_clearance solo hacia falta para el front, no para el feed."}
+ ]

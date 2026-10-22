@@ -1,0 +1,38 @@
+[
+ {
+  "empresa": "ANE",
+  "url": "https://www.ane.cr/Cuenta/Login",
+  "url_check": "https://www.ane.cr/Puesto",
+  "grupo": "boards",
+  "obligatorio": true,
+  "auto_login": true,
+  "motivo": "Cuenta gratuita obligatoria: sin sesion el listado solo muestra enlaces a /Cuenta/RegistroUsuario (0 vacantes utiles). Es el proveedor #1 del sistema.",
+  "detectado": "seed",
+  "ts": "2026-10-19T19:06:50",
+  "sso": ""
+ },
+ {
+  "empresa": "Indeed",
+  "url": "https://secure.indeed.com/account/login",
+  "url_check": "https://cr.indeed.com/jobs?q=soporte&l=Costa+Rica",
+  "grupo": "boards",
+  "obligatorio": true,
+  "auto_login": true,
+  "motivo": "Login-wall intermitente: en varias busquedas devuelve 0 cards con el titulo 'Iniciar sesion | Cuentas Indeed'. La cuenta se crea/entra con GOOGLE (cuenta Gmail), no con clave propia: el auto-login usa 'Continuar con Google' y reutiliza tu sesion de Gmail en Brave.",
+  "detectado": "seed",
+  "ts": "2026-10-19T20:38:17",
+  "sso": "google"
+ },
+ {
+  "empresa": "LinkedIn",
+  "url": "https://www.linkedin.com/login",
+  "url_check": "https://www.linkedin.com/jobs/search/?keywords=soporte&location=Costa%20Rica",
+  "grupo": "boards",
+  "obligatorio": false,
+  "auto_login": false,
+  "motivo": "Opcional: el guest endpoint funciona con limite; con sesion amplias resultados y evitas bloqueos progresivos. PRIORIDAD: logueate A MANO una vez en tu Brave (hacer_login.py) y el scraper reusa las cookies. Solo como recurso opt-in (--auto on), si no hay clave se usa Google (cuenta Gmail) contra el authwall.",
+  "detectado": "seed",
+  "ts": "2026-10-19T19:06:50",
+  "sso": "google"
+ }
+]

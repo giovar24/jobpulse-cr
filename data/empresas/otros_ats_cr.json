@@ -1,0 +1,1608 @@
+[
+ {
+  "platform": "ashby",
+  "company": "jbs-dev",
+  "token": "jbs-dev",
+  "board_url": "https://jobs.ashbyhq.com/jbs-dev",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/jbs-dev",
+  "total_cr": 3,
+  "vacantes": [
+   {
+    "titulo": "Senior Project Manager (Costa Rica)",
+    "ubicacion": "Senior Project Manager (Costa Rica) Costa Rica",
+    "url": "",
+    "id": "47fc67e3-edf7-4b95-ab81-a10dcbea60c2"
+   },
+   {
+    "titulo": "Sales Development Representative (Costa Rica)",
+    "ubicacion": "Sales Development Representative (Costa Rica) Costa Rica",
+    "url": "",
+    "id": "174041fd-9c81-4526-8d7f-56d0e9dc7826"
+   },
+   {
+    "titulo": "Senior AI/ML Developer (Costa Rica)",
+    "ubicacion": "Senior AI/ML Developer (Costa Rica) Costa Rica",
+    "url": "",
+    "id": "e5356c44-e8d9-4c96-a9dc-1e72e9d23202"
+   }
+  ]
+ },
+ {
+  "platform": "ashby",
+  "company": "greenlight-workforce-solutions",
+  "token": "greenlight-workforce-solutions",
+  "board_url": "https://jobs.ashbyhq.com/greenlight-workforce-solutions",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/greenlight-workforce-solutions",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Senior Accountant",
+    "ubicacion": "Senior Accountant Costa Rica",
+    "url": "",
+    "id": "204564b1-633d-4e73-845e-ba9cc0a7d9f1"
+   }
+  ]
+ },
+ {
+  "platform": "ashby",
+  "company": "mimica",
+  "token": "mimica",
+  "board_url": "https://jobs.ashbyhq.com/mimica",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/mimica",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Senior HR/Employee Lifecycle Ops Specialist ",
+    "ubicacion": "Senior HR/Employee Lifecycle Ops Specialist  Costa Rica",
+    "url": "",
+    "id": "f9695ca8-54bf-483f-9f20-f720519a4f71"
+   }
+  ]
+ },
+ {
+  "platform": "ashby",
+  "company": "mindvalley",
+  "token": "mindvalley",
+  "board_url": "https://jobs.ashbyhq.com/mindvalley",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/mindvalley",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Sales & Retention Specialist (Contractor Role)",
+    "ubicacion": "Sales & Retention Specialist (Contractor Role) Costa Rica",
+    "url": "",
+    "id": "489dc560-cfaa-4677-a985-b2c169eb3da1"
+   }
+  ]
+ },
+ {
+  "platform": "ashby",
+  "company": "owner",
+  "token": "owner",
+  "board_url": "https://jobs.ashbyhq.com/owner",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/owner",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Customer Support Representative (Costa Rica) - November 3rd",
+    "ubicacion": "Customer Support Representative (Costa Rica) - November 3rd Remote - Costa Rica",
+    "url": "",
+    "id": "155984a8-2879-4f8b-b919-09de4c01e29d"
+   }
+  ]
+ },
+ {
+  "platform": "ashby",
+  "company": "possible-finance",
+  "token": "possible-finance",
+  "board_url": "https://jobs.ashbyhq.com/possible-finance",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/possible-finance",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Customer Support Agent, Tier 1",
+    "ubicacion": "Customer Support Agent, Tier 1 Costa Rica",
+    "url": "",
+    "id": "ba882b6f-0661-4896-b382-81504679ad91"
+   }
+  ]
+ },
+ {
+  "platform": "ashby",
+  "company": "rehire",
+  "token": "rehire",
+  "board_url": "https://jobs.ashbyhq.com/rehire",
+  "api_url": "https://api.ashbyhq.com/posting-api/job-board/rehire",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Ejecutivo regional de ventas (Mexico)",
+    "ubicacion": "Ejecutivo regional de ventas (Mexico) Costa Rica",
+    "url": "",
+    "id": "8296c7c9-30e5-413e-8b41-8c6a8e67db4f"
+   }
+  ]
+ },
+ {
+  "platform": "greenhouse",
+  "company": "smartsheet",
+  "token": "smartsheet",
+  "board_url": "https://job-boards.greenhouse.io/smartsheet",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/smartsheet/jobs",
+  "total_cr": 7,
+  "vacantes": [
+   {
+    "titulo": "Commercial Account Executive (Remote Eligible - Costa Rica)",
+    "ubicacion": "Commercial Account Executive (Remote Eligible - Costa Rica)",
+    "url": "https://job-boards.greenhouse.io/smartsheet/jobs/4732518",
+    "id": "4732518"
+   },
+   {
+    "titulo": "Content Designer II (Remote Eligible - Costa Rica)",
+    "ubicacion": "Content Designer II (Remote Eligible - Costa Rica)",
+    "url": "https://job-boards.greenhouse.io/smartsheet/jobs/8273999",
+    "id": "8273999"
+   },
+   {
+    "titulo": "Customer Success Renewal Specialist (Remote Eligible - Costa Rica)",
+    "ubicacion": "Customer Success Renewal Specialist (Remote Eligible - Costa Rica)",
+    "url": "https://job-boards.greenhouse.io/smartsheet/jobs/8243401",
+    "id": "8243401"
+   },
+   {
+    "titulo": " Order Operations Specialist (Remote Elegible - Costa Rica)",
+    "ubicacion": " Order Operations Specialist (Remote Elegible - Costa Rica)",
+    "url": "https://job-boards.greenhouse.io/smartsheet/jobs/8212528",
+    "id": "8212528"
+   },
+   {
+    "titulo": "Partner Operations Data Analyst (Remote Eligible - Costa Rica)",
+    "ubicacion": "Partner Operations Data Analyst (Remote Eligible - Costa Rica)",
+    "url": "https://job-boards.greenhouse.io/smartsheet/jobs/8238040",
+    "id": "8238040"
+   }
+  ]
+ },
+ {
+  "platform": "greenhouse",
+  "company": "zuora",
+  "token": "zuora",
+  "board_url": "https://job-boards.greenhouse.io/zuora",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/zuora/jobs",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Customer Solution Engineer (Costa Rica)",
+    "ubicacion": "Customer Solution Engineer (Costa Rica)",
+    "url": "https://boards.greenhouse.io/zuora/jobs/7765587?gh_jid=7765587",
+    "id": "7765587"
+   },
+   {
+    "titulo": "Marketing Business Analyst (Costa Rica)",
+    "ubicacion": "Marketing Business Analyst (Costa Rica)",
+    "url": "https://boards.greenhouse.io/zuora/jobs/8262229?gh_jid=8262229",
+    "id": "8262229"
+   }
+  ]
+ },
+ {
+  "platform": "greenhouse",
+  "company": "12jlkfsk",
+  "token": "12jlkfsk",
+  "board_url": "https://job-boards.greenhouse.io/12jlkfsk",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/12jlkfsk/jobs",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Sr. Salesforce Developer - Costa Rica",
+    "ubicacion": "Sr. Salesforce Developer - Costa Rica",
+    "url": "https://boards.greenhouse.io/12jlkfsk/jobs/4624896006?gh_jid=4624896006",
+    "id": "4624896006"
+   }
+  ]
+ },
+ {
+  "platform": "greenhouse",
+  "company": "fivetran",
+  "token": "fivetran",
+  "board_url": "https://job-boards.greenhouse.io/fivetran",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/fivetran/jobs",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Principal Analyst, GTM Analytics (Costa Rica)",
+    "ubicacion": "Principal Analyst, GTM Analytics (Costa Rica)",
+    "url": "https://www.fivetran.com/careers/job?gh_jid=7994507003",
+    "id": "7994507003"
+   }
+  ]
+ },
+ {
+  "platform": "greenhouse",
+  "company": "nayya",
+  "token": "nayya",
+  "board_url": "https://job-boards.greenhouse.io/nayya",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/nayya/jobs",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Contract Financial Planner Costa Rica (Global)",
+    "ubicacion": "Contract Financial Planner Costa Rica (Global)",
+    "url": "https://nayya.com/career?gh_jid=6219351004",
+    "id": "6219351004"
+   }
+  ]
+ },
+ {
+  "platform": "greenhouse",
+  "company": "storyblok",
+  "token": "storyblok",
+  "board_url": "https://job-boards.greenhouse.io/storyblok",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/storyblok/jobs",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Technical Support Engineer II - Costa Rica, Colombia, Mexico",
+    "ubicacion": "Technical Support Engineer II - Costa Rica, Colombia, Mexico",
+    "url": "https://www.storyblok.com/job?gh_jid=4961256101",
+    "id": "4961256101"
+   }
+  ]
+ },
+ {
+  "platform": "greenhouse",
+  "company": "thinkacademyus",
+  "token": "thinkacademyus",
+  "board_url": "https://job-boards.greenhouse.io/thinkacademyus",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/thinkacademyus/jobs",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Remote Math Teacher (in Costa Rica）",
+    "ubicacion": "Remote Math Teacher (in Costa Rica）",
+    "url": "https://job-boards.greenhouse.io/thinkacademyus/jobs/7701235003",
+    "id": "7701235003"
+   }
+  ]
+ },
+ {
+  "platform": "greenhouse",
+  "company": "torq",
+  "token": "torq",
+  "board_url": "https://job-boards.greenhouse.io/torq",
+  "api_url": "https://boards-api.greenhouse.io/v1/boards/torq/jobs",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "AI SOC Solutions Architect - Professional Services - Costa Rica",
+    "ubicacion": "AI SOC Solutions Architect - Professional Services - Costa Rica",
+    "url": "https://job-boards.greenhouse.io/torq/jobs/6142481004",
+    "id": "6142481004"
+   }
+  ]
+ },
+ {
+  "platform": "lever",
+  "company": "westernacher",
+  "token": "westernacher",
+  "board_url": "https://jobs.eu.lever.co/westernacher",
+  "api_url": "https://api.eu.lever.co/v0/postings/westernacher?mode=json",
+  "total_cr": 4,
+  "vacantes": [
+   {
+    "titulo": null,
+    "ubicacion": "Costa Rica, Costa Rica CR",
+    "url": "",
+    "id": "20fce0ac-0ce7-448e-9819-ba458c744efe"
+   },
+   {
+    "titulo": null,
+    "ubicacion": "Costa Rica, Costa Rica CR",
+    "url": "",
+    "id": "d50f47c4-2882-47c7-9d26-f0d053098a90"
+   },
+   {
+    "titulo": null,
+    "ubicacion": "Costa Rica, Costa Rica CR",
+    "url": "",
+    "id": "1ba19827-f302-4fbc-8f69-81024707720e"
+   },
+   {
+    "titulo": null,
+    "ubicacion": "Costa Rica, Costa Rica CR",
+    "url": "",
+    "id": "f8d6ba49-2a26-46c9-81fc-5b2c77e966c8"
+   }
+  ]
+ },
+ {
+  "platform": "lever",
+  "company": "omnidian",
+  "token": "omnidian",
+  "board_url": "https://jobs.lever.co/omnidian",
+  "api_url": "https://api.lever.co/v0/postings/omnidian?mode=json",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": null,
+    "ubicacion": "San Jose, Costa Rica CR",
+    "url": "",
+    "id": "88d655b3-e504-454b-8225-7176b077771b"
+   }
+  ]
+ },
+ {
+  "platform": "lever",
+  "company": "sysdig",
+  "token": "sysdig",
+  "board_url": "https://jobs.lever.co/sysdig",
+  "api_url": "https://api.lever.co/v0/postings/sysdig?mode=json",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": null,
+    "ubicacion": "Flexible - Costa Rica CR",
+    "url": "",
+    "id": "5c6eeda8-a864-4d80-8de8-6884d49a5b71"
+   }
+  ]
+ },
+ {
+  "platform": "recruitee",
+  "company": "primeworks",
+  "token": "primeworks",
+  "board_url": "https://primeworks.recruitee.com",
+  "api_url": "https://primeworks.recruitee.com/api/offers/",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Hospitality/Hotel Sales Representative",
+    "ubicacion": "San Jose multiple_choice Remote job What is your preferred work location? Costa Rica Hospitality/Hotel Sales Representat",
+    "url": "",
+    "id": "2683696"
+   }
+  ]
+ },
+ {
+  "platform": "recruitee",
+  "company": "pur",
+  "token": "pur",
+  "board_url": "https://pur.recruitee.com",
+  "api_url": "https://pur.recruitee.com/api/offers/",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Consultoría plan de manejo forestal - Costa Rica",
+    "ubicacion": "San José, San José, Costa Rica Where are you legally allowed to work ? Consultoría plan de manejo forestal - Costa Rica ",
+    "url": "",
+    "id": "2739256"
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "huzzle",
+  "token": "huzzle",
+  "board_url": "https://apply.workable.com/huzzle",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/huzzle",
+  "total_cr": 56,
+  "vacantes": [
+   {
+    "titulo": "Account Executive - Life Sciences",
+    "ubicacion": "Account Executive - Life Sciences Costa Rica ",
+    "url": "https://apply.workable.com/j/BEF69BB930",
+    "id": ""
+   },
+   {
+    "titulo": "Account Executive - Remote",
+    "ubicacion": "Account Executive - Remote Costa Rica ",
+    "url": "https://apply.workable.com/j/CBB3CB08A5",
+    "id": ""
+   },
+   {
+    "titulo": "Account Executive - SaaS",
+    "ubicacion": "Account Executive - SaaS Costa Rica ",
+    "url": "https://apply.workable.com/j/4853718161",
+    "id": ""
+   },
+   {
+    "titulo": "Account Manager - LATAM",
+    "ubicacion": "Account Manager - LATAM Costa Rica ",
+    "url": "https://apply.workable.com/j/AE65C0EC27",
+    "id": ""
+   },
+   {
+    "titulo": "Account Manager - LATAM",
+    "ubicacion": "Account Manager - LATAM Costa Rica ",
+    "url": "https://apply.workable.com/j/6570FDA9E2",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "clients-blackbox-inc",
+  "token": "clients-blackbox-inc",
+  "board_url": "https://apply.workable.com/clients-blackbox-inc",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/clients-blackbox-inc",
+  "total_cr": 32,
+  "vacantes": [
+   {
+    "titulo": "Ad Creative Video Editor",
+    "ubicacion": "Ad Creative Video Editor Costa Rica ",
+    "url": "https://apply.workable.com/j/7E125E2B93",
+    "id": ""
+   },
+   {
+    "titulo": "Advertising Video Editor",
+    "ubicacion": "Advertising Video Editor Costa Rica ",
+    "url": "https://apply.workable.com/j/3E8AF58A5A",
+    "id": ""
+   },
+   {
+    "titulo": "Creative Project Manager",
+    "ubicacion": "Creative Project Manager Costa Rica ",
+    "url": "https://apply.workable.com/j/035D938CE2",
+    "id": ""
+   },
+   {
+    "titulo": "Creative Video Editor",
+    "ubicacion": "Creative Video Editor Costa Rica ",
+    "url": "https://apply.workable.com/j/6B88A4D37D",
+    "id": ""
+   },
+   {
+    "titulo": "Digital Advertising Video Editor",
+    "ubicacion": "Digital Advertising Video Editor Costa Rica ",
+    "url": "https://apply.workable.com/j/57AE81BE95",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "cynet-corp",
+  "token": "cynet-corp",
+  "board_url": "https://apply.workable.com/cynet-corp",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/cynet-corp",
+  "total_cr": 10,
+  "vacantes": [
+   {
+    "titulo": "Sales & Business Development Representative",
+    "ubicacion": "Sales & Business Development Representative Costa Rica ",
+    "url": "https://apply.workable.com/j/62AE11763B",
+    "id": ""
+   },
+   {
+    "titulo": "Sales & Business Development Representative",
+    "ubicacion": "Sales & Business Development Representative Costa Rica San Isidro",
+    "url": "https://apply.workable.com/j/62AE11763B",
+    "id": ""
+   },
+   {
+    "titulo": "Sales & Business Development Representative",
+    "ubicacion": "Sales & Business Development Representative Costa Rica Dominicalito",
+    "url": "https://apply.workable.com/j/62AE11763B",
+    "id": ""
+   },
+   {
+    "titulo": "Sales & Business Development Representative",
+    "ubicacion": "Sales & Business Development Representative Costa Rica Uvita",
+    "url": "https://apply.workable.com/j/62AE11763B",
+    "id": ""
+   },
+   {
+    "titulo": "Sales & Business Development Representative",
+    "ubicacion": "Sales & Business Development Representative Costa Rica ",
+    "url": "https://apply.workable.com/j/62AE11763B",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "dacodes-mx",
+  "token": "dacodes-mx",
+  "board_url": "https://apply.workable.com/dacodes-mx",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/dacodes-mx",
+  "total_cr": 6,
+  "vacantes": [
+   {
+    "titulo": "Full Stack Engineer - TypeScript & AWS - English Required- México&LATAM Only",
+    "ubicacion": "Full Stack Engineer - TypeScript & AWS - English Required- México&LATAM Only Costa Rica ",
+    "url": "https://apply.workable.com/j/F9FFF1826E",
+    "id": ""
+   },
+   {
+    "titulo": "Full Stack Engineer - TypeScript & AWS - English Required- México&LATAM Only",
+    "ubicacion": "Full Stack Engineer - TypeScript & AWS - English Required- México&LATAM Only Costa Rica ",
+    "url": "https://apply.workable.com/j/0765828BC7",
+    "id": ""
+   },
+   {
+    "titulo": "Kubernetes Technical Support Engineer (LATAM) English Required",
+    "ubicacion": "Kubernetes Technical Support Engineer (LATAM) English Required Costa Rica ",
+    "url": "https://apply.workable.com/j/894D902199",
+    "id": ""
+   },
+   {
+    "titulo": "Product Analyst - Agile & Utilities - LATAM Only | English Required",
+    "ubicacion": "Product Analyst - Agile & Utilities - LATAM Only | English Required Costa Rica ",
+    "url": "https://apply.workable.com/j/065C4C2692",
+    "id": ""
+   },
+   {
+    "titulo": "Senior AI Solutions Tech Lead - LATAM - English Required",
+    "ubicacion": "Senior AI Solutions Tech Lead - LATAM - English Required Costa Rica ",
+    "url": "https://apply.workable.com/j/026AB012C5",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "commercial-lending",
+  "token": "commercial-lending",
+  "board_url": "https://apply.workable.com/commercial-lending",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/commercial-lending",
+  "total_cr": 5,
+  "vacantes": [
+   {
+    "titulo": "Analytics and Decision Support Manager",
+    "ubicacion": "Analytics and Decision Support Manager Costa Rica San José",
+    "url": "https://apply.workable.com/j/AB1156321A",
+    "id": ""
+   },
+   {
+    "titulo": "Business Applications Manager",
+    "ubicacion": "Business Applications Manager Costa Rica San José",
+    "url": "https://apply.workable.com/j/24C1CAF3B3",
+    "id": ""
+   },
+   {
+    "titulo": "Business Data Support Analyst",
+    "ubicacion": "Business Data Support Analyst Costa Rica San José",
+    "url": "https://apply.workable.com/j/1053A6A31B",
+    "id": ""
+   },
+   {
+    "titulo": "Data Engineering and Platform Manager",
+    "ubicacion": "Data Engineering and Platform Manager Costa Rica San José",
+    "url": "https://apply.workable.com/j/16CBF750DC",
+    "id": ""
+   },
+   {
+    "titulo": "Intelligence Products and Systems Manager",
+    "ubicacion": "Intelligence Products and Systems Manager Costa Rica San José",
+    "url": "https://apply.workable.com/j/36A63B1043",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "freedup",
+  "token": "freedup",
+  "board_url": "https://apply.workable.com/freedup",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/freedup",
+  "total_cr": 5,
+  "vacantes": [
+   {
+    "titulo": "Remote Executive Assistant - CEO Support (Real Estate Experience)",
+    "ubicacion": "Remote Executive Assistant - CEO Support (Real Estate Experience) Costa Rica ",
+    "url": "https://apply.workable.com/j/6E754B49C9",
+    "id": ""
+   },
+   {
+    "titulo": "Remote Executive Assistant - CEO Support (Real Estate Focused)",
+    "ubicacion": "Remote Executive Assistant - CEO Support (Real Estate Focused) Costa Rica ",
+    "url": "https://apply.workable.com/j/2A359759DD",
+    "id": ""
+   },
+   {
+    "titulo": "Remote Executive Assistant - Operations & Project Focus (LATAM)",
+    "ubicacion": "Remote Executive Assistant - Operations & Project Focus (LATAM) Costa Rica ",
+    "url": "https://apply.workable.com/j/AFAFEA1831",
+    "id": ""
+   },
+   {
+    "titulo": "Remote Executive Operations Assistant (LATAM)",
+    "ubicacion": "Remote Executive Operations Assistant (LATAM) Costa Rica ",
+    "url": "https://apply.workable.com/j/A5FE0D021F",
+    "id": ""
+   },
+   {
+    "titulo": "Remote Operations & Business Development Executive Assistant (LATAM)",
+    "ubicacion": "Remote Operations & Business Development Executive Assistant (LATAM) Costa Rica ",
+    "url": "https://apply.workable.com/j/040114CDD7",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "elvtrcom",
+  "token": "elvtrcom",
+  "board_url": "https://apply.workable.com/elvtrcom",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/elvtrcom",
+  "total_cr": 4,
+  "vacantes": [
+   {
+    "titulo": "Business Development Representative",
+    "ubicacion": "Business Development Representative Costa Rica ",
+    "url": "https://apply.workable.com/j/A121A62C76",
+    "id": ""
+   },
+   {
+    "titulo": "High Ticket Sales Representative",
+    "ubicacion": "High Ticket Sales Representative Costa Rica ",
+    "url": "https://apply.workable.com/j/EC87AC9EF1",
+    "id": ""
+   },
+   {
+    "titulo": "Outbound Sales Representative",
+    "ubicacion": "Outbound Sales Representative Costa Rica ",
+    "url": "https://apply.workable.com/j/8B04BFE886",
+    "id": ""
+   },
+   {
+    "titulo": "Sales Closer",
+    "ubicacion": "Sales Closer Costa Rica ",
+    "url": "https://apply.workable.com/j/E4580F880F",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "crewbloom",
+  "token": "crewbloom",
+  "board_url": "https://apply.workable.com/crewbloom",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/crewbloom",
+  "total_cr": 3,
+  "vacantes": [
+   {
+    "titulo": "AI/ML Security Engineer",
+    "ubicacion": "AI/ML Security Engineer Costa Rica ",
+    "url": "https://apply.workable.com/j/FA5B16F03E",
+    "id": ""
+   },
+   {
+    "titulo": "Senior Business Development Representative (SBDR)",
+    "ubicacion": "Senior Business Development Representative (SBDR) Costa Rica ",
+    "url": "https://apply.workable.com/j/879AEB7C9E",
+    "id": ""
+   },
+   {
+    "titulo": "Senior Cloud Database Administrator (MySQL & AWS RDS/Aurora)",
+    "ubicacion": "Senior Cloud Database Administrator (MySQL & AWS RDS/Aurora) Costa Rica ",
+    "url": "https://apply.workable.com/j/6421CFE52A",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "crystalia-glass",
+  "token": "crystalia-glass",
+  "board_url": "https://apply.workable.com/crystalia-glass",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/crystalia-glass",
+  "total_cr": 3,
+  "vacantes": [
+   {
+    "titulo": "Sales Manager (US Market)",
+    "ubicacion": "Sales Manager (US Market) Costa Rica ",
+    "url": "https://apply.workable.com/j/5195322C35",
+    "id": ""
+   },
+   {
+    "titulo": "Sales Representative (US Market)",
+    "ubicacion": "Sales Representative (US Market) Costa Rica ",
+    "url": "https://apply.workable.com/j/6634E219EE",
+    "id": ""
+   },
+   {
+    "titulo": "Supply Engineering Team Lead",
+    "ubicacion": "Supply Engineering Team Lead Costa Rica ",
+    "url": "https://apply.workable.com/j/258B63D346",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "bask-health-1",
+  "token": "bask-health-1",
+  "board_url": "https://apply.workable.com/bask-health-1",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/bask-health-1",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Client Success Manager",
+    "ubicacion": "Client Success Manager Costa Rica ",
+    "url": "https://apply.workable.com/j/131E953C20",
+    "id": ""
+   },
+   {
+    "titulo": "Customer Success Account Manager",
+    "ubicacion": "Customer Success Account Manager Costa Rica ",
+    "url": "https://apply.workable.com/j/2D9319D82B",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "c-serv",
+  "token": "c-serv",
+  "board_url": "https://apply.workable.com/c-serv",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/c-serv",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "F5 Consultant BIG IP & Kubernetes",
+    "ubicacion": "F5 Consultant BIG IP & Kubernetes Costa Rica ",
+    "url": "https://apply.workable.com/j/81948C2335",
+    "id": ""
+   },
+   {
+    "titulo": "Senior Consultant - F5 Distributed Cloud (XC)",
+    "ubicacion": "Senior Consultant - F5 Distributed Cloud (XC) Costa Rica ",
+    "url": "https://apply.workable.com/j/C79195D7E5",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "community-sports-partners",
+  "token": "community-sports-partners",
+  "board_url": "https://apply.workable.com/community-sports-partners",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/community-sports-partners",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Email and SMS Marketing - Sports Sales Coordinator",
+    "ubicacion": "Email and SMS Marketing - Sports Sales Coordinator Costa Rica San José",
+    "url": "https://apply.workable.com/j/056D9C70EB",
+    "id": ""
+   },
+   {
+    "titulo": "General Manager - Marketing and Ecommerce Growth",
+    "ubicacion": "General Manager - Marketing and Ecommerce Growth Costa Rica San Jose",
+    "url": "https://apply.workable.com/j/627DCE9A76",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "freelance-latin-america",
+  "token": "freelance-latin-america",
+  "board_url": "https://apply.workable.com/freelance-latin-america",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/freelance-latin-america",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Account & Business Development Manager",
+    "ubicacion": "Account & Business Development Manager Costa Rica ",
+    "url": "https://apply.workable.com/j/75EA1F1D2F",
+    "id": ""
+   },
+   {
+    "titulo": "Medical Billing & Revenue Cycle Specialist",
+    "ubicacion": "Medical Billing & Revenue Cycle Specialist Costa Rica ",
+    "url": "https://apply.workable.com/j/38A4CAAD4A",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "goglobal",
+  "token": "goglobal",
+  "board_url": "https://apply.workable.com/goglobal",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/goglobal",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Global Product Owner, Accounting & Tax",
+    "ubicacion": "Global Product Owner, Accounting & Tax Costa Rica ",
+    "url": "https://apply.workable.com/j/735B2B8ED0",
+    "id": ""
+   },
+   {
+    "titulo": "Specialist, Service Governance (AMER)",
+    "ubicacion": "Specialist, Service Governance (AMER) Costa Rica ",
+    "url": "https://apply.workable.com/j/54B8E28D29",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "gramian",
+  "token": "gramian",
+  "board_url": "https://apply.workable.com/gramian",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/gramian",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Open Source Contributors & Developers - License Your Code",
+    "ubicacion": "Open Source Contributors & Developers - License Your Code Costa Rica ",
+    "url": "https://apply.workable.com/j/3554AEAA44",
+    "id": ""
+   },
+   {
+    "titulo": "Principal Scientific Research Expert - Computational Theory & Physics",
+    "ubicacion": "Principal Scientific Research Expert - Computational Theory & Physics Costa Rica ",
+    "url": "https://apply.workable.com/j/27BFF06EFF",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "cloudfactory",
+  "token": "cloudfactory",
+  "board_url": "https://apply.workable.com/cloudfactory",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/cloudfactory",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "AI Marketing Operations Manager",
+    "ubicacion": "AI Marketing Operations Manager Costa Rica ",
+    "url": "https://apply.workable.com/j/194BFDA0C0",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "creativechaos",
+  "token": "creativechaos",
+  "board_url": "https://apply.workable.com/creativechaos",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/creativechaos",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Principal AI Process Orchestrator",
+    "ubicacion": "Principal AI Process Orchestrator Costa Rica ",
+    "url": "https://apply.workable.com/j/DCBA553E8C",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "cxg",
+  "token": "cxg",
+  "board_url": "https://apply.workable.com/cxg",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/cxg",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Evaluador/a en Tiendas Premium y de Lujo - San Jose, CR",
+    "ubicacion": "Evaluador/a en Tiendas Premium y de Lujo - San Jose, CR Costa Rica San José",
+    "url": "https://apply.workable.com/j/9ADAA4187F",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "geeks-on-site",
+  "token": "geeks-on-site",
+  "board_url": "https://apply.workable.com/geeks-on-site",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/geeks-on-site",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Senior Growth Marketing Manager - Home Services",
+    "ubicacion": "Senior Growth Marketing Manager - Home Services Costa Rica ",
+    "url": "https://apply.workable.com/j/8D47A91B0F",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "hireframe",
+  "token": "hireframe",
+  "board_url": "https://apply.workable.com/hireframe",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/hireframe",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Account Manager",
+    "ubicacion": "Account Manager Costa Rica ",
+    "url": "https://apply.workable.com/j/6D0D836F7A",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "hustler-marketing",
+  "token": "hustler-marketing",
+  "board_url": "https://apply.workable.com/hustler-marketing",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/hustler-marketing",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Design Team Lead - Ecommerce Marketing Agency",
+    "ubicacion": "Design Team Lead - Ecommerce Marketing Agency Costa Rica ",
+    "url": "https://apply.workable.com/j/684B1CD44D",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "jove",
+  "token": "jove",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/jove",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Sales Account Executive - Enterprise, North America",
+    "ubicacion": "Sales Account Executive - Enterprise, North America Costa Rica ",
+    "url": "https://apply.workable.com/j/D5F72BC57D",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "lago-1",
+  "token": "lago-1",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/lago-1",
+  "total_cr": 22,
+  "vacantes": [
+   {
+    "titulo": "Account Executive (Talent pool)",
+    "ubicacion": "Account Executive (Talent pool) Costa Rica ",
+    "url": "https://apply.workable.com/j/E95C454445",
+    "id": ""
+   },
+   {
+    "titulo": "Account Manager - Marketing industry (Talent pool)",
+    "ubicacion": "Account Manager - Marketing industry (Talent pool) Costa Rica ",
+    "url": "https://apply.workable.com/j/43A2CB514E",
+    "id": ""
+   },
+   {
+    "titulo": "Amazon Compliance Specialist (E-commerce)",
+    "ubicacion": "Amazon Compliance Specialist (E-commerce) Costa Rica ",
+    "url": "https://apply.workable.com/j/D2A1A8E1E7",
+    "id": ""
+   },
+   {
+    "titulo": "Business Developer Representative ( BDR) (Talent pool)",
+    "ubicacion": "Business Developer Representative ( BDR) (Talent pool) Costa Rica ",
+    "url": "https://apply.workable.com/j/FF07669CDD",
+    "id": ""
+   },
+   {
+    "titulo": "Demand Planner ( Talent pool)",
+    "ubicacion": "Demand Planner ( Talent pool) Costa Rica ",
+    "url": "https://apply.workable.com/j/01BDB1031C",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "openfn",
+  "token": "openfn",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/openfn",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Account manager (LATAM)",
+    "ubicacion": "Account manager (LATAM) Costa Rica ",
+    "url": "https://apply.workable.com/j/5071AFF4A4",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "pairedrecruiting",
+  "token": "pairedrecruiting",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/pairedrecruiting",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Lead Email Designer for a US Retention Agency (LATAM/Remote)",
+    "ubicacion": "Lead Email Designer for a US Retention Agency (LATAM/Remote) Costa Rica ",
+    "url": "https://apply.workable.com/j/00B1CB5D04",
+    "id": ""
+   },
+   {
+    "titulo": "Project Manager Coordinator for US D2C PowerTool Brand (Latam, Remote)",
+    "ubicacion": "Project Manager Coordinator for US D2C PowerTool Brand (Latam, Remote) Costa Rica ",
+    "url": "https://apply.workable.com/j/84D1B08B10",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "pavago",
+  "token": "pavago",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/pavago",
+  "total_cr": 230,
+  "vacantes": [
+   {
+    "titulo": "Account Executive",
+    "ubicacion": "Account Executive Costa Rica ",
+    "url": "https://apply.workable.com/j/DBDD0D9B23",
+    "id": ""
+   },
+   {
+    "titulo": "Account Executive - B2B Sales | Remote",
+    "ubicacion": "Account Executive - B2B Sales | Remote Costa Rica ",
+    "url": "https://apply.workable.com/j/DC311B1C2E",
+    "id": ""
+   },
+   {
+    "titulo": "Account Executive / Sales Representative - B2B Sales & Closing",
+    "ubicacion": "Account Executive / Sales Representative - B2B Sales & Closing Costa Rica ",
+    "url": "https://apply.workable.com/j/A115635BEB",
+    "id": ""
+   },
+   {
+    "titulo": "Account Manager",
+    "ubicacion": "Account Manager Costa Rica ",
+    "url": "https://apply.workable.com/j/A2A120D578",
+    "id": ""
+   },
+   {
+    "titulo": "Account Manager - Customer Retention & Upselling | Remote",
+    "ubicacion": "Account Manager - Customer Retention & Upselling | Remote Costa Rica ",
+    "url": "https://apply.workable.com/j/97F2856CF9",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "pearltalent",
+  "token": "pearltalent",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/pearltalent",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Remote Backend Engineer for a HealthTech Company",
+    "ubicacion": "Remote Backend Engineer for a HealthTech Company Costa Rica ",
+    "url": "https://apply.workable.com/j/D3909364ED",
+    "id": ""
+   },
+   {
+    "titulo": "Remote Healthcare Operations Analyst",
+    "ubicacion": "Remote Healthcare Operations Analyst Costa Rica Buenos Aires",
+    "url": "https://apply.workable.com/j/C2A9A5D8CF",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "reallygreatteachers",
+  "token": "reallygreatteachers",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/reallygreatteachers",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Remote ESL Teacher - Guaranteed Hours | Online Teaching Jobs Costa Rica",
+    "ubicacion": "Remote ESL Teacher - Guaranteed Hours | Online Teaching Jobs Costa Rica Costa Rica San José",
+    "url": "https://apply.workable.com/j/45EB38CFD3",
+    "id": ""
+   },
+   {
+    "titulo": "Specialized Online ESL Teacher - Remote Special Needs Instructor",
+    "ubicacion": "Specialized Online ESL Teacher - Remote Special Needs Instructor Costa Rica ",
+    "url": "https://apply.workable.com/j/5B7C941AF4",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "remote-talent-latam",
+  "token": "remote-talent-latam",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/remote-talent-latam",
+  "total_cr": 3,
+  "vacantes": [
+   {
+    "titulo": "Google Ads Account Manager | Remote | LATAM Only | 82007",
+    "ubicacion": "Google Ads Account Manager | Remote | LATAM Only | 82007 Costa Rica ",
+    "url": "https://apply.workable.com/j/BB9F01A79F",
+    "id": ""
+   },
+   {
+    "titulo": "Head of Salesforce Delivery | Remote | LATAM Only | 88111",
+    "ubicacion": "Head of Salesforce Delivery | Remote | LATAM Only | 88111 Costa Rica ",
+    "url": "https://apply.workable.com/j/93FE36B61C",
+    "id": ""
+   },
+   {
+    "titulo": "Paid Media Lead | Remote | LATAM Only | 82008",
+    "ubicacion": "Paid Media Lead | Remote | LATAM Only | 82008 Costa Rica ",
+    "url": "https://apply.workable.com/j/24D2BBFC7B",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "remotepass",
+  "token": "remotepass",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/remotepass",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Senior Customer Success Manager (Americas)",
+    "ubicacion": "Senior Customer Success Manager (Americas) Costa Rica ",
+    "url": "https://apply.workable.com/j/9D66046252",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "shadow-light-studios",
+  "token": "shadow-light-studios",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/shadow-light-studios",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Sales Development Representative / SDR",
+    "ubicacion": "Sales Development Representative / SDR Costa Rica ",
+    "url": "https://apply.workable.com/j/712CFDEFCB",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "sidekicktool",
+  "token": "sidekicktool",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/sidekicktool",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "eCommerce Video Editor",
+    "ubicacion": "eCommerce Video Editor Costa Rica ",
+    "url": "https://apply.workable.com/j/75B06AA4E5",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "supportyourapp",
+  "token": "supportyourapp",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/supportyourapp",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "(English C1) Customer Support Consultant, hospitality (remote)",
+    "ubicacion": "(English C1) Customer Support Consultant, hospitality (remote) Costa Rica San José",
+    "url": "https://apply.workable.com/j/8B5033E9FF",
+    "id": ""
+   },
+   {
+    "titulo": "(Fluent English) Customer Support Consultant (remote)",
+    "ubicacion": "(Fluent English) Customer Support Consultant (remote) Costa Rica San José",
+    "url": "https://apply.workable.com/j/926D3EFF6E",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "surglobal",
+  "token": "surglobal",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/surglobal",
+  "total_cr": 5,
+  "vacantes": [
+   {
+    "titulo": "Customer Success Manager",
+    "ubicacion": "Customer Success Manager Costa Rica ",
+    "url": "https://apply.workable.com/j/B58D8C2E31",
+    "id": ""
+   },
+   {
+    "titulo": "Head of People",
+    "ubicacion": "Head of People Costa Rica ",
+    "url": "https://apply.workable.com/j/CC04BD8482",
+    "id": ""
+   },
+   {
+    "titulo": "Senior Data, Platform & Solutions Engineer",
+    "ubicacion": "Senior Data, Platform & Solutions Engineer Costa Rica ",
+    "url": "https://apply.workable.com/j/D4D4341BC8",
+    "id": ""
+   },
+   {
+    "titulo": "Senior MacOS QA Engineer",
+    "ubicacion": "Senior MacOS QA Engineer Costa Rica ",
+    "url": "https://apply.workable.com/j/9666280BFE",
+    "id": ""
+   },
+   {
+    "titulo": "Senior Software Development Engineer in Test",
+    "ubicacion": "Senior Software Development Engineer in Test Costa Rica ",
+    "url": "https://apply.workable.com/j/8B48A19DCD",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "toloka-ai",
+  "token": "toloka-ai",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/toloka-ai",
+  "total_cr": 4,
+  "vacantes": [
+   {
+    "titulo": "CAD Engineer - AI Trainer",
+    "ubicacion": "CAD Engineer - AI Trainer Costa Rica ",
+    "url": "https://apply.workable.com/j/F30652239E",
+    "id": ""
+   },
+   {
+    "titulo": "CFD Engineer - AI Trainer",
+    "ubicacion": "CFD Engineer - AI Trainer Costa Rica ",
+    "url": "https://apply.workable.com/j/95A42B62E4",
+    "id": ""
+   },
+   {
+    "titulo": "Freelance Mechanical CAD&Simulation Engineer - AI Trainer",
+    "ubicacion": "Freelance Mechanical CAD&Simulation Engineer - AI Trainer Costa Rica ",
+    "url": "https://apply.workable.com/j/098170E6B4",
+    "id": ""
+   },
+   {
+    "titulo": "Freelance Mechanical CFD Engineer - AI Trainer",
+    "ubicacion": "Freelance Mechanical CFD Engineer - AI Trainer Costa Rica ",
+    "url": "https://apply.workable.com/j/C23DDCA165",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "trivium",
+  "token": "trivium",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/trivium",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Amazon Growth Strategist",
+    "ubicacion": "Amazon Growth Strategist Costa Rica ",
+    "url": "https://apply.workable.com/j/08605599C8",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "tyk-technologies",
+  "token": "tyk-technologies",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/tyk-technologies",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Site Reliability Engineer - AMER",
+    "ubicacion": "Site Reliability Engineer - AMER Costa Rica ",
+    "url": "https://apply.workable.com/j/8B2AC5C97A",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "uptalent-dot-i-o",
+  "token": "uptalent-dot-i-o",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/uptalent-dot-i-o",
+  "total_cr": 53,
+  "vacantes": [
+   {
+    "titulo": "Archicad expert for Interior Documentation",
+    "ubicacion": "Archicad expert for Interior Documentation Costa Rica San José",
+    "url": "https://apply.workable.com/j/729273549F",
+    "id": ""
+   },
+   {
+    "titulo": "B2B Business Developer / Sales Executive AEC Industry - Partnership Opportunity",
+    "ubicacion": "B2B Business Developer / Sales Executive AEC Industry - Partnership Opportunity Costa Rica ",
+    "url": "https://apply.workable.com/j/3DFC0C31F0",
+    "id": ""
+   },
+   {
+    "titulo": "Business Executive Assistant (Remote, Full Time)",
+    "ubicacion": "Business Executive Assistant (Remote, Full Time) Costa Rica ",
+    "url": "https://apply.workable.com/j/E60114427A",
+    "id": ""
+   },
+   {
+    "titulo": "Civil Engineer with Microstation Geopak experience",
+    "ubicacion": "Civil Engineer with Microstation Geopak experience Costa Rica San José",
+    "url": "https://apply.workable.com/j/042A5A28FC",
+    "id": ""
+   },
+   {
+    "titulo": "Client Calls Specialist - Phone-First Role with Admin & QuickBooks Support",
+    "ubicacion": "Client Calls Specialist - Phone-First Role with Admin & QuickBooks Support Costa Rica ",
+    "url": "https://apply.workable.com/j/0338D31938",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "utopia-life-worth-living",
+  "token": "utopia-life-worth-living",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/utopia-life-worth-living",
+  "total_cr": 11,
+  "vacantes": [
+   {
+    "titulo": "Ama de llaves / Supervisora de limpieza",
+    "ubicacion": "Ama de llaves / Supervisora de limpieza Costa Rica Santa Teresa",
+    "url": "https://apply.workable.com/j/9099F275F1",
+    "id": ""
+   },
+   {
+    "titulo": "Auxiliar de Limpieza | Santa Teresa",
+    "ubicacion": "Auxiliar de Limpieza | Santa Teresa Costa Rica Santa Teresa",
+    "url": "https://apply.workable.com/j/D8F05E5C58",
+    "id": ""
+   },
+   {
+    "titulo": "Auxiliar de Limpieza | Santa Teresa",
+    "ubicacion": "Auxiliar de Limpieza | Santa Teresa Costa Rica Cóbano",
+    "url": "https://apply.workable.com/j/D8F05E5C58",
+    "id": ""
+   },
+   {
+    "titulo": "Auxiliar de Limpieza | Santa Teresa",
+    "ubicacion": "Auxiliar de Limpieza | Santa Teresa Costa Rica Malpais",
+    "url": "https://apply.workable.com/j/D8F05E5C58",
+    "id": ""
+   },
+   {
+    "titulo": "Chef Privado",
+    "ubicacion": "Chef Privado Costa Rica Santa Teresa",
+    "url": "https://apply.workable.com/j/8C773BEDD1",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "valatam",
+  "token": "valatam",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/valatam",
+  "total_cr": 3,
+  "vacantes": [
+   {
+    "titulo": "Account Manager - Client Retention & Growth (Remote)",
+    "ubicacion": "Account Manager - Client Retention & Growth (Remote) Costa Rica ",
+    "url": "https://apply.workable.com/j/A30B8CD1CD",
+    "id": ""
+   },
+   {
+    "titulo": "Client Success & Expansion Manager - Account Growth (Remote)",
+    "ubicacion": "Client Success & Expansion Manager - Account Growth (Remote) Costa Rica ",
+    "url": "https://apply.workable.com/j/F2BDBB760C",
+    "id": ""
+   },
+   {
+    "titulo": "Sales Director - Outbound & New Business Acquisition (Remote)",
+    "ubicacion": "Sales Director - Outbound & New Business Acquisition (Remote) Costa Rica ",
+    "url": "https://apply.workable.com/j/90EFC3DB64",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "visit",
+  "token": "visit",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/visit",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Freelance In-Person Event Specialist - San Francisco de Heredia, Costa Rica",
+    "ubicacion": "Freelance In-Person Event Specialist - San Francisco de Heredia, Costa Rica Costa Rica San Francisco",
+    "url": "https://apply.workable.com/j/D41A34D6B9",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "wecloneyou",
+  "token": "wecloneyou",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/wecloneyou",
+  "total_cr": 3,
+  "vacantes": [
+   {
+    "titulo": "Virtual Assistant - Inside Sales Agent",
+    "ubicacion": "Virtual Assistant - Inside Sales Agent Costa Rica ",
+    "url": "https://apply.workable.com/j/CC349F871E",
+    "id": ""
+   },
+   {
+    "titulo": "Virtual Assistant - Performance Marketing Specialist",
+    "ubicacion": "Virtual Assistant - Performance Marketing Specialist Costa Rica ",
+    "url": "https://apply.workable.com/j/85502835E6",
+    "id": ""
+   },
+   {
+    "titulo": "Virtual Assistant - Real Estate",
+    "ubicacion": "Virtual Assistant - Real Estate Costa Rica ",
+    "url": "https://apply.workable.com/j/86DD8CC19C",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "winning-assistants",
+  "token": "winning-assistants",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/winning-assistants",
+  "total_cr": 3,
+  "vacantes": [
+   {
+    "titulo": "Bilingual Medical Sales Representative (Spanish-English)",
+    "ubicacion": "Bilingual Medical Sales Representative (Spanish-English) Costa Rica ",
+    "url": "https://apply.workable.com/j/9C3C0D2FF4",
+    "id": ""
+   },
+   {
+    "titulo": "Bilingual Patient Care Coordinator",
+    "ubicacion": "Bilingual Patient Care Coordinator Costa Rica ",
+    "url": "https://apply.workable.com/j/3E9E34D427",
+    "id": ""
+   },
+   {
+    "titulo": "Healthcare Appointment Setter",
+    "ubicacion": "Healthcare Appointment Setter Costa Rica ",
+    "url": "https://apply.workable.com/j/27D1020917",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "workana-premium",
+  "token": "workana-premium",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/workana-premium",
+  "total_cr": 6,
+  "vacantes": [
+   {
+    "titulo": "AI Application Engineer (Part-Time)",
+    "ubicacion": "AI Application Engineer (Part-Time) Costa Rica ",
+    "url": "https://apply.workable.com/j/420239FA34",
+    "id": ""
+   },
+   {
+    "titulo": "AI Engineer - Generative AI & AWS",
+    "ubicacion": "AI Engineer - Generative AI & AWS Costa Rica ",
+    "url": "https://apply.workable.com/j/F80AE4FD35",
+    "id": ""
+   },
+   {
+    "titulo": "Consultor SAP Data Archiving Hands-on",
+    "ubicacion": "Consultor SAP Data Archiving Hands-on Costa Rica ",
+    "url": "https://apply.workable.com/j/6D0AED5760",
+    "id": ""
+   },
+   {
+    "titulo": "Desarrollador/a Power Platform - Power Pages (2 meses)",
+    "ubicacion": "Desarrollador/a Power Platform - Power Pages (2 meses) Costa Rica ",
+    "url": "https://apply.workable.com/j/69BF39DC32",
+    "id": ""
+   },
+   {
+    "titulo": "Digital Media Planner / Ejecutivo(a) de Cuenta de Medios",
+    "ubicacion": "Digital Media Planner / Ejecutivo(a) de Cuenta de Medios Costa Rica San José",
+    "url": "https://apply.workable.com/j/B801E5DB0C",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "zicasso",
+  "token": "zicasso",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/zicasso",
+  "total_cr": 2,
+  "vacantes": [
+   {
+    "titulo": "Product Designer",
+    "ubicacion": "Product Designer Costa Rica ",
+    "url": "https://apply.workable.com/j/55437B4F04",
+    "id": ""
+   },
+   {
+    "titulo": "Traveler Care Specialist, Luxury Travel (Customer Service, Sales)",
+    "ubicacion": "Traveler Care Specialist, Luxury Travel (Customer Service, Sales) Costa Rica ",
+    "url": "https://apply.workable.com/j/F6BC08AB1E",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "workable",
+  "company": "zipdev",
+  "token": "zipdev",
+  "board_url": "",
+  "api_url": "https://apply.workable.com/api/v1/widget/accounts/zipdev",
+  "total_cr": 3,
+  "vacantes": [
+   {
+    "titulo": "Customer Service Representative",
+    "ubicacion": "Customer Service Representative Costa Rica ",
+    "url": "https://apply.workable.com/j/9D0E6DEBAC",
+    "id": ""
+   },
+   {
+    "titulo": "Senior C++ Desktop Applications Developer",
+    "ubicacion": "Senior C++ Desktop Applications Developer Costa Rica ",
+    "url": "https://apply.workable.com/j/578A379363",
+    "id": ""
+   },
+   {
+    "titulo": "Social Media & Content Manager (Part-time)",
+    "ubicacion": "Social Media & Content Manager (Part-time) Costa Rica ",
+    "url": "https://apply.workable.com/j/F74E5D53B1",
+    "id": ""
+   }
+  ]
+ },
+ {
+  "platform": "recruitee",
+  "company": "transperfect",
+  "token": "transperfect",
+  "board_url": "",
+  "api_url": "https://transperfect.recruitee.com/api/offers/",
+  "total_cr": 1,
+  "vacantes": [
+   {
+    "titulo": "Client Service Executive",
+    "ubicacion": "San José, San José, Costa Rica What is your preferred work location? Client Service Executive multiple_choice Costa Rica",
+    "url": "",
+    "id": "2770002"
+   }
+  ]
+ }
+]

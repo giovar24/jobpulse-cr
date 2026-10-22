@@ -1,0 +1,66 @@
+{
+ "fecha": "2026-10-19",
+ "scan": 864,
+ "hits": [
+  {
+   "tok": "commandlink",
+   "company": "Current Openings | CommandLink",
+   "jobs": 20,
+   "estado": 200
+  },
+  {
+   "tok": "epic-software",
+   "company": "Careers at Aubrant Digitial  | Aubrant Digital ",
+   "jobs": 18,
+   "estado": 200
+  },
+  {
+   "tok": "cullen-jewellery",
+   "company": "Careers at Cullen | Cullen US",
+   "jobs": 0,
+   "estado": 200
+  },
+  {
+   "tok": "havenlybrands",
+   "company": "Havenly, Inc.",
+   "jobs": 20,
+   "estado": 200
+  },
+  {
+   "tok": "inair",
+   "company": "InAir",
+   "jobs": 1,
+   "estado": 200
+  },
+  {
+   "tok": "lisinski-law-firm",
+   "company": "Careers at The Lisinski Law Firm",
+   "jobs": 20,
+   "estado": 200
+  },
+  {
+   "tok": "nutrient",
+   "company": "Join the Nutrient team: Innovate in document solutions",
+   "jobs": 0,
+   "estado": 200
+  },
+  {
+   "tok": "pythian",
+   "company": "Pythian",
+   "jobs": 15,
+   "estado": 200
+  },
+  {
+   "tok": "sparq",
+   "company": "Sparq Opportunities | Sparq Holdings, Inc.",
+   "jobs": 16,
+   "estado": 200
+  },
+  {
+   "tok": "venncareers",
+   "company": "Careers at Venn",
+   "jobs": 10,
+   "estado": 200
+  }
+ ]
+}
