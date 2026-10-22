@@ -2266,3 +2266,60 @@ codigo; queda para manana.
 **Pendiente.** Correr `--ia-cv` con el CV real del usuario para validar la
 extraccion Harvard/ATS completa, y un `--ia` normal para confirmar que la
 cache v3 no rompio el lote de vacantes.
+
+## 53. Embeddings: EmbeddingGemma-300m activo (HF_TOKEN) y comparativa vs mpnet/qwen3 (2026-10-21, noche)
+
+**Problema.** El ranking semantico corria con el fallback
+`sentence-transformers/paraphrase-multilingual-mpnet-base-v2` porque
+`google/embeddinggemma-300m` es un repo gated: sin `HF_TOKEN` caia
+automaticamente. En queries con modismos ticos el mpnet fallaba feo (ver
+benchmark abajo).
+
+**Cambio.** El usuario genero un token de HF (colocado en `.env`,
+gitignored) y acepto la licencia Gemma del repo. Con eso
+`SemanticSearchEngine` resuelve `google/embeddinggemma-300m` (dim 768,
+MRL, prompts `QUERY_PROMPT`/`DOC_PROMPT` ya integrados y afinados por
+Google para retrieval asimetrico). La cache vieja se invalida sola
+(`meta.model != self.model_name`) y se re-indexo todo: 240 vacantes en
+304 s de CPU (~1.27 s/vacante). Rollback: `data/embeddings_cache.*.mpnet-bak`.
+
+**Benchmark en la base propia (240 vacantes, top-5).** Gemma gana 3 de 4
+y empata la restante:
+- "soporte tecnico": gemma 5/5 relevantes; mpnet 2 irrelevantes arriba
+  (Barista Starbucks, Reclutador de puestos masivos).
+- "analista de datos": gemma 5/5 data jobs; mpnet 3 Customer Service
+  irrelevantes.
+- "mesa de ayuda" (prueba decisiva, modismo tico por help desk): gemma
+  5/5 service desk; mpnet 4 irrelevantes (Barista 0.628, Telemercadeo,
+  Cajas de banco). El mpnet no conecta el modismo con TI.
+- "help desk bilingue": empate 5/5 (mismas vacantes).
+
+**Investigacion gemma vs qwen3-embedding (para elegir motor).**
+- Qwen3-Embedding-0.6B: MTEB Multilingual 64.33, 1024 dims (MRL 32-1024),
+  32K contexto, ~1.2 GB fp16, Apache 2.0, en Ollama como
+  `qwen3-embedding:0.6b`.
+- Qwen3-Embedding-4B/8B: 69.45/70.58, pero 4B+ params: inviables en CPU
+  para el hot path y quemarian cuota si van por nube. Descartados.
+- EmbeddingGemma-300m: 61.15, 768 dims, 2K contexto, <200 MB cuantizada
+  (QAT q8 pierde solo ~0.2), licencia Gemma ya aceptada.
+- Dato de mercado: segun el leaderboard MTEB (feb 2026),
+  `jina-embeddings-v5-small` (0.6B, 67.0) supera a Qwen3-0.6B en
+  multilingue, pero no esta en Ollama y exigiria mas integracion.
+
+**Veredicto.** Qwen3-0.6B tiene +3.2 puntos MTEB agregados, pero el
+ranking corre en CPU y el hot path (`search`, `search_profile`, gate)
+codifica queries al vuelo: gemma es ~2-3x mas rapida con ~5x menos RAM
+y los prompts ya estan integrados. 3 puntos en 131 tareas agregadas no
+garantizan mejor ranking de vacantes CR. **Gemma queda como default**;
+la unica forma de cambiarla es que `qwen3-embedding:0.6b` gane
+claramente en relevancia en ESTA base. Bench planeado con llama.cpp/
+Ollama local (mismas 4 queries de este benchmark). Ojo: 32K de contexto
+de Qwen3 seria util si algun dia se indexan descripciones completas sin
+recortar (hoy se recortan a 2400 chars por los 2K de gemma). Regla
+general: nube para la segunda opinion a demanda; local para el motor de
+ranking (miles de llamadas, debe ser gratis).
+
+**Pendiente.** Bench `qwen3-embedding:0.6b` local vs gemma (mismas
+queries), correr `--ia-cv` con el CV real del usuario y un `--ia` normal
+con la cache v3.
+
