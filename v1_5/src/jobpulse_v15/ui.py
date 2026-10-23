@@ -13,6 +13,7 @@ from tkinter import filedialog, messagebox, ttk
 from typing import Any, Mapping, Sequence
 
 from jobpulse_v15.analysis import EXTRACTOR_VERSION, RuleBasedExtractor
+from jobpulse_v15.ashby import AshbyFetcher
 from jobpulse_v15.candidate_profile import (
     CandidateProfileImport,
     extract_candidate_profile,
@@ -2200,7 +2201,7 @@ class JobPulseWindow:
 
 
 class SourceManagerWindow:
-    """Alta/pausa de tableros Workday y scraping con confirmacion explicita."""
+    """Administra fuentes ATS y scraping con confirmacion explicita."""
 
     def __init__(
         self,
@@ -2279,6 +2280,10 @@ class SourceManagerWindow:
             actions, text="Agregar Greenhouse", command=self.open_add_greenhouse
         )
         self.add_greenhouse_button.pack(side="left", padx=(8, 0))
+        self.add_ashby_button = ttk.Button(
+            actions, text="Agregar Ashby", command=self.open_add_ashby
+        )
+        self.add_ashby_button.pack(side="left", padx=(8, 0))
         self.toggle_button = ttk.Button(
             actions, text="Activar / pausar", command=self.toggle_selected
         )
@@ -2412,6 +2417,7 @@ class SourceManagerWindow:
     def _set_action_state(self, state: str) -> None:
         self.add_button.configure(state=state)
         self.add_greenhouse_button.configure(state=state)
+        self.add_ashby_button.configure(state=state)
         self.toggle_button.configure(state=state)
         self.scrape_button.configure(state=state)
         self.scrape_group_button.configure(state=state)
@@ -2426,6 +2432,8 @@ class SourceManagerWindow:
             return "workday"
         if provider == "greenhouse" or adapter == "greenhouse":
             return "greenhouse"
+        if provider == "ashby" or adapter == "ashby":
+            return "ashby"
         return None
 
     def open_run_history(self) -> None:
@@ -2701,6 +2709,113 @@ class SourceManagerWindow:
         dialog.bind("<Return>", submit_on_return)
         dialog.bind("<Escape>", dismiss_on_escape)
 
+    def open_add_ashby(self) -> None:
+        dialog = tk.Toplevel(self.window)
+        dialog.title("Agregar tablero Ashby")
+        dialog.geometry("570x340")
+        dialog.resizable(False, False)
+        dialog.transient(self.window)
+        dialog.grab_set()
+
+        values = {
+            "site_id": tk.StringVar(),
+            "site_name": tk.StringVar(),
+            "company": tk.StringVar(),
+            "url": tk.StringVar(),
+            "country": tk.StringVar(value="CR"),
+            "country_query": tk.StringVar(value="Costa Rica"),
+        }
+        form = ttk.Frame(dialog, padding=16)
+        form.grid(row=0, column=0, sticky="nsew")
+        for row, (key, label) in enumerate(
+            (
+                ("site_id", "ID unico (ej. acme-cr)"),
+                ("site_name", "Nombre del tablero"),
+                ("company", "Empresa"),
+                ("url", "URL del tablero Ashby"),
+                ("country", "Codigo de pais (ej. CR)"),
+                ("country_query", "Texto para validar la ubicacion"),
+            )
+        ):
+            ttk.Label(form, text=label).grid(row=row, column=0, sticky="w", pady=4)
+            ttk.Entry(form, textvariable=values[key], width=52).grid(
+                row=row, column=1, sticky="ew", padx=(10, 0), pady=4
+            )
+        form.columnconfigure(1, weight=1)
+
+        def save_site() -> None:
+            site_id = values["site_id"].get().strip().lower()
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", site_id):
+                messagebox.showerror(
+                    "ID invalido",
+                    "Usa letras minusculas, numeros, guion o guion bajo.",
+                    parent=dialog,
+                )
+                return
+            site_name = values["site_name"].get().strip()
+            company = values["company"].get().strip()
+            base_url = values["url"].get().strip()
+            country_query = values["country_query"].get().strip()
+            country = values["country"].get().strip().upper()
+            if not site_name or not company or not country_query or not country:
+                messagebox.showerror(
+                    "Faltan datos",
+                    "Nombre, empresa, pais y texto de ubicacion son obligatorios.",
+                    parent=dialog,
+                )
+                return
+            try:
+                AshbyFetcher._board_token(base_url)
+                if self.repository.get_site(site_id) is not None:
+                    raise ValueError(f"Ya existe un sitio con ID {site_id!r}.")
+                if self.repository.get_platform("ashby") is None:
+                    self.repository.register_platform("ashby", "Ashby", "api")
+                self.repository.register_site(
+                    site_id,
+                    "ashby",
+                    site_name,
+                    base_url,
+                    company_name=company,
+                    country=country,
+                    run_groups=("directos",),
+                    site_config={
+                        "adapter": "ashby",
+                        "country_query": country_query,
+                    },
+                    enabled=True,
+                )
+            except (sqlite3.Error, ValueError) as exc:
+                messagebox.showerror(
+                    "No se pudo agregar el tablero", str(exc), parent=dialog
+                )
+                return
+            dialog.destroy()
+            self.refresh()
+            self.sites_table.selection_set(site_id)
+            self._update_action_state()
+
+        buttons = ttk.Frame(form)
+        buttons.grid(row=6, column=0, columnspan=2, sticky="e", pady=(12, 0))
+        ttk.Button(buttons, text="Cancelar", command=dialog.destroy).pack(
+            side="right"
+        )
+        ttk.Button(buttons, text="Guardar", command=save_site).pack(
+            side="right", padx=(0, 8)
+        )
+
+        def submit_on_return(event: tk.Event) -> str:
+            if event.keysym == "Return":
+                save_site()
+            return "break"
+
+        def dismiss_on_escape(event: tk.Event) -> str:
+            _ = event
+            dialog.destroy()
+            return "break"
+
+        dialog.bind("<Return>", submit_on_return)
+        dialog.bind("<Escape>", dismiss_on_escape)
+
     def scrape_selected(self) -> None:
         site = self._selected_site()
         if site is None or self.scrape_running:
@@ -2780,7 +2895,7 @@ class SourceManagerWindow:
             messagebox.showerror(
                 "Seleccion no valida",
                 "Selecciona solo tableros activos del mismo proveedor "
-                "(Workday o Greenhouse). "
+                "(Workday, Greenhouse o Ashby). "
                 + (
                     "Fuentes no compatibles o de otro proveedor: "
                     + ", ".join(unsupported)
@@ -2880,6 +2995,19 @@ class SourceManagerWindow:
                             )
                         )
                     )
+                elif provider == "ashby":
+                    fetcher = AshbyFetcher()
+                    skip_source_job_ids = (
+                        self.repository.list_skipped_source_job_ids(site_id)
+                    )
+                    fetch_offers = (
+                        lambda site=site, skip_source_job_ids=skip_source_job_ids: (
+                            fetcher.fetch(
+                                site,
+                                skip_source_job_ids=skip_source_job_ids,
+                            )
+                        )
+                    )
                 else:
                     raise ValueError(
                         f"No hay adaptador de scraping para el sitio {site_id!r}."
@@ -2928,6 +3056,14 @@ class SourceManagerWindow:
                 )
             elif provider == "greenhouse":
                 fetcher = GreenhouseFetcher()
+                skip_source_job_ids = self.repository.list_skipped_source_job_ids(
+                    site["site_id"]
+                )
+                fetch_offers = lambda: fetcher.fetch(
+                    site, skip_source_job_ids=skip_source_job_ids
+                )
+            elif provider == "ashby":
+                fetcher = AshbyFetcher()
                 skip_source_job_ids = self.repository.list_skipped_source_job_ids(
                     site["site_id"]
                 )

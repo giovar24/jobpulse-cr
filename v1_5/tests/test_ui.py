@@ -513,6 +513,62 @@ class TestSourceManagerWindow(unittest.TestCase):
         finally:
             manager.close()
 
+    def test_add_ashby_dialog_registers_grouped_source(self):
+        manager = SourceManagerWindow(self.root, self.repository)
+        try:
+            manager.open_add_ashby()
+            self.root.update()
+            dialogs = [
+                widget
+                for widget in manager.window.winfo_children()
+                if isinstance(widget, tk.Toplevel)
+                and widget.title() == "Agregar tablero Ashby"
+            ]
+            self.assertEqual(len(dialogs), 1)
+            dialog = dialogs[0]
+            form = dialog.winfo_children()[0]
+            entries = sorted(
+                (
+                    widget
+                    for widget in form.winfo_children()
+                    if isinstance(widget, ttk.Entry)
+                ),
+                key=lambda widget: int(widget.grid_info()["row"]),
+            )
+            for entry, value in zip(
+                entries,
+                (
+                    "acme-cr",
+                    "Acme Careers CR",
+                    "Acme",
+                    "https://jobs.ashbyhq.com/acme",
+                    "CR",
+                    "Costa Rica",
+                ),
+            ):
+                entry.delete(0, "end")
+                entry.insert(0, value)
+
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+
+            save_button = next(
+                widget
+                for widget in descendants(form)
+                if isinstance(widget, ttk.Button) and widget.cget("text") == "Guardar"
+            )
+            save_button.invoke()
+
+            site = self.repository.get_site("acme-cr")
+            self.assertEqual(site["platform_id"], "ashby")
+            self.assertEqual(site["site_config"]["adapter"], "ashby")
+            self.assertEqual(site["run_groups"], ["directos"])
+            self.assertIn("acme-cr", manager.sites_table.get_children())
+        finally:
+            manager.close()
+
     def test_workday_query_runs_only_after_explicit_confirmation(self):
         manager = SourceManagerWindow(self.root, self.repository)
         manager.sites_table.selection_set("intel-cr")
@@ -523,6 +579,50 @@ class TestSourceManagerWindow(unittest.TestCase):
                 manager.scrape_selected()
             fetch.assert_not_called()
             self.assertEqual(self.repository.list_runs(), [])
+        finally:
+            manager.close()
+
+    def test_confirmed_ashby_query_imports_in_background(self):
+        self.repository.register_platform("ashby", "Ashby", "api")
+        self.repository.register_site(
+            "ashby-cr",
+            "ashby",
+            "Ashby Careers CR",
+            "https://jobs.ashbyhq.com/acme",
+            company_name="Acme",
+            country="CR",
+        )
+        manager = SourceManagerWindow(self.root, self.repository)
+        manager.sites_table.selection_set("ashby-cr")
+        offer = {
+            "source_job_id": "REQ-ASHBY-1",
+            "source_url": "https://jobs.ashbyhq.com/acme/REQ-ASHBY-1",
+            "job": {
+                "job_id": "ashby-acme-REQ-ASHBY-1",
+                "title": "Ashby UI Engineer",
+                "country": "CR",
+            },
+        }
+        try:
+            with patch(
+                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui.messagebox.showinfo"
+            ), patch(
+                "jobpulse_v15.ui.AshbyFetcher.fetch", return_value=[offer]
+            ) as fetch:
+                manager.scrape_selected()
+                self.assertIsNotNone(manager.scrape_thread)
+                manager.scrape_thread.join(timeout=5)
+                self.assertFalse(manager.scrape_thread.is_alive())
+                self.root.after(150, self.root.quit)
+                self.root.mainloop()
+
+            fetch.assert_called_once()
+            self.assertIsNotNone(
+                self.repository.get_job("ashby-acme-REQ-ASHBY-1")
+            )
+            self.assertEqual(manager.status_var.get().split(":")[0], "Corrida 1")
         finally:
             manager.close()
 
@@ -733,6 +833,67 @@ class TestSourceManagerWindow(unittest.TestCase):
                 "greenhouse-good:",
                 showerror.call_args.args[1],
             )
+        finally:
+            manager.close()
+
+    def test_group_query_supports_ashby_boards(self):
+        self.repository.register_platform("ashby", "Ashby", "api")
+        for site_id in ("ashby-good", "ashby-fails"):
+            self.repository.register_site(
+                site_id,
+                "ashby",
+                site_id,
+                f"https://jobs.ashbyhq.com/{site_id}",
+                run_groups=("directos",),
+                site_config={"adapter": "ashby"},
+            )
+        manager = SourceManagerWindow(self.root, self.repository)
+        manager.sites_table.selection_set("ashby-good", "ashby-fails")
+        manager._update_action_state()
+        self.assertEqual(str(manager.scrape_group_button["state"]), "normal")
+
+        offer = {
+            "source_job_id": "55",
+            "job": {"job_id": "ashby-ashby-good-55", "title": "Ashby Group Engineer"},
+        }
+
+        def fetch(site, **kwargs):
+            _ = kwargs
+            if site["site_id"] == "ashby-fails":
+                raise RuntimeError("portal no disponible")
+            return [offer]
+
+        try:
+            with patch(
+                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui.messagebox.showerror"
+            ) as showerror, patch(
+                "jobpulse_v15.ui.AshbyFetcher.fetch", side_effect=fetch
+            ):
+                manager.scrape_selected_group()
+                self.assertIsNotNone(manager.scrape_thread)
+                manager.scrape_thread.join(timeout=5)
+                self.assertFalse(manager.scrape_thread.is_alive())
+                self.root.after(150, self.root.quit)
+                self.root.mainloop()
+
+            self.assertIsNotNone(
+                self.repository.get_job("ashby-ashby-good-55")
+            )
+            self.assertEqual(
+                self.repository.list_site_runs("ashby-good", limit=1)[0][
+                    "run_kind"
+                ],
+                "ashby",
+            )
+            self.assertEqual(
+                self.repository.list_site_runs("ashby-fails", limit=1)[0][
+                    "site_status"
+                ],
+                "error",
+            )
+            showerror.assert_called_once()
         finally:
             manager.close()
 

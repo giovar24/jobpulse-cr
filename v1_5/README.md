@@ -150,9 +150,9 @@ La nueva version del extractor no reanaliza historicos automaticamente; usa
 `Analizar seleccionada` para actualizar el analisis de una vacante ya guardada.
 La interfaz solo consulta la DB v1.5 y no inicia scraping automaticamente.
 La administracion de fuentes permite activar o
-pausar sitios, agregar tableros Workday y consultar manualmente un tablero
-tras confirmacion. El boton `Historial` muestra las ultimas corridas de la
-fuente seleccionada, con su estado, conteos y errores registrados:
+pausar sitios, agregar tableros Workday, Greenhouse y Ashby, y consultar
+manualmente un tablero tras confirmacion. El boton `Historial` muestra las
+ultimas corridas de la fuente seleccionada, con su estado, conteos y errores:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e .
@@ -270,6 +270,33 @@ ubicacion o alguna oficina contiene el texto `country_query` (por defecto
 de construir la URL fija de API. Cada fuente tiene su propia corrida; un fallo
 se registra y no detiene las demas. La UI permite agregar tableros Greenhouse
 y consultarlos individualmente o en seleccion multiple, siempre tras confirmar.
+
+### Consulta explicita de tableros Ashby
+
+Ashby ofrece una API publica por tablero. Registra la plataforma y el tablero
+con una URL HTTPS de `jobs.ashbyhq.com`:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 platform add `
+  --id ashby --name Ashby --provider-type api
+.\.venv\Scripts\python.exe -m jobpulse_v15 site add `
+  --id acme-cr --platform ashby --name "Acme Careers CR" `
+  --url https://jobs.ashbyhq.com/acme --company Acme `
+  --country CR --group directos
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape ashby --site acme-cr
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape ashby --group directos
+```
+
+El adaptador consulta el endpoint publico del tablero solo bajo demanda,
+conserva el payload original y filtra por `country_query` (por defecto
+`Costa Rica`) en el titulo, ubicacion principal o ubicaciones secundarias.
+Cuando una oferta coincidente solo indica el pais en una ubicacion secundaria
+o en el titulo, guarda `<country_query> (multi-loc)` como ubicacion sin inferir
+ciudad o provincia. La modalidad se mapea solo si Ashby especifica modalidad
+remota, hibrida o presencial; de lo contrario queda `unknown`. La UI permite
+agregar tableros Ashby y consultarlos individualmente o en seleccion multiple,
+siempre tras confirmar. Las pruebas usan respuestas simuladas y no consultan
+tableros reales.
 
 Workday devuelve una ubicacion original que v1.5 siempre conserva en
 `location_raw` y en el payload de origen. Para Costa Rica, el adaptador separa
