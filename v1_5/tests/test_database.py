@@ -95,6 +95,49 @@ class TestDatabaseMigrations(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             self.database.backup_to(Path(self.temp_dir.name) / "backup.db")
 
+    def test_integrity_check_reports_clean_database_and_rejects_missing_source(self):
+        self.database.initialize()
+
+        report = self.database.check_integrity()
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["integrity_check"], ["ok"])
+        self.assertEqual(report["foreign_key_violations"], [])
+        self.assertEqual(report["schema_version"], 5)
+        with self.assertRaises(FileNotFoundError):
+            Database(Path(self.temp_dir.name) / "missing.db").check_integrity()
+
+    def test_integrity_check_reports_foreign_key_violations(self):
+        self.database.initialize()
+        with self.database.connection() as connection:
+            connection.execute("PRAGMA foreign_keys = OFF")
+            connection.execute(
+                """
+                INSERT INTO source_sites (
+                    site_id, platform_id, site_name, base_url
+                ) VALUES (
+                    'broken-site', 'missing-platform', 'Broken site',
+                    'https://example.test'
+                )
+                """
+            )
+
+        report = self.database.check_integrity()
+
+        self.assertTrue(report["integrity_check"] == ["ok"])
+        self.assertFalse(report["ok"])
+        self.assertEqual(
+            report["foreign_key_violations"],
+            [
+                {
+                    "table": "source_sites",
+                    "rowid": 1,
+                    "parent": "source_platforms",
+                    "foreign_key_id": 0,
+                }
+            ],
+        )
+
     def test_site_requires_a_registered_platform(self):
         self.database.initialize()
         with self.assertRaises(sqlite3.IntegrityError):

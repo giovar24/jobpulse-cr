@@ -46,6 +46,35 @@ class Database:
             row = connection.execute("PRAGMA user_version").fetchone()
             return int(row[0])
 
+    def check_integrity(self) -> dict[str, object]:
+        """Reporta integridad SQLite y relaciones rotas sin modificar la base."""
+        source_path = self.path.expanduser().resolve()
+        if not source_path.is_file():
+            raise FileNotFoundError(f"No existe la base de datos: {source_path}")
+        with closing(sqlite3.connect(source_path, timeout=30)) as connection:
+            integrity_results = [
+                str(row[0]) for row in connection.execute("PRAGMA integrity_check")
+            ]
+            foreign_key_violations = [
+                {
+                    "table": str(row[0]),
+                    "rowid": row[1],
+                    "parent": str(row[2]),
+                    "foreign_key_id": int(row[3]),
+                }
+                for row in connection.execute("PRAGMA foreign_key_check")
+            ]
+            schema_version = int(
+                connection.execute("PRAGMA user_version").fetchone()[0]
+            )
+        return {
+            "database": str(source_path),
+            "schema_version": schema_version,
+            "integrity_check": integrity_results,
+            "foreign_key_violations": foreign_key_violations,
+            "ok": integrity_results == ["ok"] and not foreign_key_violations,
+        }
+
     def backup_to(self, destination: str | Path) -> Path:
         """Crea una copia SQLite consistente sin sobrescribir archivos existentes."""
         destination_path = Path(destination).expanduser().resolve()

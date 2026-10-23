@@ -87,6 +87,15 @@ def main() -> int:
     backup.add_argument(
         "--output", required=True, type=Path, help="Ruta nueva para el archivo SQLite."
     )
+    database_commands = commands.add_parser(
+        "db", help="Verificar y mantener la base v1.5."
+    )
+    database_subcommands = database_commands.add_subparsers(
+        dest="database_command", required=True
+    )
+    database_subcommands.add_parser(
+        "check", help="Verificar integridad SQLite y claves foraneas."
+    )
     platform = commands.add_parser("platform", help="Gestionar plataformas.")
     platform_commands = platform.add_subparsers(dest="platform_command", required=True)
     platform_add = platform_commands.add_parser("add", help="Registrar una plataforma.")
@@ -357,6 +366,14 @@ def main() -> int:
         except (OSError, sqlite3.Error, ValueError) as exc:
             parser.error(f"No se pudo crear el respaldo: {exc}")
         print(json.dumps({"backup": str(backup_path)}, ensure_ascii=False))
+    elif args.command == "db" and args.database_command == "check":
+        try:
+            report = database.check_integrity()
+        except (OSError, sqlite3.Error) as exc:
+            parser.error(f"No se pudo verificar la base: {exc}")
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        if not report["ok"]:
+            command_exit_code = 1
     else:
         database.initialize()
         if args.command == "schema-version":

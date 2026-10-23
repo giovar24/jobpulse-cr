@@ -44,6 +44,14 @@ no sobrescribe archivos existentes ni la base activa. La UI ofrece la misma
 accion con `Respaldar DB`; restaurar consiste en cerrar JobPulse, conservar
 una copia de la base actual y reemplazar el archivo configurado por un respaldo
 verificado.
+Para diagnosticar una base despues de una restauracion o copia manual:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 db check
+```
+
+El comando es de solo lectura, ejecuta `integrity_check` y `foreign_key_check`,
+devuelve JSON y usa codigo de salida distinto de cero ante problemas.
 
 ## Interfaz de escritorio
 

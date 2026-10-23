@@ -559,6 +559,33 @@ class TestBatchAnalysisCLI(unittest.TestCase):
                     connection.execute("PRAGMA integrity_check").fetchone()[0], "ok"
                 )
 
+    def test_database_integrity_cli_returns_nonzero_on_foreign_key_violations(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database = Database(Path(temp_dir) / "integrity.db")
+            database.initialize()
+            with database.connection() as connection:
+                connection.execute("PRAGMA foreign_keys = OFF")
+                connection.execute(
+                    """
+                    INSERT INTO source_sites (
+                        site_id, platform_id, site_name, base_url
+                    ) VALUES (
+                        'broken-site', 'missing-platform', 'Broken site',
+                        'https://example.test'
+                    )
+                    """
+                )
+            output = io.StringIO()
+            with patch(
+                "sys.argv",
+                ["jobpulse-v15", "--db", str(database.path), "db", "check"],
+            ), redirect_stdout(output):
+                self.assertEqual(main(), 1)
+
+            report = json.loads(output.getvalue())
+            self.assertFalse(report["ok"])
+            self.assertEqual(len(report["foreign_key_violations"]), 1)
+
     def test_group_workday_scrape_continues_after_site_failure(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             database = Database(Path(temp_dir) / "scrape-group.db")
