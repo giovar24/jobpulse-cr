@@ -39,7 +39,9 @@ texto, ubicacion, modalidad e idioma, y revisar la evidencia del analisis.
 El boton `Calidad de datos` muestra un resumen global de vacantes que requieren
 revision, faltantes de empresa/pais/ubicacion, estado de analisis y campos
 desconocidos o ambiguos, ademas de grupos candidatos a duplicados. El conteo
-cubre toda la base, no solo la pagina visible de resultados.
+cubre toda la base, no solo la pagina visible de resultados. `Revisar
+duplicados` muestra los primeros grupos candidatos e identificadores para
+validacion manual.
 Tambien permite ejecutar el extractor local sobre la vacante seleccionada o,
 con `Analizar pendientes`, procesar tras confirmacion las vacantes visibles que
 aun no tienen analisis. El procesamiento es local, no vuelve a analizar

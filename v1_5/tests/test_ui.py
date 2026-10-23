@@ -918,6 +918,29 @@ class TestManualJobStateUI(unittest.TestCase):
         self.assertIn("Grupos candidatos a duplicados: 0", report_text)
         self.assertIn("Sin analisis: 1", report_text)
 
+    def test_potential_duplicate_candidates_are_available_in_ui(self):
+        self.repository.save_job(
+            {
+                "job_id": "workday-REQ-2",
+                "title": "software engineer!",
+                "company": "Intel",
+                "country": "CR",
+                "city": "San José",
+            },
+            site_id="intel-cr",
+            source_job_id="REQ-2",
+        )
+        window = JobPulseWindow(self.root, self.repository)
+
+        with patch("jobpulse_v15.ui.messagebox.showinfo") as showinfo:
+            window.show_potential_duplicates()
+
+        showinfo.assert_called_once()
+        report_text = showinfo.call_args.args[1]
+        self.assertIn("Grupos candidatos: 1", report_text)
+        self.assertIn("workday-REQ-1, workday-REQ-2", report_text)
+        self.assertIn("no se fusionan vacantes", report_text)
+
     def test_export_search_results_saves_only_current_results(self):
         window = JobPulseWindow(self.root, self.repository)
         destination = Path(self.temp_dir.name) / "review.csv"

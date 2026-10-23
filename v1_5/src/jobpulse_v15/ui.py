@@ -1097,6 +1097,11 @@ class JobPulseWindow:
             text="Calidad de datos",
             command=self.show_data_quality_summary,
         ).pack(side="right", anchor="ne", padx=(0, 8))
+        ttk.Button(
+            heading,
+            text="Revisar duplicados",
+            command=self.show_potential_duplicates,
+        ).pack(side="right", anchor="ne", padx=(0, 8))
 
         filters = ttk.LabelFrame(outer, text="Filtros", padding=10)
         filters.grid(row=1, column=0, sticky="ew", pady=(0, 10))
@@ -1591,6 +1596,48 @@ class JobPulseWindow:
                     f"Campos ambiguos: {summary['ambiguous_fields']}",
                 )
             ),
+            parent=self.root,
+        )
+
+    def show_potential_duplicates(self) -> None:
+        try:
+            report = self.repository.get_potential_duplicate_groups(limit=20)
+        except sqlite3.Error as exc:
+            messagebox.showerror(
+                "No se pudieron consultar posibles duplicados",
+                str(exc),
+                parent=self.root,
+            )
+            return
+        if not report["groups"]:
+            messagebox.showinfo(
+                "Posibles duplicados",
+                "No se encontraron grupos candidatos con titulo, empresa, pais "
+                "y ciudad completos.",
+                parent=self.root,
+            )
+            return
+
+        lines = [
+            f"Grupos candidatos: {report['total_groups']}",
+            "Verifica cada grupo manualmente; no se fusionan vacantes.",
+            "",
+        ]
+        for group in report["groups"]:
+            lines.append(
+                f"{group['title']} — {group['company']} "
+                f"({group['city']}, {group['country']})"
+            )
+            lines.append(f"IDs: {', '.join(group['job_ids'])}")
+            lines.append("")
+        if report["total_groups"] > len(report["groups"]):
+            lines.append(
+                "Se muestran los primeros 20 grupos. Consulta la CLI para "
+                "ver mas resultados."
+            )
+        messagebox.showinfo(
+            "Posibles duplicados",
+            "\n".join(lines).rstrip(),
             parent=self.root,
         )
 
