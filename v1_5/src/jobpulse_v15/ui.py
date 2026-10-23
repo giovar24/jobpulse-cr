@@ -2193,7 +2193,7 @@ class SourceManagerWindow:
         self.scrape_thread: threading.Thread | None = None
         self.scrape_running = False
         self.scrape_results: queue.Queue[
-            tuple[bool, dict[str, int | str] | str]
+            tuple[bool, dict[str, Any] | str]
         ] = queue.Queue()
         self.poll_after_id: str | None = None
         self.history_window: SourceRunHistoryWindow | None = None
@@ -2220,7 +2220,7 @@ class SourceManagerWindow:
         table_frame.columnconfigure(0, weight=1)
         columns = ("name", "company", "enabled", "health")
         self.sites_table = ttk.Treeview(
-            table_frame, columns=columns, show="tree headings", selectmode="browse"
+            table_frame, columns=columns, show="tree headings", selectmode="extended"
         )
         self.sites_table.heading("#0", text="ID")
         self.sites_table.column("#0", width=130, minwidth=90)
@@ -2255,6 +2255,12 @@ class SourceManagerWindow:
             actions, text="Consultar seleccionada", command=self.scrape_selected
         )
         self.scrape_button.pack(side="left", padx=(8, 0))
+        self.scrape_group_button = ttk.Button(
+            actions,
+            text="Consultar seleccionadas",
+            command=self.scrape_selected_group,
+        )
+        self.scrape_group_button.pack(side="left", padx=(8, 0))
         self.history_button = ttk.Button(
             actions, text="Historial", command=self.open_run_history
         )
@@ -2315,21 +2321,55 @@ class SourceManagerWindow:
             )
             return None
 
+    def _selected_sites(self) -> list[dict[str, Any]] | None:
+        try:
+            sites = [
+                self.repository.get_site(site_id)
+                for site_id in self.sites_table.selection()
+            ]
+        except sqlite3.Error as exc:
+            messagebox.showerror(
+                "No se pudieron consultar las fuentes",
+                str(exc),
+                parent=self.window,
+            )
+            return None
+        if any(site is None for site in sites):
+            messagebox.showerror(
+                "Fuente no disponible",
+                "Actualiza la lista e intenta de nuevo.",
+                parent=self.window,
+            )
+            return None
+        return [site for site in sites if site is not None]
+
     def _update_action_state(self) -> None:
-        site = self._selected_site()
+        sites = self._selected_sites()
+        single_selection = sites is not None and len(sites) == 1
+        site = sites[0] if single_selection else None
         state = "normal" if site is not None and not self.scrape_running else "disabled"
         self.toggle_button.configure(state=state)
-        workday_selected = bool(
-            site is not None
-            and (
-                site.get("platform_id", "").casefold() == "workday"
-                or site.get("site_config", {}).get("adapter") == "workday"
+        selected_workday_sites = bool(sites) and all(
+            (
+                source.get("platform_id", "").casefold() == "workday"
+                or source.get("site_config", {}).get("adapter") == "workday"
             )
+            and source["enabled"]
+            for source in (sites or [])
         )
         scrape_enabled = bool(
-            workday_selected and site["enabled"] and not self.scrape_running
+            single_selection
+            and selected_workday_sites
+            and not self.scrape_running
         )
         self.scrape_button.configure(state="normal" if scrape_enabled else "disabled")
+        self.scrape_group_button.configure(
+            state=(
+                "normal"
+                if selected_workday_sites and not self.scrape_running
+                else "disabled"
+            )
+        )
         self.history_button.configure(state=state)
         needs_review = bool(site is not None and site["review_required"])
         self.review_button.configure(
@@ -2340,6 +2380,7 @@ class SourceManagerWindow:
         self.add_button.configure(state=state)
         self.toggle_button.configure(state=state)
         self.scrape_button.configure(state=state)
+        self.scrape_group_button.configure(state=state)
         self.history_button.configure(state=state)
         self.review_button.configure(state=state)
 
@@ -2555,6 +2596,123 @@ class SourceManagerWindow:
         worker.start()
         self._schedule_scrape_poll()
 
+    def scrape_selected_group(self) -> None:
+        sites = self._selected_sites()
+        if not sites or self.scrape_running:
+            return
+        unsupported = [
+            site["site_id"]
+            for site in sites
+            if (
+                site.get("platform_id", "").casefold() != "workday"
+                and site.get("site_config", {}).get("adapter") != "workday"
+            )
+        ]
+        paused = [site["site_id"] for site in sites if not site["enabled"]]
+        if unsupported or paused:
+            messagebox.showerror(
+                "Seleccion no valida",
+                "Selecciona solo tableros Workday activos. "
+                + (
+                    "Fuentes no Workday: " + ", ".join(unsupported) + ". "
+                    if unsupported
+                    else ""
+                )
+                + ("Fuentes pausadas: " + ", ".join(paused) + "." if paused else ""),
+                parent=self.window,
+            )
+            return
+        try:
+            pages = int(self.pages_var.get())
+        except ValueError:
+            messagebox.showerror(
+                "Numero de paginas invalido",
+                "Selecciona un numero de paginas entre 1 y 10.",
+                parent=self.window,
+            )
+            return
+        if not 1 <= pages <= MAX_PAGES:
+            messagebox.showerror(
+                "Numero de paginas invalido",
+                f"El maximo permitido es {MAX_PAGES} paginas.",
+                parent=self.window,
+            )
+            return
+
+        site_names = "\n".join(
+            f"- {site['site_name']} ({site['base_url']})" for site in sites
+        )
+        confirmed = messagebox.askyesno(
+            "Iniciar consulta Workday",
+            f"Se consultaran secuencialmente {len(sites)} tableros, con un "
+            f"maximo de {pages} pagina(s) por tablero. Un error no detendra "
+            f"los siguientes.\n\n{site_names}\n\n¿Continuar?",
+            parent=self.window,
+        )
+        if not confirmed:
+            return
+
+        self.scrape_running = True
+        self.status_var.set(f"Consultando {len(sites)} fuentes Workday...")
+        self._set_action_state("disabled")
+        worker = threading.Thread(
+            target=self._scrape_group_worker,
+            args=(sites, pages),
+            name="jobpulse-workday-group",
+            daemon=True,
+        )
+        self.scrape_thread = worker
+        worker.start()
+        self._schedule_scrape_poll()
+
+    def _scrape_group_worker(
+        self, sites: list[dict[str, Any]], pages: int
+    ) -> None:
+        results = []
+        failures = []
+        fetcher = WorkdayFetcher()
+        service = IngestionService(self.repository)
+        for site in sites:
+            site_id = site["site_id"]
+            try:
+                skip_source_job_ids = self.repository.list_skipped_source_job_ids(
+                    site_id
+                )
+                result = service.fetch_and_import(
+                    site_id,
+                    lambda site=site, skip_source_job_ids=skip_source_job_ids: (
+                        fetcher.fetch(
+                            site,
+                            pages=pages,
+                            skip_source_job_ids=skip_source_job_ids,
+                        )
+                    ),
+                    run_kind="workday",
+                )
+            except (IngestionError, ValueError, sqlite3.Error) as exc:
+                failures.append(
+                    {
+                        "site_id": site_id,
+                        "run_id": (
+                            exc.run_id if isinstance(exc, IngestionError) else None
+                        ),
+                        "error": str(exc),
+                    }
+                )
+                continue
+            results.append({"site_id": site_id, **result})
+        self.scrape_results.put(
+            (
+                True,
+                {
+                    "mode": "group",
+                    "sites_selected": len(sites),
+                    "results": results,
+                    "failures": failures,
+                },
+            )
+        )
+
     def _scrape_worker(self, site: dict[str, Any], pages: int) -> None:
         try:
             skip_source_job_ids = self.repository.list_skipped_source_job_ids(
@@ -2585,7 +2743,10 @@ class SourceManagerWindow:
             return
         if succeeded:
             if isinstance(payload, dict):
-                self._scrape_completed(payload)
+                if payload.get("mode") == "group":
+                    self._scrape_group_completed(payload)
+                else:
+                    self._scrape_completed(payload)
             else:
                 self._scrape_failed("La respuesta de ingesta no es valida.")
         elif isinstance(payload, str):
@@ -2629,6 +2790,53 @@ class SourceManagerWindow:
             f"Omitidas por estado manual: {result.get('jobs_skipped', 0)}",
             parent=self.window,
         )
+
+    def _scrape_group_completed(self, report: dict[str, Any]) -> None:
+        self.scrape_running = False
+        self.scrape_thread = None
+        self.refresh()
+        self._refresh_open_history()
+        self._update_action_state()
+        results = report["results"]
+        failures = report["failures"]
+        new_jobs = sum(int(result["jobs_new"]) for result in results)
+        duplicates = sum(int(result["jobs_duplicate"]) for result in results)
+        self.status_var.set(
+            f"Consulta de grupo: {len(results)} fuente(s) completada(s), "
+            f"{len(failures)} con error; {new_jobs} vacantes nuevas."
+        )
+        if callable(self.on_import_complete) and results:
+            self.on_import_complete()
+
+        summary = [
+            f"Fuentes seleccionadas: {report['sites_selected']}",
+            f"Completadas: {len(results)}",
+            f"Con error: {len(failures)}",
+            f"Vacantes nuevas: {new_jobs}",
+            f"Duplicadas: {duplicates}",
+        ]
+        if failures:
+            summary.extend(
+                (
+                    "",
+                    "Errores:",
+                    *[
+                        f"{failure['site_id']}: {failure['error']}"
+                        for failure in failures
+                    ],
+                )
+            )
+            messagebox.showerror(
+                "Consulta de grupo terminada con errores",
+                "\n".join(summary),
+                parent=self.window,
+            )
+        else:
+            messagebox.showinfo(
+                "Consulta de grupo completada",
+                "\n".join(summary),
+                parent=self.window,
+            )
 
     def _refresh_open_history(self) -> None:
         if (

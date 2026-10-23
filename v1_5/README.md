@@ -191,11 +191,10 @@ conocida actualiza sus datos, pero se cuenta como duplicada en la corrida.
 Una lista invalida se rechaza antes de crearla; si falla la escritura durante
 la corrida, el error queda registrado para revision y la CLI informa el fallo.
 
-### Consulta explicita de un tablero Workday
+### Consulta explicita de tableros Workday
 
-v1.5 incluye un adaptador independiente para consultar **un solo tablero
-Workday** por comando. Usa la URL del sitio para identificar tenant y tablero;
-por ejemplo:
+v1.5 incluye un adaptador independiente para consultar tableros Workday. Usa
+la URL del sitio para identificar tenant y tablero; por ejemplo:
 
 ```powershell
 .\.venv\Scripts\python.exe -m jobpulse_v15 platform add `
@@ -222,7 +221,9 @@ consulta detalles con una pausa entre vacantes y registra resultados/error
 en una corrida del sitio. Un fallo HTTP o una respuesta inesperada se informa
 como error y no se registra como cero ofertas. No hay reintentos automaticos.
 Los registros se normalizan y pasan por `IngestionService`; el proveedor no
-accede a la DB antigua.
+accede a la DB antigua. En la ventana `Administrar fuentes`, selecciona uno o
+varios tableros activos y usa `Consultar seleccionadas` para ejecutar la misma
+consulta secuencial con confirmacion y resumen de resultados/errores.
 
 Workday devuelve una ubicacion original que v1.5 siempre conserva en
 `location_raw` y en el payload de origen. Para Costa Rica, el adaptador separa

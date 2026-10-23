@@ -542,6 +542,73 @@ class TestSourceManagerWindow(unittest.TestCase):
         finally:
             manager.close()
 
+    def test_group_query_continues_after_one_source_fails(self):
+        self.repository.register_site(
+            "acme-cr",
+            "workday",
+            "Acme Careers CR",
+            "https://acme.wd5.myworkdayjobs.com/External",
+            company_name="Acme",
+            country="CR",
+        )
+        manager = SourceManagerWindow(self.root, self.repository)
+        manager.sites_table.selection_set("intel-cr", "acme-cr")
+        manager._update_action_state()
+        self.assertEqual(str(manager.scrape_group_button["state"]), "normal")
+        offers = [
+            {
+                "source_job_id": "REQ-GROUP-1",
+                "source_url": "https://example.test/jobs/REQ-GROUP-1",
+                "job": {
+                    "job_id": "workday-REQ-GROUP-1",
+                    "title": "Group Query Engineer",
+                    "country": "CR",
+                },
+            }
+        ]
+
+        def fetch(site, **kwargs):
+            _ = kwargs
+            if site["site_id"] == "acme-cr":
+                raise RuntimeError("portal no disponible")
+            return offers
+
+        try:
+            with patch(
+                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui.messagebox.showerror"
+            ) as showerror, patch(
+                "jobpulse_v15.ui.WorkdayFetcher.fetch", side_effect=fetch
+            ):
+                manager.scrape_selected_group()
+                self.assertIsNotNone(manager.scrape_thread)
+                manager.scrape_thread.join(timeout=5)
+                self.assertFalse(manager.scrape_thread.is_alive())
+                self.root.after(150, self.root.quit)
+                self.root.mainloop()
+
+            self.assertIsNotNone(
+                self.repository.get_job("workday-REQ-GROUP-1")
+            )
+            self.assertEqual(
+                self.repository.list_site_runs("intel-cr", limit=1)[0][
+                    "site_status"
+                ],
+                "zero_results" if not offers else "ok",
+            )
+            self.assertEqual(
+                self.repository.list_site_runs("acme-cr", limit=1)[0][
+                    "site_status"
+                ],
+                "error",
+            )
+            showerror.assert_called_once()
+            self.assertIn("acme-cr", showerror.call_args.args[1])
+            self.assertFalse(manager.scrape_running)
+        finally:
+            manager.close()
+
 
 class TestManualJobStateUI(unittest.TestCase):
     def setUp(self):
