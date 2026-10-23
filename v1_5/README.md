@@ -150,7 +150,7 @@ La nueva version del extractor no reanaliza historicos automaticamente; usa
 `Analizar seleccionada` para actualizar el analisis de una vacante ya guardada.
 La interfaz solo consulta la DB v1.5 y no inicia scraping automaticamente.
 La administracion de fuentes permite activar o
-pausar sitios, agregar tableros Workday, Greenhouse y Ashby, y consultar
+pausar sitios, agregar tableros Workday, Greenhouse, Ashby y Lever, y consultar
 manualmente un tablero tras confirmacion. El boton `Historial` muestra las
 ultimas corridas de la fuente seleccionada, con su estado, conteos y errores:
 
@@ -297,6 +297,33 @@ remota, hibrida o presencial; de lo contrario queda `unknown`. La UI permite
 agregar tableros Ashby y consultarlos individualmente o en seleccion multiple,
 siempre tras confirmar. Las pruebas usan respuestas simuladas y no consultan
 tableros reales.
+
+### Consulta explicita de tableros Lever
+
+Lever expone un API publico por tablero. Registra la plataforma y el tablero
+con una URL HTTPS de `jobs.lever.co`:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 platform add `
+  --id lever --name Lever --provider-type api
+.\.venv\Scripts\python.exe -m jobpulse_v15 site add `
+  --id acme-cr --platform lever --name "Acme Careers CR" `
+  --url https://jobs.lever.co/acme --company Acme `
+  --country CR --group directos
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape lever --site acme-cr
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape lever --group directos
+```
+
+El adaptador consulta primero el endpoint europeo de Lever y, si falla,
+reintenta con el global. Conserva el payload original, filtra por
+`country_query` (por defecto `Costa Rica`) en el titulo, pais o listas del
+anuncio y completa la descripcion con las secciones adicionales del anuncio.
+Cuando una oferta coincidente no indica el pais en su ubicacion principal,
+guarda `<country_query> (multi-loc)` sin inferir ciudad o provincia; la
+modalidad no se deduce y queda `unknown` porque Lever no la expone. La UI
+permite agregar tableros Lever y consultarlos individualmente o en seleccion
+multiple, siempre tras confirmar. Las pruebas usan respuestas simuladas y no
+consultan tableros reales.
 
 Workday devuelve una ubicacion original que v1.5 siempre conserva en
 `location_raw` y en el payload de origen. Para Costa Rica, el adaptador separa

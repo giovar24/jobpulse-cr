@@ -569,6 +569,62 @@ class TestSourceManagerWindow(unittest.TestCase):
         finally:
             manager.close()
 
+    def test_add_lever_dialog_registers_grouped_source(self):
+        manager = SourceManagerWindow(self.root, self.repository)
+        try:
+            manager.open_add_lever()
+            self.root.update()
+            dialogs = [
+                widget
+                for widget in manager.window.winfo_children()
+                if isinstance(widget, tk.Toplevel)
+                and widget.title() == "Agregar tablero Lever"
+            ]
+            self.assertEqual(len(dialogs), 1)
+            dialog = dialogs[0]
+            form = dialog.winfo_children()[0]
+            entries = sorted(
+                (
+                    widget
+                    for widget in form.winfo_children()
+                    if isinstance(widget, ttk.Entry)
+                ),
+                key=lambda widget: int(widget.grid_info()["row"]),
+            )
+            for entry, value in zip(
+                entries,
+                (
+                    "acme-cr",
+                    "Acme Careers CR",
+                    "Acme",
+                    "https://jobs.lever.co/acme",
+                    "CR",
+                    "Costa Rica",
+                ),
+            ):
+                entry.delete(0, "end")
+                entry.insert(0, value)
+
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+
+            save_button = next(
+                widget
+                for widget in descendants(form)
+                if isinstance(widget, ttk.Button) and widget.cget("text") == "Guardar"
+            )
+            save_button.invoke()
+
+            site = self.repository.get_site("acme-cr")
+            self.assertEqual(site["platform_id"], "lever")
+            self.assertEqual(site["site_config"]["adapter"], "lever")
+            self.assertEqual(site["run_groups"], ["directos"])
+            self.assertIn("acme-cr", manager.sites_table.get_children())
+        finally:
+            manager.close()
+
     def test_workday_query_runs_only_after_explicit_confirmation(self):
         manager = SourceManagerWindow(self.root, self.repository)
         manager.sites_table.selection_set("intel-cr")
@@ -889,6 +945,111 @@ class TestSourceManagerWindow(unittest.TestCase):
             )
             self.assertEqual(
                 self.repository.list_site_runs("ashby-fails", limit=1)[0][
+                    "site_status"
+                ],
+                "error",
+            )
+            showerror.assert_called_once()
+        finally:
+            manager.close()
+
+    def test_confirmed_lever_query_imports_in_background(self):
+        self.repository.register_platform("lever", "Lever", "api")
+        self.repository.register_site(
+            "lever-cr",
+            "lever",
+            "Lever Careers CR",
+            "https://jobs.lever.co/acme",
+            company_name="Acme",
+            country="CR",
+        )
+        manager = SourceManagerWindow(self.root, self.repository)
+        manager.sites_table.selection_set("lever-cr")
+        offer = {
+            "source_job_id": "REQ-LEVER-1",
+            "source_url": "https://jobs.lever.co/acme/REQ-LEVER-1",
+            "job": {
+                "job_id": "lever-acme-REQ-LEVER-1",
+                "title": "Lever UI Engineer",
+                "country": "CR",
+            },
+        }
+        try:
+            with patch(
+                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui.messagebox.showinfo"
+            ), patch(
+                "jobpulse_v15.ui.LeverFetcher.fetch", return_value=[offer]
+            ) as fetch:
+                manager.scrape_selected()
+                self.assertIsNotNone(manager.scrape_thread)
+                manager.scrape_thread.join(timeout=5)
+                self.assertFalse(manager.scrape_thread.is_alive())
+                self.root.after(150, self.root.quit)
+                self.root.mainloop()
+
+            fetch.assert_called_once()
+            self.assertIsNotNone(
+                self.repository.get_job("lever-acme-REQ-LEVER-1")
+            )
+            self.assertEqual(manager.status_var.get().split(":")[0], "Corrida 1")
+        finally:
+            manager.close()
+
+    def test_group_query_supports_lever_boards(self):
+        self.repository.register_platform("lever", "Lever", "api")
+        for site_id in ("lever-good", "lever-fails"):
+            self.repository.register_site(
+                site_id,
+                "lever",
+                site_id,
+                f"https://jobs.lever.co/{site_id}",
+                run_groups=("directos",),
+                site_config={"adapter": "lever"},
+            )
+        manager = SourceManagerWindow(self.root, self.repository)
+        manager.sites_table.selection_set("lever-good", "lever-fails")
+        manager._update_action_state()
+        self.assertEqual(str(manager.scrape_group_button["state"]), "normal")
+
+        offer = {
+            "source_job_id": "55",
+            "job": {"job_id": "lever-lever-good-55", "title": "Lever Group Engineer"},
+        }
+
+        def fetch(site, **kwargs):
+            _ = kwargs
+            if site["site_id"] == "lever-fails":
+                raise RuntimeError("portal no disponible")
+            return [offer]
+
+        try:
+            with patch(
+                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui.messagebox.showerror"
+            ) as showerror, patch(
+                "jobpulse_v15.ui.LeverFetcher.fetch", side_effect=fetch
+            ):
+                manager.scrape_selected_group()
+                self.assertIsNotNone(manager.scrape_thread)
+                manager.scrape_thread.join(timeout=5)
+                self.assertFalse(manager.scrape_thread.is_alive())
+                self.root.after(150, self.root.quit)
+                self.root.mainloop()
+
+            self.assertIsNotNone(
+                self.repository.get_job("lever-lever-good-55")
+            )
+            self.assertEqual(
+                self.repository.list_site_runs("lever-good", limit=1)[0][
+                    "run_kind"
+                ],
+                "lever",
+            )
+            self.assertEqual(
+                self.repository.list_site_runs("lever-fails", limit=1)[0][
                     "site_status"
                 ],
                 "error",
