@@ -389,5 +389,79 @@ class TestRuleBasedExtractor(unittest.TestCase):
             )
 
 
+class TestBatchAnalysisCLI(unittest.TestCase):
+    def test_extract_pending_dry_run_and_reports_per_job_failures(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database = Database(Path(temp_dir) / "batch.db")
+            database.initialize()
+            repository = Repository(database)
+            repository.register_platform("workday", "Workday", "api")
+            repository.register_site(
+                "site-1",
+                "workday",
+                "Example",
+                "https://example.test/jobs",
+            )
+            repository.save_job(
+                {
+                    "job_id": "job-ready",
+                    "title": "Engineer",
+                    "description_raw": "Fluent English required.",
+                },
+                site_id="site-1",
+                source_job_id="ready",
+            )
+            repository.save_job(
+                {"job_id": "job-empty", "title": "No description"},
+                site_id="site-1",
+                source_job_id="empty",
+            )
+
+            dry_run_output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "jobpulse-v15",
+                    "--db",
+                    str(database.path),
+                    "analysis",
+                    "extract-pending",
+                    "--limit",
+                    "2",
+                    "--dry-run",
+                ],
+            ), redirect_stdout(dry_run_output):
+                self.assertEqual(main(), 0)
+            dry_run = json.loads(dry_run_output.getvalue())
+            self.assertEqual(dry_run["mode"], "dry_run")
+            self.assertEqual(dry_run["pending"], 2)
+            self.assertIsNone(repository.get_current_analysis("job-ready"))
+
+            batch_output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "jobpulse-v15",
+                    "--db",
+                    str(database.path),
+                    "analysis",
+                    "extract-pending",
+                    "--limit",
+                    "2",
+                ],
+            ), redirect_stdout(batch_output):
+                self.assertEqual(main(), 1)
+            batch_result = json.loads(batch_output.getvalue())
+            self.assertEqual(batch_result["mode"], "local")
+            self.assertEqual(batch_result["selected"], 2)
+            self.assertEqual(batch_result["analyzed"], 1)
+            self.assertEqual(len(batch_result["analyses"]), 1)
+            self.assertEqual(batch_result["analyses"][0]["job_id"], "job-ready")
+            self.assertEqual(batch_result["failures"][0]["job_id"], "job-empty")
+            self.assertIn("no tiene descripcion", batch_result["failures"][0]["error"])
+            self.assertIsNotNone(repository.get_current_analysis("job-ready"))
+            self.assertIsNone(repository.get_current_analysis("job-empty"))
+
+
 if __name__ == "__main__":
     unittest.main()

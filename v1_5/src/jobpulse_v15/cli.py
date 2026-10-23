@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import io
 import json
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,48 @@ def _parse_requirement(value: str) -> dict[str, str]:
             "el requisito debe usar el formato categoria=codigo, por ejemplo language=en"
         )
     return {"category": category.strip(), "value_code": value_code.strip()}
+
+
+def _extract_job_analysis(repository: Repository, job_id: str) -> dict[str, Any]:
+    job = repository.get_job(job_id)
+    if job is None:
+        raise ValueError(f"No existe la vacante {job_id!r}.")
+    text = "\n\n".join(
+        value.strip()
+        for value in (job.get("description_raw"), job.get("requirements_raw"))
+        if isinstance(value, str) and value.strip()
+    )
+    if not text:
+        raise ValueError(
+            f"La vacante {job_id!r} no tiene descripcion ni requisitos para analizar."
+        )
+    result = RuleBasedExtractor().extract(text)
+    source_context = repository.get_job_source_context(job_id)
+    source_site_id = (
+        source_context["site_id"] if source_context is not None else None
+    )
+    source_config_hash = (
+        hashlib.sha256(source_context["site_config_json"].encode("utf-8")).hexdigest()
+        if source_context is not None
+        else None
+    )
+    analysis_id = repository.save_analysis(
+        job_id,
+        text_hash=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        extractor_version=EXTRACTOR_VERSION,
+        analysis_status=result.analysis_status,
+        field_statuses=result.field_statuses,
+        requirements=result.requirements,
+        source_site_id=source_site_id,
+        source_config_hash=source_config_hash,
+    )
+    return {
+        "analysis_id": analysis_id,
+        "job_id": job_id,
+        "analysis_status": result.analysis_status,
+        "field_statuses": result.field_statuses,
+        "requirements": result.requirements,
+    }
 
 
 def main() -> int:
@@ -110,6 +153,26 @@ def main() -> int:
         "extract", help="Extraer requisitos con reglas locales."
     )
     analysis_extract.add_argument("--job", required=True)
+    analysis_pending = analysis_commands.add_parser(
+        "extract-pending",
+        help="Analizar localmente vacantes que aun no tienen analisis.",
+    )
+    analysis_pending.add_argument(
+        "--limit",
+        type=int,
+        default=25,
+        help="Maximo de vacantes por ejecucion (1 a 500; predeterminado 25).",
+    )
+    analysis_pending.add_argument(
+        "--include-manually-skipped",
+        action="store_true",
+        help="Incluir vacantes excluidas de las busquedas normales.",
+    )
+    analysis_pending.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Mostrar las vacantes pendientes sin analizarlas.",
+    )
 
     ingest = commands.add_parser(
         "ingest", help="Importar datos ya recolectados a la DB v1.5."
@@ -254,6 +317,7 @@ def main() -> int:
     args = parser.parse_args()
 
     database = Database(args.db)
+    command_exit_code = 0
     if args.command == "init-db":
         version = database.initialize()
         print(f"Base v1.5 inicializada: {database.path} (esquema {version})")
@@ -331,58 +395,83 @@ def main() -> int:
                     indent=2,
                 ))
             elif args.command == "analysis" and args.analysis_command == "extract":
-                job = repository.get_job(args.job)
-                if job is None:
-                    parser.error(f"No existe la vacante {args.job!r}.")
-                text = "\n\n".join(
-                    value.strip()
-                    for value in (
-                        job.get("description_raw"),
-                        job.get("requirements_raw"),
+                try:
+                    result = _extract_job_analysis(repository, args.job)
+                except ValueError as exc:
+                    parser.error(str(exc))
+                print(json.dumps(result, ensure_ascii=False, indent=2))
+            elif (
+                args.command == "analysis"
+                and args.analysis_command == "extract-pending"
+            ):
+                if not 1 <= args.limit <= 500:
+                    parser.error("--limit debe estar entre 1 y 500.")
+                try:
+                    pending_jobs = repository.search_jobs(
+                        review_reason="analysis_missing",
+                        limit=args.limit,
+                        include_manually_skipped=args.include_manually_skipped,
                     )
-                    if isinstance(value, str) and value.strip()
-                )
-                if not text:
-                    parser.error(
-                        f"La vacante {args.job!r} no tiene descripcion "
-                        "ni requisitos para analizar."
+                except (ValueError, sqlite3.Error) as exc:
+                    parser.error(str(exc))
+                if args.dry_run:
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "dry_run",
+                                "pending": len(pending_jobs),
+                                "jobs": [
+                                    {
+                                        "job_id": job["job_id"],
+                                        "title": job.get("title"),
+                                    }
+                                    for job in pending_jobs
+                                ],
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
                     )
-                result = RuleBasedExtractor().extract(text)
-                source_context = repository.get_job_source_context(args.job)
-                source_site_id = (
-                    source_context["site_id"] if source_context is not None else None
-                )
-                source_config_hash = (
-                    hashlib.sha256(
-                        source_context["site_config_json"].encode("utf-8")
-                    ).hexdigest()
-                    if source_context is not None
-                    else None
-                )
-                text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
-                analysis_id = repository.save_analysis(
-                    args.job,
-                    text_hash=text_hash,
-                    extractor_version=EXTRACTOR_VERSION,
-                    analysis_status=result.analysis_status,
-                    field_statuses=result.field_statuses,
-                    requirements=result.requirements,
-                    source_site_id=source_site_id,
-                    source_config_hash=source_config_hash,
-                )
-                print(
-                    json.dumps(
-                        {
-                            "analysis_id": analysis_id,
-                            "job_id": args.job,
-                            "analysis_status": result.analysis_status,
-                            "field_statuses": result.field_statuses,
-                            "requirements": result.requirements,
-                        },
-                        ensure_ascii=False,
-                        indent=2,
+                else:
+                    analyses = []
+                    failures = []
+                    skipped = []
+                    for job in pending_jobs:
+                        job_id = str(job["job_id"])
+                        try:
+                            if repository.get_current_analysis(job_id) is not None:
+                                skipped.append(
+                                    {
+                                        "job_id": job_id,
+                                        "reason": "analysis_created_after_queue_load",
+                                    }
+                                )
+                                continue
+                            analyses.append(_extract_job_analysis(repository, job_id))
+                        except (ValueError, sqlite3.Error) as exc:
+                            failures.append(
+                                {
+                                    "job_id": job_id,
+                                    "title": job.get("title"),
+                                    "error": str(exc),
+                                }
+                            )
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "local",
+                                "selected": len(pending_jobs),
+                                "analyzed": len(analyses),
+                                "skipped": skipped,
+                                "failures": failures,
+                                "analyses": analyses,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
                     )
-                )
+                    if failures:
+                        command_exit_code = 1
             elif args.command == "ingest" and args.ingest_command == "import-json":
                 try:
                     with args.input.open("r", encoding="utf-8") as input_file:
@@ -605,4 +694,4 @@ def main() -> int:
                         )
                     report["updates"].append(update)
                 print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0
+    return command_exit_code

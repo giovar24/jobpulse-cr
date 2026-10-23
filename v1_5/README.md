@@ -474,6 +474,20 @@ Para extraer y persistir el analisis de una oferta ya guardada:
 El comando analiza `description_raw` y `requirements_raw`, registra la huella
 del texto y la configuracion de la fuente, y conserva las revisiones anteriores.
 `get_current_analysis` permite revisar los requisitos y la evidencia devueltos.
+Para procesar en lote solo vacantes que no tengan analisis vigente, usa:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 analysis extract-pending `
+  --limit 25 --dry-run
+.\.venv\Scripts\python.exe -m jobpulse_v15 analysis extract-pending `
+  --limit 25
+```
+El limite permitido es de 1 a 500. El modo normal es local y no consulta sitios
+web; no reanaliza vacantes que ya tienen analisis, devuelve resumen y errores
+por vacante, y retorna codigo de salida distinto de cero si algun registro
+fallo. Las vacantes sin texto quedan reportadas como error. Para incluir
+vacantes excluidas manualmente de las busquedas normales, agrega
+`--include-manually-skipped`.
 
 No se guardan credenciales en la configuracion de sitios. El JSON de
 configuracion es declarativo y no se ejecuta como codigo.
