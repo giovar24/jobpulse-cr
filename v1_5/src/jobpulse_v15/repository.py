@@ -806,6 +806,63 @@ class Repository:
             ).fetchone()
         return dict(row) if row else None
 
+    def get_data_quality_summary(self) -> dict[str, int]:
+        """Cuenta faltantes y estados de revision sobre todas las vacantes."""
+        with self.database.connection() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_jobs,
+                    SUM(CASE WHEN NULLIF(trim(j.company), '') IS NULL
+                        THEN 1 ELSE 0 END) AS missing_company,
+                    SUM(CASE WHEN NULLIF(trim(j.country), '') IS NULL
+                        THEN 1 ELSE 0 END) AS missing_country,
+                    SUM(CASE
+                        WHEN NULLIF(trim(j.location_raw), '') IS NOT NULL
+                         AND NULLIF(trim(j.city), '') IS NULL
+                         AND NULLIF(trim(j.region), '') IS NULL
+                        THEN 1 ELSE 0 END) AS location_not_normalized,
+                    SUM(CASE WHEN ja.analysis_id IS NULL
+                        THEN 1 ELSE 0 END) AS analysis_missing,
+                    SUM(CASE WHEN ja.analysis_status = 'pending'
+                        THEN 1 ELSE 0 END) AS analysis_pending,
+                    SUM(CASE WHEN ja.analysis_status = 'partial'
+                        THEN 1 ELSE 0 END) AS analysis_partial,
+                    SUM(CASE WHEN ja.analysis_status = 'error'
+                        THEN 1 ELSE 0 END) AS analysis_error,
+                    SUM(CASE WHEN EXISTS (
+                        SELECT 1 FROM job_field_status AS jfs
+                        WHERE jfs.analysis_id = ja.analysis_id
+                          AND jfs.field_status = 'unknown'
+                    ) THEN 1 ELSE 0 END) AS unknown_fields,
+                    SUM(CASE WHEN EXISTS (
+                        SELECT 1 FROM job_field_status AS jfs
+                        WHERE jfs.analysis_id = ja.analysis_id
+                          AND jfs.field_status = 'ambiguous'
+                    ) THEN 1 ELSE 0 END) AS ambiguous_fields,
+                    SUM(CASE WHEN
+                        NULLIF(trim(j.company), '') IS NULL
+                        OR NULLIF(trim(j.country), '') IS NULL
+                        OR (
+                            NULLIF(trim(j.location_raw), '') IS NOT NULL
+                            AND NULLIF(trim(j.city), '') IS NULL
+                            AND NULLIF(trim(j.region), '') IS NULL
+                        )
+                        OR ja.analysis_id IS NULL
+                        OR ja.analysis_status IN ('pending', 'partial', 'error')
+                        OR EXISTS (
+                            SELECT 1 FROM job_field_status AS jfs
+                            WHERE jfs.analysis_id = ja.analysis_id
+                              AND jfs.field_status IN ('unknown', 'ambiguous')
+                        )
+                        THEN 1 ELSE 0 END) AS jobs_needing_review
+                FROM jobs AS j
+                LEFT JOIN job_analysis AS ja
+                    ON ja.job_id = j.job_id AND ja.is_current = 1
+                """
+            ).fetchone()
+        return {key: int(row[key] or 0) for key in row.keys()}
+
     def update_job_manual_overrides(
         self, job_id: str, overrides: Mapping[str, Any]
     ) -> None:

@@ -1092,6 +1092,11 @@ class JobPulseWindow:
             text="Mi perfil",
             command=self.open_candidate_profile,
         ).pack(side="right", anchor="ne", padx=(0, 8))
+        ttk.Button(
+            heading,
+            text="Calidad de datos",
+            command=self.show_data_quality_summary,
+        ).pack(side="right", anchor="ne", padx=(0, 8))
 
         filters = ttk.LabelFrame(outer, text="Filtros", padding=10)
         filters.grid(row=1, column=0, sticky="ew", pady=(0, 10))
@@ -1553,6 +1558,36 @@ class JobPulseWindow:
             return
         self.status_var.set(
             f"Se exportaron {len(self.current_results)} vacante(s) a CSV."
+        )
+
+    def show_data_quality_summary(self) -> None:
+        try:
+            summary = self.repository.get_data_quality_summary()
+        except sqlite3.Error as exc:
+            messagebox.showerror(
+                "No se pudo consultar la calidad de datos",
+                str(exc),
+                parent=self.root,
+            )
+            return
+        messagebox.showinfo(
+            "Calidad de datos v1.5",
+            "\n".join(
+                (
+                    f"Vacantes totales: {summary['total_jobs']}",
+                    f"Requieren revision: {summary['jobs_needing_review']}",
+                    f"Empresa faltante: {summary['missing_company']}",
+                    f"Pais faltante: {summary['missing_country']}",
+                    f"Ubicacion sin normalizar: {summary['location_not_normalized']}",
+                    f"Sin analisis: {summary['analysis_missing']}",
+                    f"Analisis pendiente: {summary['analysis_pending']}",
+                    f"Analisis parcial: {summary['analysis_partial']}",
+                    f"Analisis con error: {summary['analysis_error']}",
+                    f"Campos desconocidos: {summary['unknown_fields']}",
+                    f"Campos ambiguos: {summary['ambiguous_fields']}",
+                )
+            ),
+            parent=self.root,
         )
 
     def clear_filters(self) -> None:

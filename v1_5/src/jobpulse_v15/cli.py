@@ -174,6 +174,16 @@ def main() -> int:
         help="Mostrar las vacantes pendientes sin analizarlas.",
     )
 
+    quality = commands.add_parser(
+        "quality", help="Consultar la calidad de datos de la base v1.5."
+    )
+    quality_commands = quality.add_subparsers(
+        dest="quality_command", required=True
+    )
+    quality_commands.add_parser(
+        "report", help="Mostrar un resumen global de datos para revision."
+    )
+
     ingest = commands.add_parser(
         "ingest", help="Importar datos ya recolectados a la DB v1.5."
     )
@@ -394,6 +404,14 @@ def main() -> int:
                     ensure_ascii=False,
                     indent=2,
                 ))
+            elif args.command == "quality" and args.quality_command == "report":
+                print(
+                    json.dumps(
+                        repository.get_data_quality_summary(),
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                )
             elif args.command == "analysis" and args.analysis_command == "extract":
                 try:
                     result = _extract_job_analysis(repository, args.job)

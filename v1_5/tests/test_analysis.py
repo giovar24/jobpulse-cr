@@ -417,6 +417,23 @@ class TestBatchAnalysisCLI(unittest.TestCase):
                 source_job_id="empty",
             )
 
+            quality_output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "jobpulse-v15",
+                    "--db",
+                    str(database.path),
+                    "quality",
+                    "report",
+                ],
+            ), redirect_stdout(quality_output):
+                self.assertEqual(main(), 0)
+            quality_summary = json.loads(quality_output.getvalue())
+            self.assertEqual(quality_summary["total_jobs"], 2)
+            self.assertEqual(quality_summary["analysis_missing"], 2)
+            self.assertEqual(quality_summary["jobs_needing_review"], 2)
+
             dry_run_output = io.StringIO()
             with patch(
                 "sys.argv",

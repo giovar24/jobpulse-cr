@@ -36,6 +36,10 @@ puede indicar `--db C:\ruta\de\prueba.db` antes del comando.
 
 La interfaz Tkinter muestra las vacantes guardadas, permite filtrarlas por
 texto, ubicacion, modalidad e idioma, y revisar la evidencia del analisis.
+El boton `Calidad de datos` muestra un resumen global de vacantes que requieren
+revision, faltantes de empresa/pais/ubicacion, estado de analisis y campos
+desconocidos o ambiguos. El conteo cubre toda la base, no solo la pagina
+visible de resultados.
 Tambien permite ejecutar el extractor local sobre la vacante seleccionada o,
 con `Analizar pendientes`, procesar tras confirmacion las vacantes visibles que
 aun no tienen analisis. El procesamiento es local, no vuelve a analizar
@@ -488,6 +492,13 @@ por vacante, y retorna codigo de salida distinto de cero si algun registro
 fallo. Las vacantes sin texto quedan reportadas como error. Para incluir
 vacantes excluidas manualmente de las busquedas normales, agrega
 `--include-manually-skipped`.
+El informe global de calidad tambien esta disponible como JSON:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 quality report
+```
+Los totales incluyen todas las vacantes de la base y no estan limitados por
+los filtros de busqueda ni por el maximo de resultados de la UI.
 
 No se guardan credenciales en la configuracion de sitios. El JSON de
 configuracion es declarativo y no se ejecuta como codigo.

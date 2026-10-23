@@ -905,6 +905,18 @@ class TestManualJobStateUI(unittest.TestCase):
         showerror.assert_called_once()
         self.assertIn("AAAA-MM-DD", showerror.call_args.args[1])
 
+    def test_data_quality_summary_is_available_in_ui(self):
+        window = JobPulseWindow(self.root, self.repository)
+
+        with patch("jobpulse_v15.ui.messagebox.showinfo") as showinfo:
+            window.show_data_quality_summary()
+
+        showinfo.assert_called_once()
+        report_text = showinfo.call_args.args[1]
+        self.assertIn("Vacantes totales: 1", report_text)
+        self.assertIn("Requieren revision: 1", report_text)
+        self.assertIn("Sin analisis: 1", report_text)
+
     def test_export_search_results_saves_only_current_results(self):
         window = JobPulseWindow(self.root, self.repository)
         destination = Path(self.temp_dir.name) / "review.csv"

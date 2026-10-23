@@ -93,6 +93,13 @@ class TestRepository(unittest.TestCase):
                 site_config={"nested": {"password": "do-not-store"}},
             )
 
+    def test_data_quality_summary_returns_zeroes_for_empty_database(self):
+        summary = self.repository.get_data_quality_summary()
+
+        self.assertEqual(summary["total_jobs"], 0)
+        self.assertEqual(summary["jobs_needing_review"], 0)
+        self.assertTrue(all(value == 0 for value in summary.values()))
+
     def test_job_upsert_preserves_text_when_source_omits_it(self):
         self.repository.save_job(
             {
@@ -847,6 +854,23 @@ class TestRepository(unittest.TestCase):
         self.assertEqual(
             reasons_by_job["job-unparsed-location"],
             ["location_not_normalized"],
+        )
+        summary = self.repository.get_data_quality_summary()
+        self.assertEqual(
+            summary,
+            {
+                "total_jobs": 5,
+                "missing_company": 1,
+                "missing_country": 0,
+                "location_not_normalized": 1,
+                "analysis_missing": 1,
+                "analysis_pending": 0,
+                "analysis_partial": 1,
+                "analysis_error": 0,
+                "unknown_fields": 1,
+                "ambiguous_fields": 0,
+                "jobs_needing_review": 4,
+            },
         )
         self.assertEqual(len(self.repository.search_jobs()), 5)
         self.assertEqual(
