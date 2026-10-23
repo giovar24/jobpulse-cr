@@ -100,6 +100,53 @@ class TestRepository(unittest.TestCase):
         self.assertEqual(summary["jobs_needing_review"], 0)
         self.assertTrue(all(value == 0 for value in summary.values()))
 
+    def test_potential_duplicate_groups_normalize_case_accents_and_punctuation(self):
+        for job_id, title in (
+            ("job-duplicate-1", "Ingeniero de Calidad"),
+            ("job-duplicate-2", "  INGENIERO de calidad! "),
+        ):
+            self.repository.save_job(
+                {
+                    "job_id": job_id,
+                    "title": title,
+                    "company": "Empresa Ejemplo",
+                    "country": "CR",
+                    "city": "San José",
+                },
+                site_id="intel-cr",
+                source_job_id=job_id,
+            )
+        self.repository.save_job(
+            {
+                "job_id": "job-distinct-city",
+                "title": "Ingeniero de Calidad",
+                "company": "Empresa Ejemplo",
+                "country": "CR",
+                "city": "Heredia",
+            },
+            site_id="intel-cr",
+            source_job_id="job-distinct-city",
+        )
+
+        candidates = self.repository.get_potential_duplicate_groups()
+
+        self.assertEqual(candidates["total_groups"], 1)
+        self.assertEqual(candidates["groups"][0]["count"], 2)
+        self.assertEqual(
+            candidates["groups"][0]["job_ids"],
+            ["job-duplicate-1", "job-duplicate-2"],
+        )
+        self.assertEqual(
+            self.repository.get_data_quality_summary()["potential_duplicate_groups"],
+            1,
+        )
+
+    def test_potential_duplicate_group_limit_is_validated(self):
+        with self.assertRaisesRegex(ValueError, "limit"):
+            self.repository.get_potential_duplicate_groups(limit=0)
+        with self.assertRaisesRegex(ValueError, "500"):
+            self.repository.get_potential_duplicate_groups(limit=501)
+
     def test_job_upsert_preserves_text_when_source_omits_it(self):
         self.repository.save_job(
             {
@@ -870,6 +917,7 @@ class TestRepository(unittest.TestCase):
                 "unknown_fields": 1,
                 "ambiguous_fields": 0,
                 "jobs_needing_review": 4,
+                "potential_duplicate_groups": 0,
             },
         )
         self.assertEqual(len(self.repository.search_jobs()), 5)

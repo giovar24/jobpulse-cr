@@ -915,6 +915,7 @@ class TestManualJobStateUI(unittest.TestCase):
         report_text = showinfo.call_args.args[1]
         self.assertIn("Vacantes totales: 1", report_text)
         self.assertIn("Requieren revision: 1", report_text)
+        self.assertIn("Grupos candidatos a duplicados: 0", report_text)
         self.assertIn("Sin analisis: 1", report_text)
 
     def test_export_search_results_saves_only_current_results(self):

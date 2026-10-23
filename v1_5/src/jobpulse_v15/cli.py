@@ -183,6 +183,15 @@ def main() -> int:
     quality_commands.add_parser(
         "report", help="Mostrar un resumen global de datos para revision."
     )
+    quality_duplicates = quality_commands.add_parser(
+        "duplicates", help="Listar grupos candidatos a duplicados para revision."
+    )
+    quality_duplicates.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximo de grupos a mostrar (1-500).",
+    )
 
     ingest = commands.add_parser(
         "ingest", help="Importar datos ya recolectados a la DB v1.5."
@@ -408,6 +417,16 @@ def main() -> int:
                 print(
                     json.dumps(
                         repository.get_data_quality_summary(),
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+                )
+            elif args.command == "quality" and args.quality_command == "duplicates":
+                if not 1 <= args.limit <= 500:
+                    parser.error("--limit debe estar entre 1 y 500.")
+                print(
+                    json.dumps(
+                        repository.get_potential_duplicate_groups(args.limit),
                         ensure_ascii=False,
                         indent=2,
                     )

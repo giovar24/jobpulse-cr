@@ -479,6 +479,56 @@ class TestBatchAnalysisCLI(unittest.TestCase):
             self.assertIsNotNone(repository.get_current_analysis("job-ready"))
             self.assertIsNone(repository.get_current_analysis("job-empty"))
 
+    def test_quality_duplicates_cli_lists_normalized_candidate_groups(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database = Database(Path(temp_dir) / "duplicates.db")
+            database.initialize()
+            repository = Repository(database)
+            repository.register_platform("workday", "Workday", "api")
+            repository.register_site(
+                "site-1",
+                "workday",
+                "Example",
+                "https://example.test/jobs",
+            )
+            for index, (job_id, title, city) in enumerate(
+                (
+                    ("job-duplicate-1", "Quality Engineer", "San Jose"),
+                    ("job-duplicate-2", " quality engineer! ", "San José"),
+                )
+            ):
+                repository.save_job(
+                    {
+                        "job_id": job_id,
+                        "title": title,
+                        "company": "Example Corp",
+                        "country": "CR",
+                        "city": city,
+                    },
+                    site_id="site-1",
+                    source_job_id=f"duplicate-{index}",
+                )
+
+            output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "jobpulse-v15",
+                    "--db",
+                    str(database.path),
+                    "quality",
+                    "duplicates",
+                ],
+            ), redirect_stdout(output):
+                self.assertEqual(main(), 0)
+
+            report = json.loads(output.getvalue())
+            self.assertEqual(report["total_groups"], 1)
+            self.assertEqual(
+                report["groups"][0]["job_ids"],
+                ["job-duplicate-1", "job-duplicate-2"],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

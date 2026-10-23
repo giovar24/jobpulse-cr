@@ -1576,6 +1576,10 @@ class JobPulseWindow:
                 (
                     f"Vacantes totales: {summary['total_jobs']}",
                     f"Requieren revision: {summary['jobs_needing_review']}",
+                    (
+                        "Grupos candidatos a duplicados: "
+                        f"{summary['potential_duplicate_groups']}"
+                    ),
                     f"Empresa faltante: {summary['missing_company']}",
                     f"Pais faltante: {summary['missing_country']}",
                     f"Ubicacion sin normalizar: {summary['location_not_normalized']}",

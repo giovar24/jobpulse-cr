@@ -38,8 +38,8 @@ La interfaz Tkinter muestra las vacantes guardadas, permite filtrarlas por
 texto, ubicacion, modalidad e idioma, y revisar la evidencia del analisis.
 El boton `Calidad de datos` muestra un resumen global de vacantes que requieren
 revision, faltantes de empresa/pais/ubicacion, estado de analisis y campos
-desconocidos o ambiguos. El conteo cubre toda la base, no solo la pagina
-visible de resultados.
+desconocidos o ambiguos, ademas de grupos candidatos a duplicados. El conteo
+cubre toda la base, no solo la pagina visible de resultados.
 Tambien permite ejecutar el extractor local sobre la vacante seleccionada o,
 con `Analizar pendientes`, procesar tras confirmacion las vacantes visibles que
 aun no tienen analisis. El procesamiento es local, no vuelve a analizar
@@ -496,7 +496,14 @@ El informe global de calidad tambien esta disponible como JSON:
 
 ```powershell
 .\.venv\Scripts\python.exe -m jobpulse_v15 quality report
+.\.venv\Scripts\python.exe -m jobpulse_v15 quality duplicates --limit 100
 ```
+
+La deteccion de posibles duplicados agrupa por titulo, empresa, pais y ciudad
+normalizados (sin distinguir mayusculas, acentos ni puntuacion). Solo incluye
+registros con esos cuatro campos disponibles. Son candidatos para revision
+manual, no confirmaciones: el sistema nunca fusiona ni elimina vacantes
+automaticamente. La salida lista los identificadores de cada grupo.
 Los totales incluyen todas las vacantes de la base y no estan limitados por
 los filtros de busqueda ni por el maximo de resultados de la UI.
 

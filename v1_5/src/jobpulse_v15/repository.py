@@ -4,6 +4,7 @@ import json
 from collections.abc import Mapping, Sequence
 from datetime import date
 import math
+import unicodedata
 from typing import Any
 from urllib.parse import urlparse
 
@@ -861,7 +862,78 @@ class Repository:
                     ON ja.job_id = j.job_id AND ja.is_current = 1
                 """
             ).fetchone()
-        return {key: int(row[key] or 0) for key in row.keys()}
+        summary = {key: int(row[key] or 0) for key in row.keys()}
+        summary["potential_duplicate_groups"] = self.get_potential_duplicate_groups(
+            limit=1
+        )["total_groups"]
+        return summary
+
+    def get_potential_duplicate_groups(self, limit: int = 100) -> dict[str, Any]:
+        """Agrupa vacantes con titulo, empresa, pais y ciudad normalizados iguales."""
+        limit = self._positive_int(limit, "limit")
+        if limit > 500:
+            raise ValueError("limit no puede superar 500.")
+
+        with self.database.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT job_id, title, company, country, city
+                FROM jobs
+                WHERE NULLIF(trim(title), '') IS NOT NULL
+                  AND NULLIF(trim(company), '') IS NOT NULL
+                  AND NULLIF(trim(country), '') IS NOT NULL
+                  AND NULLIF(trim(city), '') IS NOT NULL
+                ORDER BY job_id
+                """
+            ).fetchall()
+
+        grouped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+        for row in rows:
+            title = self._normalize_duplicate_component(row["title"])
+            company = self._normalize_duplicate_component(row["company"])
+            country = self._normalize_duplicate_component(row["country"])
+            city = self._normalize_duplicate_component(row["city"])
+            key = (title, company, country, city)
+            group = grouped.get(key)
+            if group is None:
+                group = {
+                    "title": str(row["title"]).strip(),
+                    "company": str(row["company"]).strip(),
+                    "country": str(row["country"]).strip(),
+                    "city": str(row["city"]).strip(),
+                    "job_ids": [],
+                }
+                grouped[key] = group
+            group["job_ids"].append(str(row["job_id"]))
+
+        candidates = [
+            {**group, "count": len(group["job_ids"])}
+            for group in grouped.values()
+            if len(group["job_ids"]) > 1
+        ]
+        candidates.sort(
+            key=lambda group: (
+                -group["count"],
+                group["title"].casefold(),
+                group["company"].casefold(),
+                group["country"].casefold(),
+                group["city"].casefold(),
+            )
+        )
+        return {
+            "total_groups": len(candidates),
+            "groups": candidates[:limit],
+        }
+
+    @staticmethod
+    def _normalize_duplicate_component(value: str) -> str:
+        decomposed = unicodedata.normalize("NFKD", value).casefold()
+        without_accents = "".join(
+            char for char in decomposed if unicodedata.category(char) != "Mn"
+        )
+        return " ".join(
+            "".join(char if char.isalnum() else " " for char in without_accents).split()
+        )
 
     def update_job_manual_overrides(
         self, job_id: str, overrides: Mapping[str, Any]
