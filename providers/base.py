@@ -18,6 +18,9 @@ class JobOffer:
     description: Optional[str] = None
     requirements: Optional[str] = None
     salary: Optional[str] = None
+    # Sector de la vacante: lo publica la fuente (ej. CINDE
+    # positionCategoryNameEs) o lo infiere core/sectores por el titulo.
+    sector: Optional[str] = None
     raw_data: Optional[Dict[str, Any]] = None
     # Trazabilidad del gate de relevancia (core/gate.py); None si no evaluado.
     gate_score: Optional[float] = None

@@ -38,12 +38,12 @@ UMBRALES = {
 # Metricas que se reportan pero no bloquean (faltantes que pueden ser
 # legitimos: portales que no publican salario o requisitos).
 INFORMATIVAS = ("empty_description", "empty_requirements", "empty_salary",
-                "dup_marcados")
+                "dup_marcados", "sin_fecha_legible")
 
 ORDEN = ("filas", "html_tags", "entities", "double_spaces", "invalid_dates",
          "empty_title", "empty_link", "empty_description",
-         "empty_requirements", "empty_salary", "duplicate_groups",
-         "duplicate_rows", "dup_marcados", "expired")
+         "empty_requirements", "empty_salary", "sin_fecha_legible",
+         "duplicate_groups", "duplicate_rows", "dup_marcados", "expired")
 
 
 def _norm(valor) -> str:
@@ -112,6 +112,13 @@ def _metricas(conn, tabla: str) -> dict:
         clave = f"empty_{campo}"
         m[clave] = contar(
             f"TRIM(COALESCE({campo}, '')) = ''") if tiene(campo) else 0
+
+    # Filas que se procesan con la fecha INFERIDA del scrape (created_at)
+    # porque el portal no publica una legible (CINDE). Informativa: el TTL
+    # de purge_expired ya les da periodo de vida por created_at.
+    m["sin_fecha_legible"] = contar(
+        "TRIM(COALESCE(date_published, '')) = '' "
+        "OR date(date_published) IS NULL") if tiene("date_published") else 0
 
     m["dup_marcados"] = (_scalar(
         conn, f"SELECT COUNT(*) FROM {tabla} "

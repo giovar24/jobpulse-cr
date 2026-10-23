@@ -56,31 +56,53 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
      primera corrida (DB vacía). De cada detalle extrae además `expires_at`
      ("Fecha de vencimiento de la vacante"), la fecha que usa la poda de
      vigencia.
-3. **Regla SESIÓN PRIMERO** (Indeed, LinkedIn, portales de `login_sites.json`):
-   la sesión del navegador manda (login manual una vez con
-   `python hacer_login.py`); el auto-login opt-in (credencial local en
-   `data/empresas/credenciales.json`, gitignored; password o SSO Google
-   "Continuar con Google") **solo dispara si NO hay sesión activa** y a lo
-   sumo **1 vez por corrida**; si falla (CAPTCHA/2FA) queda pendiente y la
-   corrida sigue.
+ 3. **Regla SESIÓN PRIMERO** (Indeed, LinkedIn, portales de `login_sites.json`):
+    la sesión del navegador manda (login manual una vez con
+    `python hacer_login.py`); el auto-login opt-in (credencial local en
+    `data/empresas/credenciales.json`, gitignored; password o SSO Google
+    "Continuar con Google") **solo dispara si NO hay sesión activa** y a lo
+    sumo **1 vez por corrida**; si falla (CAPTCHA/2FA) queda pendiente y la
+    corrida sigue.
+    - **Indeed, vida útil de la sesión (medido 2026-10-22)**: cookie
+      persistente en el perfil Default de Brave (el que monta el CDP);
+      sobrevive reinicios del navegador pero Indeed la revoca en **~1-2
+      días** (logins desde otros dispositivos, cambio de IP, retos
+      CAPTCHA + PIN de 2FA — el auto-login suele perder contra ese 2FA:
+      recomendar SIEMPRE el login manual). Degradación sin sesión
+      (guest): solo snippets de ~150 chars, `rpc/jobdescs` → 404 y casi
+      nada pasa el gate. Señal en el log de la corrida:
+      "rpc/jobdescs no disponible" + títulos "Iniciar sesión | Cuentas
+      Indeed". Sugerir re-login cada 2-3 días o al ver esa señal.
 4. **Dedupe cross-source** (`core/dedupe.py`): gana el provider directo (ATS
    de la empresa) sobre la copia republicada en los boards.
  5. **Gate** (`core/gate.py`): aprueba por fecha (`--dias`, default **30**) **Y**
     relevancia semántica **Y** dominio del título. El umbral se calibra **POR
     MODELO de embeddings** (`--score-min` sin valor = calibración del modelo:
     **0.26** con EmbeddingGemma, **0.30** con mpnet; escape 0.32/0.45).
-6. **Persistencia** (abajo) + **reportes** CSV del día/24h.
+ 6. **Persistencia** (abajo) + **reportes** CSV del día/24h. Al CERRAR la
+    corrida (y en `--refiltrar`/`--podar`): poda de vigencia/TTL →
+    duplicados exactos (`dup_of`) → **exclusiones permanentes**
+    (`core/exclusiones.excluir_y_purgar`: tombstones + DELETE de lo que no
+    encaja con el perfil) → re-sincronización de veredictos.
 
 ### Qué pasa ENTRE corridas (persistencia)
-- `data/jobs.db` (SQLite, `core/database.py`) con **2 tablas**:
+- `data/jobs.db` (SQLite, `core/database.py`) con **3 tablas**:
   - `jobs_raw` = staging: **todo** lo crudo + `gate_score`/`gate_razon`.
   - `jobs` = solo aprobados por el gate (lo que ve el ranking).
-  - Ambas traen `expires_at` (fecha de vencimiento ISO que publica el portal:
-    ANE la trae en el detalle como "Fecha de vencimiento de la vacante";
-    LinkedIn/Indeed/Workday y compañía normalmente no la exponen) y
-    `dup_of` (marcado de duplicado exacto, ver `marcar_duplicados_exactos`).
+  - `jobs_excluidas` = tombstones de puestos **excluidos permanentemente**
+    (fuera del perfil): clave `empresa|titulo|ubicacion` + job_id; la
+    **barrera de ingesta** (`filtrar_offers` en `_aplicar_gate`) saltea lo
+    que matchee por clave o job_id, asi un excluido borrado NO resucita
+    cuando el board lo republica.
+  - Ambas de vacantes traen `expires_at`, `dup_of`, **`sector`** (lo publica
+    la fuente — CINDE `positionCategoryNameEs` — o lo infiere
+    `core/sectores.inferir_sector` por la funcion del titulo, al ingerir) y
+    **`veredicto`/`veredicto_razon`/`veredicto_por`/`veredicto_ts`**
+    ('apta' verde = lista final | 'descartada' amarilla = oculta del
+    ranking hasta el TTL; `veredicto_por`='usuario' es FINAL, la IA no lo
+    pisa).
 - **Limpieza en la frontera**: TODO lo que se persiste pasa por
-  `core/text.limpiar_texto` dentro de `save_jobs` (HTML, entidades,
+  `core.text.limpiar_texto` dentro de `save_jobs` (HTML, entidades,
   espacios/controles, con saltos en descripción/requisitos). Los providers
   más sucios (Indeed, Phenom) también limpian en origen, pero la frontera es
   `save_jobs`: nada crudo entra a la base aunque un provider falle.
@@ -88,20 +110,37 @@ del candidato, y las deja en base local + reportes CSV + dashboard.
   `marcar_duplicados_exactos` marca con `dup_of` las copias
   (empresa+titulo+ubicacion normalizados; canonico = directo más antiguo).
   No borra filas; el ranking y las auditorías excluyen las marcadas.
-- **Por defecto NADA se borra: se ACUMULA** vía upsert por `job_id`
+- **Exclusiones permanentes (regla de los MIXTOS)**: `excluir_y_purgar`
+  evalua el crudo contra el perfil y excluye lo que cumple TODAS:
+  título fuera del dominio (veto del gate) Y `gate_score < 0.20` (piso,
+  `core/exclusiones.SCORE_PISO_DEFAULT`) Y (sin sector o sector ajeno a los
+  **sectores objetivo** del perfil). El sector NUNCA mata solo: un sector
+  del perfil SALVA el puesto ("abogado de derecho digital" con perfil
+  legal). Los sectores objetivo se **auto-evaluan del propio perfil**
+  (`inferir_sectores_perfil`: objetivo 3.0 > titulos 2.0 > experiencia 1.0
+  > skills 0.25, umbral 1.5) y se persisten en `busqueda.sectores` al
+  guardar el perfil (editable a mano; pisa siempre).
+- **Por defecto lo crudo se ACUMULA** vía upsert por `job_id`
   (`save_jobs`): fila existente → actualiza campos vacíos + gate, **su
-  `created_at` NO cambia** (por eso "vacantes nuevas de 24h" cuenta llegadas,
-  no re-publicaciones); fila nueva → INSERT (esa es la "nueva" del informe).
-- **Vigencia (poda)**: `JobDatabase.purge_expired(dias)` corre al cerrar la
-  corrida (y también en `--refiltrar`). Borra de `jobs` y `jobs_raw` las filas
-  **vencidas**: `expires_at` < hoy; si la fila no trae vencimiento, las que
-  tienen `date_published` fuera de la ventana (`--dias`). Las filas sin
-  ninguna fecha legible NO se tocan (CINDE no publica fecha). Reemplaza la
-  regla anterior "no hay poda por antigüedad".
+  `created_at` NO cambia**; fila nueva → INSERT. EXCEPCIONES que si borran:
+  vencidas/TTL (abajo), exclusiones permanentes (arriba) y `--fresh`.
+- **Vigencia (poda + TTL)**: `JobDatabase.purge_expired(dias)` corre al
+  cerrar la corrida (y en `--refiltrar`/`--podar`). Borra de `jobs` y
+  `jobs_raw`: (a) `expires_at` < hoy; (b) sin vencimiento pero
+  `date_published` fuera de la ventana; (c) **sin fecha legible cuando su
+  `created_at` (scrape) supera la misma ventana** — antes vivian para
+  siempre, ahora tienen periodo de vida propio (CINDE no publica fecha).
 - Otros borrados **explícitos**: `--fresh` (vacía ambas tablas al
   inicio), `--refiltrar` (vacía SOLO `jobs` y la reconstruye desde `jobs_raw`
-  con el gate actual, sin scraping) y `clean_empty_jobs` (filas sin título ni
-  link, cada corrida).
+  con el gate actual, sin scraping; los veredictos se restauran desde el
+  crudo con `resincronizar_veredictos`) y `clean_empty_jobs` (filas sin título
+  ni link, cada corrida).
+- **Modo `--ia` (replanteado)**: el presupuesto de la IA externa va primero
+  a las CANDIDATAS (la curada, mejor `gate_score` primero — antes ordenaba
+  por novedad y descartaba oro), y el resto de la ventana solo para llenar
+  presupuesto (crudo mejor-score = banda de recalibracion). Escribe los
+  veredictos apta/descartada y deja el CSV de revision en
+  `informes/ia/ia_AAAAMMDD_HHMM.csv`.
 - Reportes `informes/vacantes/report_AAAAMMDD.csv` y
   `report_24h_AAAAMMDD.csv`: contienen
   SOLO las vacantes nuevas de **esa** corrida y se **sobrescriben por fecha de
@@ -2666,3 +2705,95 @@ proveedores manualmente.
 proveedor=nvidia modelo=openai/gpt-oss-20b disponible=True; con la clave
 OpenRouter comentada, elegir "openrouter" en la UI degrada al mensaje de
 clave faltante.
+
+
+## 60. Operación: vida útil de la sesión de Indeed, modo invitado y diagnóstico de cookies (2026-10-22, tarde)
+
+**Diagnóstico.** La corrida de las 16:23 vio a Indeed en modo invitado: muro
+"Iniciar sesión | Cuentas Indeed", `rpc/jobdescs` 404, snippets de ~148
+caracteres promedio y 0/7 nuevas pasando el gate. Forense de cookies del
+perfil Default de Brave (el que monta el CDP): 54 cookies de indeed.com pero
+ninguna de sesión — el login manual del usuario no había caído en ese perfil
+(p.ej. otro navegador). Tras re-loguearse en Brave (CAPTCHA + PIN de 2FA:
+cuenta en seguridad elevada) la sesión quedó — cookie persistente que
+sobrevive reinicios del navegador. Empíricamente la sesión anterior duró
+~1-2 días (creada 20/10 noche, viva el 21/10, muerta el 22/16:23).
+
+**Documentado** en README (fila de Indeed de la tabla de providers + nueva
+nota operativa en "Notas") y en la guía del agente (regla SESIÓN PRIMERO),
+con la señal de detección (404 de rpc/jobdescs), la cadencia sugerida
+(re-login cada 2-3 días) y el consejo de priorizar login manual sobre
+auto-login (el 2FA/CAPTCHA de Indeed suele vencer al SSO).
+
+**Higiene**: el .env quedó con BOM UTF-8 tras una reescritura manual/mia;
+python-dotenv lo toleraba (ANE e IA cargaron siempre), pero se eliminó y
+verificó la carga completa de variables. Cambios de documentación sin commit
+aún (README + DEVELOPMENT_LOG pendientes en el working tree).
+
+
+## 61. Embudo de 3 banderas: exclusiones permanentes, filtro por sector, veredictos y TTL (2026-10-22, noche)
+
+**Pedido del usuario.** Replantear el flujo: tabla secundaria de puestos no
+alineados al perfil que no resuciten; evaluar con la IA local/SQL despues de
+cada corrida; bandera verde (lista final) vs amarilla (ex-candidata, oculta
+hasta su TTL); filtro por sector (ejemplo ANE/CINDE) que respete los puestos
+mixtos (abogado de derecho digital, disenador CAD); el perfil se
+auto-evalua para saber su sector (por CV/IA, editable).
+
+**Implementacion.**
+1. `core/sectores.py`: taxonomo ES/EN de 13 sectores por FUNCION del titulo
+   (`inferir_sector`); sector real de la fuente (CINDE
+   `positionCategoryNameEs` -> `normalizar_sector_fuente`); AUTO-EVALUACION
+   del perfil (`inferir_sectores_perfil`, ponderada por intencion: objetivo
+   3.0 > titulos 2.0 > experiencia 1.0 > skills 0.25, umbral 1.5 —
+   calibrado en vivo: experiencia a 2.0 metia 'finanzas' por "Credit Card
+   Services" y protegia contabilidad pura). `guardar_perfil` persiste el
+   sector evaluado cuando `busqueda.sectores` viene vacio (editable en
+   profile.json; pisa siempre).
+2. `core/exclusiones.py`: REGLA DE LOS MIXTOS — el sector NUNCA mata solo:
+   exclusion = titulo fuera del dominio (veto del gate) Y gate_score <
+   piso 0.20 Y (sin sector o sector ajeno; sector del perfil SALVA).
+   `filtrar_offers` = barrera de ingesta (job_id o clave
+   empresa|titulo|ubicacion contra `jobs_excluidas`) para que un excluido
+   borrado no resucite con el republicado del board; `excluir_y_purgar` =
+   pasada post-corrida (tombstone + DELETE, idempotente).
+3. `core/database.py`: columnas `sector` + `veredicto/razon/por/ts` en
+   jobs/jobs_raw (migracion ALTER); tabla `jobs_excluidas` (clave PK);
+   `save_jobs` infiere sector al ingerir; `purge_expired` gana TTL por
+   `created_at` para filas SIN fecha legible (antes vivian para siempre);
+   metodos: exclusiones_conocidas, excluir_puestos, purgar_excluidas,
+   guardar_veredictos (el 'usuario' es final, la IA no lo pisa),
+   resincronizar_veredictos, inferir_sectores_faltantes, get_curada_ids.
+4. `main.py`: barrera en `_aplicar_gate`; pasada de exclusiones +
+   resincronizacion al cerrar corrida normal y `--refiltrar`; `--podar`
+   (mantenimiento standalone: sectores, exclusiones, TTL, dups, veredictos);
+   `--decidir JOB_ID apta|descartada [--nota]` (bandera manual, final);
+   `procesar_ia` REPLANTEADO: presupuesto de la IA primero a las CANDIDATAS
+   (curada, mejor gate primero — antes ordenaba por novedad y descartaba
+   oro), luego crudo mejor-score; escribe veredictos apta/descartada y CSV
+   de revision de candidatas.
+5. `ui.py` Ranking: oculta las amarillas (descartadas) y los dup_of (con
+   alias `bandera` para no chocar con el 'veredicto' del scorer ATS).
+
+**Prueba real de los filtros (pedido explicito).** Perfil auto-evaluado:
+tecnologia + atencion_cliente + marketing_diseno (legal/finanzas salieron
+al bajar el peso de la experiencia). `--podar`: 777 sectores inferidos,
+**436 tombstones** (vendedores, mercaderistas, tecnicos electromecanicos,
+tax analysts, contables <0.20...), curada intacta (147/125), dominio nunca
+tocado (0), near-misses >=0.20 vivas (8 contables en 0.20-0.22: invisibles
+bajo 0.26, las retira el TTL), `--decidir` verificado (por='usuario', la IA
+no pisa). Auditoria OK (0 fallos), 46/46 tests (sectores, exclusiones,
+embudo idempotente, no-resurreccion, veredicto final del usuario). Backup:
+`data/jobs.db.bak-poda-20261022`.
+
+**Ajuste posterior (misma noche): procesar por fecha en TODOS los
+registros.** `core/dates.fecha_efectiva(fila)`: la fecha que trae la pagina
+si es legible; si no (CINDE no publica: 18 filas + 1 de LinkedIn en la base),
+se INFIERE la del scrape (`created_at`) — cota superior razonable. Aplicada
+a la ventana de la IA (`_ventana_ia`); el TTL de `purge_expired` ya usaba
+`created_at` para las sin fecha, asi que ahora ventana/TTL/poda procesan
+uniformemente por fecha (efectivo: menos puestos en cada corrida, como
+observo el usuario). La auditoria gana la informativa
+`sin_fecha_legible` (cuantas filas procesan con fecha inferida: 19 hoy).
+Para MOSTRAR sigue usandose `date_published` — no se inventa la fecha del
+registro. Tests: `tests/test_dates.py` (52/52 en verde).

@@ -283,7 +283,7 @@ formulario para que el sitio extraiga vacantes desde la primera corrida.
 | Portal | ¿Credenciales? | Primera corrida |
 |---|---|---|
 | **LinkedIn** | No (opcional) | Funciona solo: el scraper usa el endpoint público *guest* y tu navegador Brave real. **Sesión primero**: si inicias sesión en LinkedIn **dentro de Brave** (una vez, `hacer_login.py`), el scraper reusa las cookies y saca más resultados. El SSO con Google queda como **recurso opt-in** (`--auto on`): solo se activa si hay authwall y no hay sesión — LinkedIn es agresivo con logins automatizados. |
-| **Indeed** | **Recomendado** | Funciona sin login, pero el sitio muestra un **muro de login intermitente** en algunas búsquedas (0 cards con título "Iniciar sesión | Cuentas Indeed"). Se resuelve con `python credenciales.py --set "Indeed" --user "mi@gmail.com" --sso google --auto on`: **la cuenta es de Gmail (sin clave propia)** y el auto-login usa "Continuar con Google" **solo si NO hay sesión activa** (antes reintenta el listado con tu sesión). Sin credenciales, el scraper lo detecta, lo registra en la lista y sigue con el resto. |
+| **Indeed** | **Recomendado** | Sin login funciona **degradado** (modo invitado: solo snippets de ~150 caracteres, el API interna `rpc/jobdescs` responde 404 y casi nada pasa el gate). Con **sesión en Brave** trae descripciones completas. La sesión es una cookie persistente del perfil Default (sobrevive reinicios del navegador) pero **dura en la práctica 1-2 días**: Indeed la revoca por logins desde otros dispositivos/IP y pide CAPTCHA + PIN de verificación (2FA) al re-entrar — por eso el **login manual es el camino principal** (`python hacer_login.py`, te logueas con tu cuenta y verificás con [v]) y el SSO Google queda como recurso opt-in (`python credenciales.py --set "Indeed" --user "mi@gmail.com" --sso google --auto on`; solo dispara si NO hay sesión activa). **Señal de sesión muerta en el log**: `rpc/jobdescs no disponible: 404` y títulos "Iniciar sesión \| Cuentas Indeed" → re-loguearse y la próxima corrida la reusa. Sin credenciales, el scraper detecta el muro, lo registra y sigue con el resto. |
 | **ANE** | **Sí** | Es el proveedor con más vacantes. Crea tu cuenta gratuita en [ane.cr](https://www.ane.cr) y ponla en el almacén local: `python credenciales.py --set "ANE"` (o `ANE_USER`/`ANE_PASSWORD` en `.env`, que sigue funcionando como fallback) — el scraper inicia sesión solo. **Atajo**: si ya iniciaste sesión en ane.cr dentro de Brave, no necesitas nada (reutiliza esa sesión). Sin credenciales ni sesión, el barrido se **omite con un aviso** y los demás portales siguen. El barrido por fecha es **incremental**: no vuelve a bajar el detalle de vacantes ya guardadas con descripción, corta al encadenar 15 tarjetas conocidas (`ANE_KNOWN_STREAK`) y corta con aviso si una página no trae fechas legibles. De cada detalle guarda también la **fecha de vencimiento** ("Fecha de vencimiento de la vacante"); las vencidas se **borran** de la base al cerrar cada corrida. |
 | **CINDE Jobs** | No | Nunca pide nada: barre las vacantes activas de [cindejobs.com](https://cindejobs.com) por su API GraphQL pública (sin navegador ni login). El tablero no expone fecha de publicación, así que el gate las trata como vigentes y las rankea por relevancia con tu perfil. |
 | **Workday** | No | Lista curada de tenants con presencia en CR (HPE, TD Synnex, Edwards Lifesciences, Thermo Fisher, Stryker, Roche...): empresas grandes que **no publican todo en LinkedIn/Indeed**. API CXS pública (`*.myworkdayjobs.com`), sin muros; descripcion completa y fecha exacta del propio ATS. Lista actualizable con `workday_cr.py`. |
@@ -417,6 +417,14 @@ main.py · ui.py · search.py · cv2profile.py · app.py (legado) · credenciale
   Brave", te logueas una vez y el scraper reusa esa sesion del perfil.
   Es el camino por defecto: el login automatico dispara CAPTCHAs/2FA.
 
+- **Vida útil de la sesión de Indeed (medido 2026-10-22)**: la sesión queda
+  en el perfil Default de Brave (el mismo que monta el scraper por CDP) y
+  sobrevive reinicios del navegador, pero Indeed la revoca rápido — con la
+  cuenta en seguridad elevada (pide CAPTCHA + PIN de verificación) duró
+  **1-2 días** en la práctica. Plan: re-loguearse **cada 2-3 días** o apenas
+  el log de la corrida muestre `rpc/jobdescs no disponible: 404` (modo
+  invitado: snippets de ~150 caracteres, casi nada pasa el gate).
+
 - **Credenciales (pestaña "Credenciales" / `python credenciales.py`)**:
   opcional y por sitio. Si guardas usuario/password (o SSO Google sin clave)
   y activas `--auto on`, el scraper intenta el login solo — **primero
@@ -441,5 +449,24 @@ main.py · ui.py · search.py · cv2profile.py · app.py (legado) · credenciale
   si hay HTML residual, entidades, fechas invalidas o duplicados exactos sin
   marcar; los reportes de cada corrida viven en `informes/` (no en `data/`).
   La carpeta se puede redirigir con la variable `JOBPULSE_INFORMES_DIR`.
+- **Embudo de 3 banderas (sector + tipo de trabajo + veredictos)**:
+  1. El perfil se **auto-evalúa** para saber su sector (desde el CV/objetivo;
+     editable en `busqueda.sectores` de `data/usuario/profile.json`).
+  2. Cada vacante recibe un **sector**: el que publica la página (CINDE) o el
+     inferido por taxonomo (`core/sectores.py`).
+  3. Los puestos de sectores/tipos ajenos al perfil con score bajo el piso
+     quedan **excluidos permanentes** (`jobs_excluidas`): se borran y no
+     re-ingresan aunque el board los republique. Regla de los mixtos: el
+     sector nunca mata solo — "abogado de derecho digital" sobrevive porque
+     la función y el score deciden.
+  4. Las candidatas evaluadas con IA externa / vos mismo (`--decidir JOB_ID
+     apta|descartada`) llevan bandera **verde** (lista final) o **amarilla**
+     (oculta del ranking, el TTL la elimina). Tu decisión es final: la IA no
+     la pisa.
+  5. **TTL**: vencidas (`expires_at`), fuera de ventana (`date_published`) y
+     sin fecha legible (por `created_at`) se borran automáticamente al
+     cerrar cada corrida.
+  Mantenimiento manual: `python main.py --podar` (sectores, exclusiones,
+  TTL, duplicados — sin scraping ni navegador).
 - Cambio de equipo: clona + `pip install -r requirements.txt` y arranca; el
   bootstrap crea los archivos faltantes automáticamente.

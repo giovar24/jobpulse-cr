@@ -350,6 +350,13 @@ def normalizar_perfil(data: Dict) -> Dict:
         "fuentes": [str(x) for x in filtros_raw.get("fuentes", []) if x],
     }
 
+    # Sectores objetivo para el filtro por sector (core/sectores). SIN DEFAULT
+    # a proposito: si queda vacio, sectores_objetivo_de() lo AUTO-INFIERE del
+    # propio perfil (puestos objetivo, titulos, experiencia, skills). Ponerlo
+    # a mano solo sirve para PISAR la inferencia (ej. ["legal"]).
+    sectores_raw = raw_b.get("sectores") or []
+    sectores = [str(s).strip().lower() for s in sectores_raw if str(s or "").strip()]
+
     busqueda = {
         "puestos_objetivo": puestos,
         "ubicaciones": ubicaciones,
@@ -360,6 +367,7 @@ def normalizar_perfil(data: Dict) -> Dict:
         "pesos": pesos,
         "pesos_ats": pesos_ats,
         "filtros": filtros,
+        "sectores": sectores,
     }
 
     meta = dict(data.get("meta") or {})
@@ -377,12 +385,34 @@ def normalizar_perfil(data: Dict) -> Dict:
 
 
 def guardar_perfil(data: Dict, path=None) -> Optional[Path]:
-    """Escribe el perfil canónico en disco con backup automático."""
+    """Escribe el perfil canónico en disco con backup automático.
+
+    Sector del perfil (paso 1 del embudo): si `busqueda.sectores` viene vacio,
+    se AUTO-EVALUA a partir del propio CV/objetivo (inferir_sectores_perfil)
+    y se PERSISTE, para que el usuario lo vea y pueda editarlo. Editarlo
+    manualmente pisa siempre (solo se rellena cuando esta vacio); tambien lo
+    puede proponer la IA externa al crear el perfil desde un CV (--ia-cv),
+    porque pasa por aqui antes de tocar disco.
+    """
+    from types import SimpleNamespace
     p = Path(path) if path else DEFAULT_PATH
     p.parent.mkdir(parents=True, exist_ok=True)
     perfil = normalizar_perfil(data)
     perfil["meta"]["actualizado"] = datetime.now().isoformat(timespec="seconds")
     perfil["meta"]["cv_hash"] = _hash_cv(perfil["cv"])
+
+    if not (perfil["busqueda"].get("sectores") or []):
+        from core.sectores import inferir_sectores_perfil
+        cv = perfil.get("cv") or {}
+        senal = SimpleNamespace(
+            busqueda=perfil["busqueda"],
+            titulos=cv.get("titulos") or [],
+            experiencia=cv.get("experiencia") or [],
+            skills=cv.get("skills") or [],
+        )
+        inferidos = inferir_sectores_perfil(senal)
+        if inferidos:
+            perfil["busqueda"]["sectores"] = list(inferidos)
 
     bk = None
     if p.exists():

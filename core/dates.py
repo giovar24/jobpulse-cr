@@ -113,3 +113,27 @@ def parse_date(text) -> str:
 
     iso = _absolute(t)
     return iso or t
+
+
+def fecha_efectiva(fila) -> str:
+    """Fecha ISO para PROCESAR por fecha — presente en TODAS las filas.
+
+    - Si `date_published` es legible (la fecha que trae la pagina), esa manda.
+    - Si no (CINDE no publica fecha), se INFIERE la del scrape
+      (`created_at`): cota superior razonable de la publicacion.
+    - "" solo si tampoco hay created_at (no ocurre en la base).
+
+    OJO: es la fecha de VENTANA/TTL/orden. Para MOSTRAR se sigue usando
+    `date_published`: no se inventa la fecha de publicacion del registro.
+    """
+    fila = fila or {}
+    iso = parse_date(fila.get("date_published") or "")
+    try:
+        return date.fromisoformat(iso[:10]).isoformat()
+    except (ValueError, TypeError):
+        pass
+    creado = str(fila.get("created_at") or "")
+    try:
+        return date.fromisoformat(creado[:10]).isoformat()
+    except ValueError:
+        return ""

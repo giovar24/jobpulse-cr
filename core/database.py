@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from typing import List, Dict, Optional
 from providers.base import JobOffer
 from core.dedupe import clave_duplicado_exacto
+from core.sectores import inferir_sector
 from core.text import limpiar_texto
 
 # Para el canonico de un duplicado exacto: gana el portal directo (ATS) sobre
@@ -50,6 +51,11 @@ class JobDatabase:
                         ia_hash TEXT,
                         ia_ts TEXT,
                         dup_of TEXT,
+                        sector TEXT,
+                        veredicto TEXT,
+                        veredicto_razon TEXT,
+                        veredicto_por TEXT,
+                        veredicto_ts TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
@@ -61,7 +67,9 @@ class JobDatabase:
                                   ("expires_at", "TEXT"), ("ia_score", "REAL"),
                                   ("ia_razon", "TEXT"), ("ia_model", "TEXT"),
                                   ("ia_hash", "TEXT"), ("ia_ts", "TEXT"),
-                                  ("dup_of", "TEXT")):
+                                  ("dup_of", "TEXT"), ("sector", "TEXT"),
+                                  ("veredicto", "TEXT"), ("veredicto_razon", "TEXT"),
+                                  ("veredicto_por", "TEXT"), ("veredicto_ts", "TEXT")):
                     if col not in existentes:
                         await db.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} {tipo}")
                         logger.info(f"Migracion: +{col} en {tabla}")
@@ -90,6 +98,26 @@ class JobDatabase:
                              "ON ia_evals(job_id, ts)")
             await db.execute("CREATE INDEX IF NOT EXISTS idx_ia_evals_tipo "
                              "ON ia_evals(tipo, ts)")
+            # Exclusiones PERMANENTES de puestos fuera del perfil
+            # (core/exclusiones.py): tombstone para que un puesto excluido y
+            # borrado NO resucite cuando el board lo republica. La clave es
+            # empresa|titulo|ubicacion normalizadas (clave_duplicado_exacto),
+            # que identifica el puesto aunque cambie el job_id del repost.
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS jobs_excluidas (
+                    clave TEXT PRIMARY KEY,
+                    job_id TEXT,
+                    source TEXT,
+                    title TEXT,
+                    company TEXT,
+                    sector TEXT,
+                    motivo TEXT NOT NULL,
+                    gate_score REAL,
+                    excluida_at TEXT NOT NULL
+                )
+            """)
+            await db.execute("CREATE INDEX IF NOT EXISTS idx_excluidas_job "
+                             "ON jobs_excluidas(job_id)")
             await db.commit()
 
     async def clean_empty_jobs(self) -> int:
@@ -144,6 +172,9 @@ class JobDatabase:
                 job.salary = limpiar_texto(job.salary)
                 job.date_published = limpiar_texto(job.date_published) or None
                 job.expires_at = limpiar_texto(job.expires_at) or None
+                # Sector: lo publica la fuente (CINDE) o lo infiere el
+                # taxonomo del titulo (core/sectores.py).
+                job.sector = limpiar_texto(job.sector) or inferir_sector(job.title)
                 if not job.title or not job.link:
                     continue
 
@@ -164,22 +195,25 @@ class JobDatabase:
                              description=CASE WHEN description = '' OR description IS NULL THEN ? ELSE description END,
                              requirements=CASE WHEN requirements = '' OR requirements IS NULL THEN ? ELSE requirements END,
                              salary=CASE WHEN salary = '' OR salary IS NULL THEN ? ELSE salary END,
+                             sector=CASE WHEN TRIM(COALESCE(sector,''))='' THEN ? ELSE sector END,
                              gate_score=?, gate_razon=?
                            WHERE job_id = ?""",
                         (job.title, job.company, job.location, job.link,
                          job.date_published, job.expires_at or "",
                          job.expires_at or "", job.description, job.requirements,
-                         job.salary, job.gate_score, job.gate_razon, job.job_id)
+                         job.salary, job.sector, job.gate_score, job.gate_razon,
+                         job.job_id)
                     )
                 else:
                     try:
                         await db.execute(
-                            f"""INSERT INTO {tabla} (job_id, source, search_term, title, company, location, link, date_published, expires_at, description, requirements, salary, gate_score, gate_razon)
-                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                            (job.job_id, job.source, job.search_term, job.title, job.company,
-                             job.location, job.link, job.date_published,
-                             job.expires_at or "", job.description,
-                             job.requirements, job.salary, job.gate_score, job.gate_razon)
+                            f"""INSERT INTO {tabla} (job_id, source, search_term, title, company, location, link, date_published, expires_at, description, requirements, salary, sector, gate_score, gate_razon)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            (job.job_id, job.source, job.search_term, job.title,
+                             job.company, job.location, job.link,
+                             job.date_published, job.expires_at or "",
+                             job.description, job.requirements, job.salary,
+                             job.sector, job.gate_score, job.gate_razon)
                         )
                         new_jobs.append(job)
                     except aiosqlite.IntegrityError:
@@ -192,11 +226,12 @@ class JobDatabase:
 
         - Si la fila trae `expires_at` (ej. ANE publica "Fecha de vencimiento
           de la vacante"), se compara ESA fecha con hoy: vencida = se borra.
-        - Si no trae vencimiento (CINDE no publica fecha, otros portales no
-          exponen cierre), se usa la ventana de publicacion (`dias`), igual
-          que el gate.
-        - Las filas sin ninguna fecha legible NO se tocan: sin dato no se
-          puede afirmar que vencieron.
+        - Si no trae vencimiento, se usa la ventana de publicacion (`dias`),
+          igual que el gate.
+        - TTL para las filas SIN fecha legible (CINDE no publica fecha): se
+          borran cuando su `created_at` (cuando fueron scrapeadas) supera la
+          misma ventana. Antes vivian para siempre "por beneficio de la
+          duda"; ahora tienen periodo de vida propio.
         """
         hoy = date.today().isoformat()
         corte = (date.today() - timedelta(days=dias)).isoformat()
@@ -209,8 +244,13 @@ class JobDatabase:
                          AND expires_at < ?)
                         OR (trim(coalesce(expires_at, '')) = ''
                             AND date_published GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-                            AND date_published < ?)""",
-                    (hoy, corte))
+                            AND date_published < ?)
+                        OR (trim(coalesce(expires_at, '')) = ''
+                            AND (trim(coalesce(date_published, '')) = ''
+                                 OR date_published NOT GLOB
+                                    '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]')
+                            AND created_at < datetime('now', ?))""",
+                    (hoy, corte, f"-{dias} days"))
                 total += cursor.rowcount
             await db.commit()
         if total:
@@ -272,6 +312,131 @@ class JobDatabase:
                 if marcas:
                     logger.info("Duplicados exactos: %d marcados en %s",
                                 len(marcas), tabla)
+            await db.commit()
+        return total
+
+    async def get_curada_ids(self) -> set:
+        """job_id de la tabla curada (sin duplicados marcados con dup_of)."""
+        async with aiosqlite.connect(self.db_path) as db:
+            filas = await (await db.execute(
+                "SELECT job_id FROM jobs WHERE TRIM(COALESCE(dup_of, '')) = ''"
+            )).fetchall()
+            return {r[0] for r in filas}
+
+    # ------------------------------------------------ exclusiones permanentes
+    async def exclusiones_conocidas(self):
+        """(claves, job_ids) de puestos excluidos permanentemente."""
+        async with aiosqlite.connect(self.db_path) as db:
+            filas = await (await db.execute(
+                "SELECT clave, job_id FROM jobs_excluidas")).fetchall()
+        claves = {c for c, _ in filas if c}
+        ids = {j for _, j in filas if j}
+        return claves, ids
+
+    async def excluir_puestos(self, tombstones: List[Dict]) -> int:
+        """Registra exclusiones permanentes (idempotente por clave)."""
+        if not tombstones:
+            return 0
+        ts = datetime.now().isoformat(timespec="seconds")
+        filas = [(t.get("clave"), t.get("job_id"), t.get("source"),
+                  t.get("title"), t.get("company"), t.get("sector"),
+                  t.get("motivo"), t.get("gate_score"), ts)
+                 for t in tombstones]
+        async with aiosqlite.connect(self.db_path) as db:
+            antes = db.total_changes
+            await db.executemany(
+                """INSERT OR IGNORE INTO jobs_excluidas
+                   (clave, job_id, source, title, company, sector, motivo,
+                    gate_score, excluida_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""", filas)
+            await db.commit()
+            return db.total_changes - antes
+
+    async def purgar_excluidas(self, job_ids: List[str]) -> int:
+        """Borra de jobs_raw y jobs las filas recien excluidas.
+
+        Los tombstones quedan en jobs_excluidas: si el board republica el
+        puesto, la barrera de ingesta lo salta.
+        """
+        if not job_ids:
+            return 0
+        total = 0
+        async with aiosqlite.connect(self.db_path) as db:
+            for i in range(0, len(job_ids), 500):
+                chunk = job_ids[i:i + 500]
+                marks = ",".join("?" * len(chunk))
+                for tabla in ("jobs_raw", "jobs"):
+                    c = await db.execute(
+                        f"DELETE FROM {tabla} WHERE job_id IN ({marks})", chunk)
+                    total += c.rowcount
+            await db.commit()
+        return total
+
+    # ------------------------------------------------------------ veredictos
+    async def guardar_veredictos(self, veredictos: Dict[str, dict]) -> int:
+        """Persiste el veredicto de cada vacante: 'apta' (verde, lista
+        final) o 'descartada' (amarilla: oculta del ranking, conservada
+        hasta que el TTL la elimine). 'por' = 'ia' | 'usuario'.
+
+        La decision del USUARIO es final: un veredicto con veredicto_por
+        ='usuario' nunca se sobreescribe por el de la IA.
+        """
+        if not veredictos:
+            return 0
+        ts = datetime.now().isoformat(timespec="seconds")
+        total = 0
+        async with aiosqlite.connect(self.db_path) as db:
+            for tabla in ("jobs", "jobs_raw"):
+                for jid, v in veredictos.items():
+                    cur = await db.execute(
+                        f"""UPDATE {tabla} SET veredicto=?, veredicto_razon=?,
+                             veredicto_por=?, veredicto_ts=?
+                             WHERE job_id=? AND (veredicto_por IS NULL
+                                                OR veredicto_por <> 'usuario')""",
+                        (v.get("veredicto"), v.get("razon"), v.get("por"),
+                         v.get("ts") or ts, jid))
+                    total += cur.rowcount
+            await db.commit()
+        return total
+
+    async def resincronizar_veredictos(self) -> int:
+        """Copia los veredictos de jobs_raw a jobs.
+
+        --refiltrar reconstruye la curada desde el crudo; los veredictos
+        (que viven en el crudo, que persiste) se restauran en la curada.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            c = await db.execute(
+                """UPDATE jobs SET
+                     veredicto=(SELECT r.veredicto FROM jobs_raw r
+                                WHERE r.job_id = jobs.job_id),
+                     veredicto_razon=(SELECT r.veredicto_razon FROM jobs_raw r
+                                      WHERE r.job_id = jobs.job_id),
+                     veredicto_por=(SELECT r.veredicto_por FROM jobs_raw r
+                                    WHERE r.job_id = jobs.job_id),
+                     veredicto_ts=(SELECT r.veredicto_ts FROM jobs_raw r
+                                   WHERE r.job_id = jobs.job_id)
+                   WHERE job_id IN (SELECT job_id FROM jobs_raw
+                                    WHERE veredicto IS NOT NULL)""")
+            await db.commit()
+            return c.rowcount
+
+    async def inferir_sectores_faltantes(self) -> int:
+        """Backfill: etiqueta sector (por titulo) las filas viejas sin sector."""
+        total = 0
+        async with aiosqlite.connect(self.db_path) as db:
+            for tabla in ("jobs_raw", "jobs"):
+                filas = await (await db.execute(
+                    f"SELECT job_id, title FROM {tabla} "
+                    "WHERE TRIM(COALESCE(sector,''))='' "
+                    "AND TRIM(COALESCE(title,''))<>''")).fetchall()
+                for jid, title in filas:
+                    s = inferir_sector(title)
+                    if s:
+                        await db.execute(
+                            f"UPDATE {tabla} SET sector=? WHERE job_id=?",
+                            (s, jid))
+                        total += 1
             await db.commit()
         return total
 

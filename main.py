@@ -29,6 +29,8 @@ from providers.source_groups import (GROUP_BOARDS, GROUP_DIRECTOS,
                                      RUN_LABEL, RUN_TODOS, run_incluye,
                                      source_group)
 from core.dedupe import dedupe_boards_vs_directos
+from core.dates import fecha_efectiva
+from core.exclusiones import excluir_y_purgar, filtrar_offers
 from core.progreso import GRUPO_LABEL, GRUPO_RESTO, iniciar_corrida
 from core import credenciales as creds_store
 from core.rutas import BASE_DIR, CV_IA_JSON, CV_IA_MD, ruta_informe
@@ -172,7 +174,17 @@ def _motor(profile, sin_expand: bool, searches: list):
 
 
 async def _aplicar_gate(db, profile, engine, offers, dias, min_score):
-    """Gate Fecha Y relevancia -> staging (jobs_raw) + curado (jobs)."""
+    """Gate Fecha Y relevancia -> staging (jobs_raw) + curado (jobs).
+
+    Antes de tocar la base: barrera de exclusiones (core/exclusiones.py) —
+    lo ya excluido como fuera del perfil NO re-ingresa, aunque el board lo
+    republica en el scraping de hoy.
+    """
+    claves, ids = await db.exclusiones_conocidas()
+    offers, n_fuera = filtrar_offers(offers, claves, ids)
+    if n_fuera:
+        logger.info("Barrera de exclusiones: %d offers ya excluidas "
+                    "(jobs_excluidas) no re-ingresaron.", n_fuera)
     aprobados, descartados = gate_jobs(offers, profile, engine, dias, min_score)
     await db.save_raw_jobs(offers)                 # todo lo crudo + score/razon
     newly = await db.save_jobs(aprobados)          # solo aprobados -> tabla jobs
@@ -236,6 +248,10 @@ async def refiltrar(db, profile, engine, dias, min_score, prog=None):
     await db.purge_expired(dias)
     # Duplicados exactos marcados con dup_of (no se borra nada).
     await db.marcar_duplicados_exactos()
+    # Puestos fuera del perfil -> exclusion permanente (tombstone + DELETE),
+    # y veredictos restaurados en la curada desde el crudo.
+    res_excl = await excluir_y_purgar(db, profile)
+    await db.resincronizar_veredictos()
     _reportes(newly)
     if prog:
         prog.sumar(GROUP_ESTATALES, sum(
@@ -255,12 +271,17 @@ async def refiltrar(db, profile, engine, dias, min_score, prog=None):
 # ---------------------------------------------------------------------------
 
 def _ventana_ia(raw: list, dias: int) -> list:
-    """Crudo con descripcion, vigente y dentro de la ventana de fechas."""
+    """Crudo con descripcion, vigente y dentro de la ventana de fechas.
+
+    Ventana por FECHA EFECTIVA: la que trae la pagina si es legible; si no,
+    la del scrape (created_at) como inferida — todos los registros se
+    procesan por fecha (core/dates.fecha_efectiva).
+    """
     return [
         r for r in raw
         if (r.get("description") or "").strip()
         and es_vigente(r.get("expires_at"))
-        and es_reciente(r.get("date_published"), dias)
+        and es_reciente(fecha_efectiva(r), dias)
     ]
 
 
@@ -310,10 +331,22 @@ async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
 
     raw = await db.get_raw_jobs()
     ventana = _ventana_ia(raw, dias)
-    ventana.sort(key=lambda r: r.get("date_published") or "", reverse=True)
+    # Los duplicados marcados (dup_of) no gastan cuota: su canonico ya esta
+    # en la lista.
+    ventana = [r for r in ventana if not (r.get("dup_of") or "").strip()]
+    curada_ids = await db.get_curada_ids()
     por_id = {r.get("job_id"): r for r in ventana}
     p_hash = perfil_hash(profile)
     modelo = f"{client.proveedor}/{client.modelo}"
+
+    # PRIORIDAD (flujo replanteado 2026-10-22): primero las CANDIDATAS (la
+    # curada, mejor gate_score primero — el presupuesto de la IA va a lo que
+    # el usuario va a revisar), y el resto solo para llenar presupuesto: las
+    # crudas con mejor score (la banda cercana al umbral es la senal de
+    # recalibracion). "Mas recientes primero" descartaba oro.
+    ventana.sort(key=lambda r: (0 if r.get("job_id") in curada_ids else 1,
+                                -(r.get("gate_score") or 0.0)))
+    n_curada = sum(1 for r in ventana if r.get("job_id") in curada_ids)
 
     pendientes = []
     for r in ventana:
@@ -324,9 +357,11 @@ async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
             continue
         pendientes.append(r)
 
-    logger.info("IA: %d en ventana (%d días) · %d ya evaluadas · %d pendientes "
-                "· modelo %s", len(ventana), dias, len(ventana) - len(pendientes),
-                len(pendientes), modelo)
+    logger.info("IA: %d en ventana (%d días): %d candidatas + %d crudo · "
+                "%d ya evaluadas (caché) · %d pendientes (tope %d) · modelo %s",
+                len(ventana), dias, n_curada, len(ventana) - n_curada,
+                len(ventana) - len(pendientes), len(pendientes),
+                client.max_vacantes, modelo)
     if prog:
         prog.fase(f"IA: evaluando {len(pendientes)} vacantes", "IA",
                   f"{modelo} · lotes de {client.lote}")
@@ -360,43 +395,66 @@ async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
             })
         await db.registrar_ia(registros)
 
+        # Veredictos (el embudo de 3 banderas): apta = verde (lista final),
+        # descartada = amarilla (oculta del ranking, conservada hasta el TTL).
+        # La decision del usuario (veredicto_por='usuario') nunca se pisa.
+        veredictos = {}
+        for jid, res in resultados.items():
+            veredictos[jid] = {
+                "veredicto": ("apta" if float(res.get("score") or 0) >= ia_min
+                              else "descartada"),
+                "razon": res.get("razon"), "por": "ia",
+            }
+        n_ver = await db.guardar_veredictos(veredictos)
+        if n_ver:
+            logger.info("IA: %d veredictos escritos (apta >= %.0f).", n_ver,
+                        ia_min)
+
     if prog:
         prog.fase("IA: guardando evaluaciones y reporte", "IA")
 
+    # CSV de REVISION: solo las candidatas (la curada), mejor gate primero,
+    # con la segunda opinion y el veredicto al lado.
     ruta_csv = ""
-    if ventana:
+    candidatas = [r for r in ventana if r.get("job_id") in curada_ids]
+    if candidatas:
         stamp = datetime.now().strftime("%Y%m%d_%H%M")
         ruta_csv = ruta_informe("ia", f"ia_{stamp}.csv")
         with open(ruta_csv, "w", newline="", encoding="utf-8-sig") as f:
             w = csv.writer(f)
             w.writerow(["Job ID", "Fuente", "Puesto", "Empresa", "Ubicación",
                         "Publicada", "Vence", "IA", "¿Aplica?", "Razón IA",
-                        "Gate", "Link"])
-            for r in ventana:
+                        "Veredicto", "Gate", "Link"])
+            for r in candidatas:
                 jid = r.get("job_id")
                 nuevo = resultados.get(jid) or {}
                 ia = nuevo.get("score", r.get("ia_score"))
                 razon = nuevo.get("razon", r.get("ia_razon"))
                 gate = r.get("gate_score")
+                ver = (r.get("veredicto")
+                       or ("apta" if (ia is not None and float(ia) >= ia_min)
+                           else None))
                 w.writerow([
                     jid, r.get("source"), r.get("title"), r.get("company"),
                     r.get("location"), (r.get("date_published") or "")[:10],
                     (r.get("expires_at") or "")[:10],
                     "" if ia is None else f"{float(ia):.0f}",
                     "" if ia is None else ("sí" if float(ia) >= ia_min else "no"),
-                    razon or "", "" if gate is None else f"{float(gate):.2f}",
+                    razon or "", ver or "",
+                    "" if gate is None else f"{float(gate):.2f}",
                     r.get("link") or "",
                 ])
-        logger.info("IA: CSV del día en %s", ruta_csv)
+        logger.info("IA: CSV de candidatas en %s", ruta_csv)
 
     aprob = 0
-    for r in ventana:
+    for r in candidatas:
         ia = resultados.get(r.get("job_id"), {}).get("score", r.get("ia_score"))
         if ia is not None and float(ia) >= ia_min:
             aprob += 1
-    logger.info("IA: %d evaluadas ahora · %d desde cache · %d aplican "
-                "(>= %.0f) · %d errores · %s",
-                len(resultados), len(ventana) - len(pendientes), aprob, ia_min,
+    logger.info("IA: %d evaluadas ahora · %d desde cache · de %d candidatas "
+                "aplican %d (>= %.0f) · %d errores · %s",
+                len(resultados), len(ventana) - len(pendientes),
+                len(candidatas), aprob, ia_min,
                 len(errores), client.resumen_uso())
     for jid, motivo in list(errores.items())[:5]:
         logger.warning("IA: sin evaluar %s (%s)", jid, motivo)
@@ -404,6 +462,7 @@ async def procesar_ia(db, profile, dias: int, ia_min: float = DEFAULT_IA_MIN,
         "_estado": "ok",
         "ia_evaluadas": len(resultados),
         "ia_cache": len(ventana) - len(pendientes),
+        "ia_candidatas": len(candidatas),
         "ia_aplican": aprob,
         "ia_errores": len(errores),
         "ia_modelo": modelo,
@@ -680,7 +739,8 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
                ia_puesto: str = "", ia_guardar: bool = False,
                ia_forzar: bool = False, ia_min: float = DEFAULT_IA_MIN,
                ia_max: int = 0, ia_reporte: bool = False,
-               ia_modelo: str = ""):
+               ia_modelo: str = "", podar: bool = False,
+               decidir: list = None, nota: str = ""):
     """Entrada: bloquea corridas dobles y publica el estado de progreso ANTES
     de tocar la red, para que la GUI (pestana Corrida) muestre que paso.
 
@@ -691,6 +751,8 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
 
     `ia` / `ia_cv` / `ia_reporte` son modos a demanda: no scrapean ni abren
     Brave. La corrida normal (sin esos flags) NUNCA llama a la IA externa.
+    `podar` (mantenimiento de la base) y `decidir` (veredicto manual) tampoco
+    usan navegador ni red.
     """
     if ia_cv:
         alcance = "IA · CV"
@@ -698,6 +760,10 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
         alcance = "IA · calibración"
     elif ia:
         alcance = "IA · crudo"
+    elif podar:
+        alcance = "poda de base"
+    elif decidir:
+        alcance = "veredicto manual"
     else:
         alcance = RUN_LABEL.get(solo, solo)
     prog = iniciar_corrida(
@@ -711,7 +777,8 @@ async def main(fresh: bool = False, searches: list = None, sin_expand: bool = Fa
                                  ia_guardar=ia_guardar, ia_forzar=ia_forzar,
                                  ia_min=ia_min, ia_max=ia_max,
                                  ia_reporte=ia_reporte,
-                                 ia_modelo=ia_modelo) or {}
+                                 ia_modelo=ia_modelo,
+                                 podar=podar, decidir=decidir, nota=nota) or {}
         estado = resumen.pop("_estado",
                              "preflight" if preflight else "ok")
         resumen.setdefault("alcance", alcance)
@@ -770,7 +837,9 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
                    ia: bool = False, ia_cv: str = "", ia_puesto: str = "",
                    ia_guardar: bool = False, ia_forzar: bool = False,
                    ia_min: float = DEFAULT_IA_MIN, ia_max: int = 0,
-                   ia_reporte: bool = False, ia_modelo: str = ""):
+                   ia_reporte: bool = False, ia_modelo: str = "",
+                   podar: bool = False, decidir: list = None,
+                   nota: str = ""):
     modo_ia = ia or bool(ia_cv) or ia_reporte
     if modo_ia:
         prog.total(3)       # preparación + consulta + guardado
@@ -800,6 +869,39 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
                                        ia_modelo)
         return await procesar_ia(db, profile, dias, ia_min, ia_max,
                                  ia_forzar, prog, ia_modelo)
+
+    # --- Modo poda: mantenimiento sin scraping ni navegador ---
+    if podar:
+        prog.total(3)
+        prog.fase("Poda: sectores faltantes")
+        n_sec = await db.inferir_sectores_faltantes()
+        prog.fase("Poda: exclusiones por perfil")
+        res_excl = await excluir_y_purgar(db, profile)
+        prog.fase("Poda: vigencia, TTL y veredictos")
+        n_ttl = await db.purge_expired(dias)
+        await db.marcar_duplicados_exactos()
+        await db.resincronizar_veredictos()
+        logger.info("Poda: %d sectores inferidos · %d puestos excluidos (%d "
+                    "filas borradas) · %d vencidas/TTL.",
+                    n_sec, res_excl.get("excluidas", 0),
+                    res_excl.get("borradas", 0), n_ttl)
+        return {"_estado": "ok", "poda_sectores": n_sec,
+                "poda_ttl": n_ttl, **res_excl}
+
+    # --- Modo decidir: veredicto manual del usuario (final, pisa al de la IA) ---
+    if decidir:
+        job_id, veredicto = (decidir[0] or "").strip(), (decidir[1] or "").strip().lower()
+        if veredicto not in ("apta", "descartada"):
+            logger.error("Veredicto invalido '%s': usa apta o descartada.",
+                         veredicto)
+            return {"_estado": "error", "motivo": "veredicto invalido"}
+        n = await db.guardar_veredictos({job_id: {
+            "veredicto": veredicto, "razon": nota, "por": "usuario"}})
+        await db.resincronizar_veredictos()
+        logger.info("Veredicto manual: %s -> %s (%d fila(s) actualizadas%s).",
+                    job_id, veredicto, n, "; job_id no encontrado" if n == 0 else "")
+        return {"_estado": "ok", "job_id": job_id, "veredicto": veredicto,
+                "filas": n}
 
     # Alcance elegido con --solo (los dos bloques de scraping de abajo).
     correr_boards = run_incluye(solo, GROUP_BOARDS)
@@ -1099,6 +1201,9 @@ async def _corrida(prog, fresh: bool, searches: list, sin_expand: bool,
     await db.purge_expired(dias)
     # Duplicados exactos marcados con dup_of en ambas tablas (no se borra nada).
     await db.marcar_duplicados_exactos()
+    # Puestos fuera del perfil -> exclusion permanente; veredictos restaurados.
+    res_excl = await excluir_y_purgar(db, profile)
+    await db.resincronizar_veredictos()
     # sufijo de alcance: dos corridas del mismo dia no pisan su CSV.
     _reportes(newly, "" if solo == RUN_TODOS else f"_{solo}")
     return _resumen_progreso(prog, len(newly))
@@ -1161,11 +1266,26 @@ if __name__ == "__main__":
     parser.add_argument("--ia-reporte", action="store_true",
                         help="Calibra la IA local contra las evaluaciones IA "
                              "guardadas y sugiere --score-min (no aplica cambios).")
+    # --- Mantenimiento y veredictos (sin navegador ni red) ---
+    parser.add_argument("--podar", action="store_true",
+                        help="Mantenimiento de la base sin scraping: infiere "
+                             "sectores faltantes, excluye (tombstone + DELETE) "
+                             "los puestos fuera del perfil (dominio + score "
+                             "bajo el piso + sector), y aplica TTL (vencidas, "
+                             "fuera de ventana, sin fecha).")
+    parser.add_argument("--decidir", nargs=2, metavar=("JOB_ID", "VEREDICTO"),
+                        help="Veredicto manual del usuario: apta (verde, lista "
+                             "final) o descartada (amarilla, oculta hasta el "
+                             "TTL). Pisa el veredicto de la IA; es final.")
+    parser.add_argument("--nota", default="",
+                        help="Razón/nota opcional que acompaña a --decidir.")
     args = parser.parse_args()
     if args.ia and args.ia_cv:
         parser.error("--ia y --ia-cv son modos distintos; elegí uno.")
     if args.ia_guardar and not args.ia_cv:
         parser.error("--ia-guardar solo tiene sentido con --ia-cv RUTA.")
+    if args.podar and args.decidir:
+        parser.error("--podar y --decidir son modos distintos; elegí uno.")
     if args.ia_listar_modelos:
         listar_modelos_ia(args.ia_modelo)
     else:
@@ -1177,4 +1297,5 @@ if __name__ == "__main__":
             ia_guardar=args.ia_guardar, ia_forzar=args.ia_forzar,
             ia_min=args.ia_min, ia_max=args.ia_max,
             ia_reporte=args.ia_reporte, ia_modelo=args.ia_modelo,
+            podar=args.podar, decidir=args.decidir, nota=args.nota,
         ))

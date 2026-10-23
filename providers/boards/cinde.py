@@ -164,6 +164,11 @@ class CindeProvider(BaseProvider):
                         ctx.append(f"Vacantes: {vac}")
                     requirements = ". ".join(ctx)
 
+                    # Sector real de la fuente (Categoría del API); se guarda
+                    # en la columna sector y alimenta el filtro por sector.
+                    from core.sectores import normalizar_sector_fuente
+                    sector = normalizar_sector_fuente(item.get("positionCategoryNameEs"))
+
                     offers.append(JobOffer(
                         source="cinde",
                         search_term=search_term,
@@ -183,5 +188,6 @@ class CindeProvider(BaseProvider):
                         description=description,
                         requirements=requirements,
                         salary="",
+                        sector=sector,
                     ))
         return offers

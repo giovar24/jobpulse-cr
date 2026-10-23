@@ -416,7 +416,8 @@ def cargar():
             filas = con.execute(
                 "SELECT job_id, source, title, company, location, link,"
                 "       date_published, description, requirements, gate_score,"
-                "       ia_score, ia_razon"
+                "       ia_score, ia_razon, veredicto AS bandera,"
+                "       veredicto_razon AS bandera_razon, dup_of"
                 " FROM jobs"
             ).fetchall()
         except sqlite3.OperationalError:
@@ -432,6 +433,17 @@ def cargar():
 
     out = []
     for f in filas:
+        tiene_col = f.keys()
+        # Embudo de banderas (core/exclusiones.py + veredictos): las
+        # amarillas (descartadas) no se toman en cuenta en el ranking y los
+        # duplicados marcados ceden ante su canonico. BD vieja sin columnas:
+        # no se filtra nada.
+        bandera = f["bandera"] if "bandera" in tiene_col else None
+        if bandera == "descartada":
+            continue
+        dup = (f["dup_of"] or "").strip() if "dup_of" in tiene_col else ""
+        if dup:
+            continue
         sc = f["gate_score"]
         src = f["source"] or ""
         g = grupo_publico(src)
@@ -465,6 +477,10 @@ def cargar():
             # solo se llenan al calcular el ranking
             "ats": None,
             "veredicto": "",
+            # bandera del embudo (verde apta / amarilla descartada / None
+            # sin evaluar); 'veredicto' sigue siendo el texto del scorer ATS.
+            "bandera": bandera,
+            "bandera_razon": (f["bandera_razon"] if "bandera_razon" in tiene_col else "") or "",
             "sem": None,
             "faltantes": [],
             "brk": {},
