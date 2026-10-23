@@ -433,6 +433,18 @@ La CLI acepta el mismo filtro con `--review-reason`:
 .\.venv\Scripts\python.exe -m jobpulse_v15 search `
   --review-reason location_not_normalized
 ```
+La CLI tambien permite usar `--profile-compatibility` con los estados
+`matched`, `not_registered`, `below_requirement`, `needs_review`,
+`not_analyzed` o `no_required`. Por ejemplo:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 search `
+  --profile-compatibility matched
+```
+Cuando se solicita este filtro, la salida JSON incluye la etiqueta
+`profile_compatibility`; el CSV conserva la misma etiqueta y aplica el filtro
+antes de exportar. La comparacion usa solo datos guardados y aprobados del
+perfil; no significa que un requisito no registrado sea una carencia real.
 Las vacantes con `skip_automatic = 1` se excluyen por defecto de la busqueda;
 usa `--include-manually-skipped` para volver a incluirlas. Este filtro de
 busqueda no elimina los anuncios del listado resumido solicitado a Workday;

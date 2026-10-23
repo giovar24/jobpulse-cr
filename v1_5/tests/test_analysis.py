@@ -161,7 +161,7 @@ class TestRuleBasedExtractor(unittest.TestCase):
                 site_config={"board": "External"},
             )
             text = (
-                "Fluent English required. Bachelor's degree completed. "
+                "Fluent English required. Bachelor's degree completed required. "
                 "Python and SQL skills required."
             )
             repository.save_job(
@@ -203,6 +203,16 @@ class TestRuleBasedExtractor(unittest.TestCase):
             self.assertEqual(len(saved["requirements"]), 4)
             self.assertEqual(saved["field_statuses"]["skill"], "found")
             repository.save_candidate_profile_fact("skill", "python", "Python")
+            repository.save_candidate_profile_fact("skill", "sql", "SQL")
+            repository.save_candidate_profile_fact(
+                "language", "en", "English", qualifier="fluent"
+            )
+            repository.save_candidate_profile_fact(
+                "education",
+                "bachelor",
+                "Bachelor's degree",
+                education_status="completed",
+            )
             comparison = repository.compare_job_to_candidate_profile("job-analysis")
             skill_statuses = {
                 requirement["value_code"]: requirement["comparison_status"]
@@ -210,7 +220,7 @@ class TestRuleBasedExtractor(unittest.TestCase):
                 if requirement["category"] == "skill"
             }
             self.assertEqual(
-                skill_statuses, {"python": "matched", "sql": "not_registered"}
+                skill_statuses, {"python": "matched", "sql": "matched"}
             )
 
             search_output = io.StringIO()
@@ -243,6 +253,59 @@ class TestRuleBasedExtractor(unittest.TestCase):
             search_results = json.loads(search_output.getvalue())
             self.assertEqual(
                 [job["job_id"] for job in search_results], ["job-analysis"]
+            )
+
+            compatibility_output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "jobpulse-v15",
+                    "--db",
+                    str(database.path),
+                    "search",
+                    "--profile-compatibility",
+                    "matched",
+                ],
+            ), redirect_stdout(compatibility_output):
+                self.assertEqual(main(), 0)
+            compatibility_results = json.loads(compatibility_output.getvalue())
+            self.assertEqual(
+                [job["job_id"] for job in compatibility_results], ["job-analysis"]
+            )
+            self.assertEqual(
+                compatibility_results[0]["profile_compatibility"], "Coincide"
+            )
+
+            repository.save_job(
+                {
+                    "job_id": "job-without-analysis",
+                    "title": "Engineer without analysis",
+                    "company": "Example",
+                    "country": "CR",
+                },
+                site_id="site-1",
+                source_job_id="source-without-analysis",
+            )
+            unanalyzed_output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "jobpulse-v15",
+                    "--db",
+                    str(database.path),
+                    "search",
+                    "--profile-compatibility",
+                    "not_analyzed",
+                ],
+            ), redirect_stdout(unanalyzed_output):
+                self.assertEqual(main(), 0)
+            unanalyzed_results = json.loads(unanalyzed_output.getvalue())
+            self.assertEqual(
+                [job["job_id"] for job in unanalyzed_results],
+                ["job-without-analysis"],
+            )
+            self.assertEqual(
+                unanalyzed_results[0]["profile_compatibility"], "Sin analisis"
             )
 
             review_output = io.StringIO()

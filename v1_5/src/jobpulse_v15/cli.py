@@ -217,6 +217,11 @@ def main() -> int:
         help="Limitar resultados a un motivo especifico de revision.",
     )
     search.add_argument(
+        "--profile-compatibility",
+        choices=tuple(PROFILE_COMPATIBILITY_LABELS),
+        help="Filtrar por compatibilidad con los datos aprobados del perfil.",
+    )
+    search.add_argument(
         "--format",
         choices=("json", "csv"),
         default="json",
@@ -473,7 +478,7 @@ def main() -> int:
                     )
                 except ValueError as exc:
                     parser.error(str(exc))
-                if args.format == "csv":
+                if args.format == "csv" or args.profile_compatibility:
                     comparisons = repository.compare_jobs_to_candidate_profile(jobs)
                     for job in jobs:
                         status = repository.candidate_profile_status(
@@ -482,6 +487,16 @@ def main() -> int:
                         job["profile_compatibility"] = (
                             PROFILE_COMPATIBILITY_LABELS[status]
                         )
+                    if args.profile_compatibility:
+                        jobs = [
+                            job
+                            for job in jobs
+                            if repository.candidate_profile_status(
+                                comparisons[job["job_id"]]
+                            )
+                            == args.profile_compatibility
+                        ]
+                if args.format == "csv":
                     output = io.StringIO(newline="")
                     write_job_search_csv(output, jobs)
                     print(output.getvalue(), end="")
