@@ -22,6 +22,7 @@ from jobpulse_v15.exports import (
     PROFILE_COMPATIBILITY_LABELS,
     write_job_search_csv,
 )
+from jobpulse_v15.greenhouse import GreenhouseFetcher
 from jobpulse_v15.ingestion import IngestionError, IngestionService
 from jobpulse_v15.repository import (
     REQUIREMENT_CATEGORIES as REVIEW_CATEGORIES,
@@ -2274,6 +2275,10 @@ class SourceManagerWindow:
             actions, text="Agregar Workday", command=self.open_add_workday
         )
         self.add_button.pack(side="left")
+        self.add_greenhouse_button = ttk.Button(
+            actions, text="Agregar Greenhouse", command=self.open_add_greenhouse
+        )
+        self.add_greenhouse_button.pack(side="left", padx=(8, 0))
         self.toggle_button = ttk.Button(
             actions, text="Activar / pausar", command=self.toggle_selected
         )
@@ -2296,7 +2301,9 @@ class SourceManagerWindow:
             actions, text="Marcar revisada", command=self.mark_selected_reviewed
         )
         self.review_button.pack(side="left", padx=(8, 0))
-        ttk.Label(actions, text="Paginas (max. 10)").pack(side="left", padx=(16, 6))
+        ttk.Label(actions, text="Paginas Workday (max. 10)").pack(
+            side="left", padx=(16, 6)
+        )
         ttk.Spinbox(
             actions, from_=1, to=MAX_PAGES, textvariable=self.pages_var, width=4
         ).pack(side="left")
@@ -2376,24 +2383,23 @@ class SourceManagerWindow:
         site = sites[0] if single_selection else None
         state = "normal" if site is not None and not self.scrape_running else "disabled"
         self.toggle_button.configure(state=state)
-        selected_workday_sites = bool(sites) and all(
-            (
-                source.get("platform_id", "").casefold() == "workday"
-                or source.get("site_config", {}).get("adapter") == "workday"
-            )
-            and source["enabled"]
+        selected_provider = (
+            self._site_provider(sites[0]) if sites else None
+        )
+        same_active_provider = bool(sites) and selected_provider is not None and all(
+            self._site_provider(source) == selected_provider and source["enabled"]
             for source in (sites or [])
         )
         scrape_enabled = bool(
             single_selection
-            and selected_workday_sites
+            and same_active_provider
             and not self.scrape_running
         )
         self.scrape_button.configure(state="normal" if scrape_enabled else "disabled")
         self.scrape_group_button.configure(
             state=(
                 "normal"
-                if selected_workday_sites and not self.scrape_running
+                if same_active_provider and not self.scrape_running
                 else "disabled"
             )
         )
@@ -2405,11 +2411,22 @@ class SourceManagerWindow:
 
     def _set_action_state(self, state: str) -> None:
         self.add_button.configure(state=state)
+        self.add_greenhouse_button.configure(state=state)
         self.toggle_button.configure(state=state)
         self.scrape_button.configure(state=state)
         self.scrape_group_button.configure(state=state)
         self.history_button.configure(state=state)
         self.review_button.configure(state=state)
+
+    @staticmethod
+    def _site_provider(site: Mapping[str, Any]) -> str | None:
+        provider = str(site.get("platform_id") or "").casefold()
+        adapter = str(site.get("site_config", {}).get("adapter") or "").casefold()
+        if provider == "workday" or adapter == "workday":
+            return "workday"
+        if provider == "greenhouse" or adapter == "greenhouse":
+            return "greenhouse"
+        return None
 
     def open_run_history(self) -> None:
         site = self._selected_site()
@@ -2536,6 +2553,7 @@ class SourceManagerWindow:
                     base_url,
                     company_name=company,
                     country=country,
+                    run_groups=("directos",),
                     site_config={
                         "adapter": "workday",
                         "search_text": search_text,
@@ -2574,6 +2592,115 @@ class SourceManagerWindow:
         dialog.bind("<Return>", submit_on_return)
         dialog.bind("<Escape>", dismiss_on_escape)
 
+    def open_add_greenhouse(self) -> None:
+        dialog = tk.Toplevel(self.window)
+        dialog.title("Agregar tablero Greenhouse")
+        dialog.geometry("570x340")
+        dialog.resizable(False, False)
+        dialog.transient(self.window)
+        dialog.grab_set()
+
+        values = {
+            "site_id": tk.StringVar(),
+            "site_name": tk.StringVar(),
+            "company": tk.StringVar(),
+            "url": tk.StringVar(),
+            "country": tk.StringVar(value="CR"),
+            "country_query": tk.StringVar(value="Costa Rica"),
+        }
+        form = ttk.Frame(dialog, padding=16)
+        form.grid(row=0, column=0, sticky="nsew")
+        for row, (key, label) in enumerate(
+            (
+                ("site_id", "ID unico (ej. acme-cr)"),
+                ("site_name", "Nombre del tablero"),
+                ("company", "Empresa"),
+                ("url", "URL del tablero Greenhouse"),
+                ("country", "Codigo de pais (ej. CR)"),
+                ("country_query", "Texto para validar la ubicacion"),
+            )
+        ):
+            ttk.Label(form, text=label).grid(row=row, column=0, sticky="w", pady=4)
+            ttk.Entry(form, textvariable=values[key], width=52).grid(
+                row=row, column=1, sticky="ew", padx=(10, 0), pady=4
+            )
+        form.columnconfigure(1, weight=1)
+
+        def save_site() -> None:
+            site_id = values["site_id"].get().strip().lower()
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", site_id):
+                messagebox.showerror(
+                    "ID invalido",
+                    "Usa letras minusculas, numeros, guion o guion bajo.",
+                    parent=dialog,
+                )
+                return
+            site_name = values["site_name"].get().strip()
+            company = values["company"].get().strip()
+            base_url = values["url"].get().strip()
+            country_query = values["country_query"].get().strip()
+            country = values["country"].get().strip().upper()
+            if not site_name or not company or not country_query or not country:
+                messagebox.showerror(
+                    "Faltan datos",
+                    "Nombre, empresa, pais y texto de ubicacion son obligatorios.",
+                    parent=dialog,
+                )
+                return
+            try:
+                GreenhouseFetcher._board_token(base_url)
+                if self.repository.get_site(site_id) is not None:
+                    raise ValueError(f"Ya existe un sitio con ID {site_id!r}.")
+                if self.repository.get_platform("greenhouse") is None:
+                    self.repository.register_platform(
+                        "greenhouse", "Greenhouse", "api"
+                    )
+                self.repository.register_site(
+                    site_id,
+                    "greenhouse",
+                    site_name,
+                    base_url,
+                    company_name=company,
+                    country=country,
+                    run_groups=("directos",),
+                    site_config={
+                        "adapter": "greenhouse",
+                        "country_query": country_query,
+                    },
+                    enabled=True,
+                )
+            except (sqlite3.Error, ValueError) as exc:
+                messagebox.showerror(
+                    "No se pudo agregar el tablero", str(exc), parent=dialog
+                )
+                return
+            dialog.destroy()
+            self.refresh()
+            self.sites_table.selection_set(site_id)
+            self._update_action_state()
+
+        buttons = ttk.Frame(form)
+        buttons.grid(row=6, column=0, columnspan=2, sticky="e", pady=(12, 0))
+        ttk.Button(buttons, text="Cancelar", command=dialog.destroy).pack(
+            side="right"
+        )
+        ttk.Button(buttons, text="Guardar", command=save_site).pack(
+            side="right", padx=(0, 8)
+        )
+
+        def submit_on_return(event: tk.Event) -> str:
+            if event.keysym == "Return":
+                save_site()
+            return "break"
+
+        def dismiss_on_escape(event: tk.Event) -> str:
+            if event.keysym == "Escape":
+                dialog.destroy()
+            return "break"
+
+        dialog.bind("<Return>", submit_on_return)
+        dialog.bind("<Escape>", dismiss_on_escape)
+
     def scrape_selected(self) -> None:
         site = self._selected_site()
         if site is None or self.scrape_running:
@@ -2585,26 +2712,41 @@ class SourceManagerWindow:
                 parent=self.window,
             )
             return
-        try:
-            pages = int(self.pages_var.get())
-        except ValueError:
+        provider = self._site_provider(site)
+        if provider is None:
             messagebox.showerror(
-                "Numero de paginas invalido",
-                "Selecciona un numero de paginas entre 1 y 10.",
+                "Proveedor no compatible",
+                "Esta fuente no tiene un adaptador de consulta implementado.",
                 parent=self.window,
             )
             return
-        if not 1 <= pages <= MAX_PAGES:
-            messagebox.showerror(
-                "Numero de paginas invalido",
-                f"El maximo permitido es {MAX_PAGES} paginas.",
-                parent=self.window,
-            )
-            return
+        pages = 1
+        if provider == "workday":
+            try:
+                pages = int(self.pages_var.get())
+            except ValueError:
+                messagebox.showerror(
+                    "Numero de paginas invalido",
+                    "Selecciona un numero de paginas entre 1 y 10.",
+                    parent=self.window,
+                )
+                return
+            if not 1 <= pages <= MAX_PAGES:
+                messagebox.showerror(
+                    "Numero de paginas invalido",
+                    f"El maximo permitido es {MAX_PAGES} paginas.",
+                    parent=self.window,
+                )
+                return
+        limit_text = (
+            f" con un maximo de {pages} pagina(s)"
+            if provider == "workday"
+            else ""
+        )
         confirmed = messagebox.askyesno(
-            "Iniciar consulta Workday",
-            f"Se consultara el tablero {site['site_name']} ({site['base_url']}) "
-            f"con un maximo de {pages} pagina(s). ¿Continuar?",
+            f"Iniciar consulta {provider.title()}",
+            f"Se consultara el tablero {site['site_name']} ({site['base_url']})"
+            f"{limit_text}. ¿Continuar?",
             parent=self.window,
         )
         if not confirmed:
@@ -2616,7 +2758,7 @@ class SourceManagerWindow:
         worker = threading.Thread(
             target=self._scrape_worker,
             args=(site, pages),
-            name=f"jobpulse-workday-{site['site_id']}",
+            name=f"jobpulse-{provider}-{site['site_id']}",
             daemon=True,
         )
         self.scrape_thread = worker
@@ -2627,21 +2769,22 @@ class SourceManagerWindow:
         sites = self._selected_sites()
         if not sites or self.scrape_running:
             return
+        provider = self._site_provider(sites[0])
         unsupported = [
             site["site_id"]
             for site in sites
-            if (
-                site.get("platform_id", "").casefold() != "workday"
-                and site.get("site_config", {}).get("adapter") != "workday"
-            )
+            if self._site_provider(site) != provider or provider is None
         ]
         paused = [site["site_id"] for site in sites if not site["enabled"]]
         if unsupported or paused:
             messagebox.showerror(
                 "Seleccion no valida",
-                "Selecciona solo tableros Workday activos. "
+                "Selecciona solo tableros activos del mismo proveedor "
+                "(Workday o Greenhouse). "
                 + (
-                    "Fuentes no Workday: " + ", ".join(unsupported) + ". "
+                    "Fuentes no compatibles o de otro proveedor: "
+                    + ", ".join(unsupported)
+                    + ". "
                     if unsupported
                     else ""
                 )
@@ -2649,30 +2792,37 @@ class SourceManagerWindow:
                 parent=self.window,
             )
             return
-        try:
-            pages = int(self.pages_var.get())
-        except ValueError:
-            messagebox.showerror(
-                "Numero de paginas invalido",
-                "Selecciona un numero de paginas entre 1 y 10.",
-                parent=self.window,
-            )
-            return
-        if not 1 <= pages <= MAX_PAGES:
-            messagebox.showerror(
-                "Numero de paginas invalido",
-                f"El maximo permitido es {MAX_PAGES} paginas.",
-                parent=self.window,
-            )
-            return
+        pages = 1
+        if provider == "workday":
+            try:
+                pages = int(self.pages_var.get())
+            except ValueError:
+                messagebox.showerror(
+                    "Numero de paginas invalido",
+                    "Selecciona un numero de paginas entre 1 y 10.",
+                    parent=self.window,
+                )
+                return
+            if not 1 <= pages <= MAX_PAGES:
+                messagebox.showerror(
+                    "Numero de paginas invalido",
+                    f"El maximo permitido es {MAX_PAGES} paginas.",
+                    parent=self.window,
+                )
+                return
 
         site_names = "\n".join(
             f"- {site['site_name']} ({site['base_url']})" for site in sites
         )
+        limit_text = (
+            f" con un maximo de {pages} pagina(s) por tablero"
+            if provider == "workday"
+            else ""
+        )
         confirmed = messagebox.askyesno(
-            "Iniciar consulta Workday",
-            f"Se consultaran secuencialmente {len(sites)} tableros, con un "
-            f"maximo de {pages} pagina(s) por tablero. Un error no detendra "
+            f"Iniciar consulta {provider.title()}",
+            f"Se consultaran secuencialmente {len(sites)} tableros"
+            f"{limit_text}. Un error no detendra "
             f"los siguientes.\n\n{site_names}\n\n¿Continuar?",
             parent=self.window,
         )
@@ -2680,12 +2830,14 @@ class SourceManagerWindow:
             return
 
         self.scrape_running = True
-        self.status_var.set(f"Consultando {len(sites)} fuentes Workday...")
+        self.status_var.set(
+            f"Consultando {len(sites)} fuentes {provider.title()}..."
+        )
         self._set_action_state("disabled")
         worker = threading.Thread(
             target=self._scrape_group_worker,
             args=(sites, pages),
-            name="jobpulse-workday-group",
+            name=f"jobpulse-{provider}-group",
             daemon=True,
         )
         self.scrape_thread = worker
@@ -2702,19 +2854,40 @@ class SourceManagerWindow:
         for site in sites:
             site_id = site["site_id"]
             try:
-                skip_source_job_ids = self.repository.list_skipped_source_job_ids(
-                    site_id
-                )
-                result = service.fetch_and_import(
-                    site_id,
-                    lambda site=site, skip_source_job_ids=skip_source_job_ids: (
+                provider = self._site_provider(site)
+                if provider == "workday":
+                    fetcher = WorkdayFetcher()
+                    skip_source_job_ids = (
+                        self.repository.list_skipped_source_job_ids(site_id)
+                    )
+                    fetch_offers = lambda site=site, skip_source_job_ids=skip_source_job_ids: (
                         fetcher.fetch(
                             site,
                             pages=pages,
                             skip_source_job_ids=skip_source_job_ids,
                         )
-                    ),
-                    run_kind="workday",
+                    )
+                elif provider == "greenhouse":
+                    fetcher = GreenhouseFetcher()
+                    skip_source_job_ids = (
+                        self.repository.list_skipped_source_job_ids(site_id)
+                    )
+                    fetch_offers = (
+                        lambda site=site, skip_source_job_ids=skip_source_job_ids: (
+                            fetcher.fetch(
+                                site,
+                                skip_source_job_ids=skip_source_job_ids,
+                            )
+                        )
+                    )
+                else:
+                    raise ValueError(
+                        f"No hay adaptador de scraping para el sitio {site_id!r}."
+                    )
+                result = service.fetch_and_import(
+                    site_id,
+                    fetch_offers,
+                    run_kind=provider or "unknown",
                 )
             except (IngestionError, ValueError, sqlite3.Error) as exc:
                 failures.append(
@@ -2742,17 +2915,33 @@ class SourceManagerWindow:
 
     def _scrape_worker(self, site: dict[str, Any], pages: int) -> None:
         try:
-            skip_source_job_ids = self.repository.list_skipped_source_job_ids(
-                site["site_id"]
-            )
-            result = IngestionService(self.repository).fetch_and_import(
-                site["site_id"],
-                lambda: WorkdayFetcher().fetch(
+            provider = self._site_provider(site)
+            if provider == "workday":
+                fetcher = WorkdayFetcher()
+                skip_source_job_ids = self.repository.list_skipped_source_job_ids(
+                    site["site_id"]
+                )
+                fetch_offers = lambda: fetcher.fetch(
                     site,
                     pages=pages,
                     skip_source_job_ids=skip_source_job_ids,
-                ),
-                run_kind="workday",
+                )
+            elif provider == "greenhouse":
+                fetcher = GreenhouseFetcher()
+                skip_source_job_ids = self.repository.list_skipped_source_job_ids(
+                    site["site_id"]
+                )
+                fetch_offers = lambda: fetcher.fetch(
+                    site, skip_source_job_ids=skip_source_job_ids
+                )
+            else:
+                raise ValueError(
+                    f"No hay adaptador de scraping para {site['site_id']!r}."
+                )
+            result = IngestionService(self.repository).fetch_and_import(
+                site["site_id"],
+                fetch_offers,
+                run_kind=provider,
             )
         except (IngestionError, ValueError, sqlite3.Error) as exc:
             self.scrape_results.put((False, str(exc)))
@@ -2793,7 +2982,7 @@ class SourceManagerWindow:
         self.refresh()
         self._refresh_open_history()
         self._update_action_state()
-        self.status_var.set("La consulta Workday fallo; la corrida quedo registrada.")
+        self.status_var.set("La consulta fallo; la corrida quedo registrada.")
         messagebox.showerror("Error de consulta", error, parent=self.window)
 
     def _scrape_completed(self, result: dict[str, int | str]) -> None:

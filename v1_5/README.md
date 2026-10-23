@@ -246,6 +246,31 @@ accede a la DB antigua. En la ventana `Administrar fuentes`, selecciona uno o
 varios tableros activos y usa `Consultar seleccionadas` para ejecutar la misma
 consulta secuencial con confirmacion y resumen de resultados/errores.
 
+### Consulta explicita de tableros Greenhouse
+
+Greenhouse expone un API publico por tablero. Registra la plataforma y un
+tablero con URL `https://job-boards.greenhouse.io/<token>` o
+`https://boards.greenhouse.io/<token>`:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 platform add `
+  --id greenhouse --name Greenhouse --provider-type api
+.\.venv\Scripts\python.exe -m jobpulse_v15 site add `
+  --id acme-cr --platform greenhouse --name "Acme Careers CR" `
+  --url https://job-boards.greenhouse.io/acme --company Acme `
+  --country CR --group directos
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape greenhouse --site acme-cr
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape greenhouse --group directos
+```
+
+La consulta es siempre explicita. Cada tablero usa una peticion al endpoint
+publico de Greenhouse con descripciones; solo se importan vacantes cuya
+ubicacion o alguna oficina contiene el texto `country_query` (por defecto
+`Costa Rica`). La URL del tablero se valida contra los dominios oficiales antes
+de construir la URL fija de API. Cada fuente tiene su propia corrida; un fallo
+se registra y no detiene las demas. La UI permite agregar tableros Greenhouse
+y consultarlos individualmente o en seleccion multiple, siempre tras confirmar.
+
 Workday devuelve una ubicacion original que v1.5 siempre conserva en
 `location_raw` y en el payload de origen. Para Costa Rica, el adaptador separa
 ciudad y provincia cuando recibe `Ciudad, Provincia, Costa Rica`, o reconoce

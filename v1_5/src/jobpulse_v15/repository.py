@@ -1051,19 +1051,15 @@ class Repository:
         return state
 
     def list_skipped_source_job_ids(self, site_id: str) -> set[str]:
-        """Devuelve identidades de origen marcadas para omitir detalles."""
+        """Devuelve identidades de origen que el usuario marcó para omitir."""
         self._required_text(site_id, "site_id")
         with self.database.connection() as connection:
             site = connection.execute(
-                """
-                SELECT platform_id FROM source_sites WHERE site_id = ?
-                """,
+                "SELECT 1 FROM source_sites WHERE site_id = ?",
                 (site_id.strip(),),
             ).fetchone()
             if site is None:
                 raise ValueError(f"No existe el sitio {site_id!r}.")
-            if site["platform_id"] != "workday":
-                raise ValueError(f"El sitio {site_id!r} no es Workday.")
             rows = connection.execute(
                 """
                 SELECT r.source_job_id

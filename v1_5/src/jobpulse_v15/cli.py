@@ -11,6 +11,7 @@ from typing import Any
 from jobpulse_v15.analysis import EXTRACTOR_VERSION, RuleBasedExtractor
 from jobpulse_v15.db import Database
 from jobpulse_v15.exports import PROFILE_COMPATIBILITY_LABELS, write_job_search_csv
+from jobpulse_v15.greenhouse import GreenhouseFetcher
 from jobpulse_v15.ingestion import IngestionError, IngestionService
 from jobpulse_v15.repository import (
     JOB_REVIEW_FIELD_PREFIXES,
@@ -237,6 +238,17 @@ def main() -> int:
     scrape_workday.add_argument(
         "--search-text",
         help="Texto enviado a Workday (por defecto Costa Rica o la config del sitio).",
+    )
+    scrape_greenhouse = scrape_commands.add_parser(
+        "greenhouse", help="Consultar tableros Greenhouse con su API publica."
+    )
+    scrape_greenhouse_target = scrape_greenhouse.add_mutually_exclusive_group(
+        required=True
+    )
+    scrape_greenhouse_target.add_argument("--site")
+    scrape_greenhouse_target.add_argument(
+        "--group",
+        help="Consultar secuencialmente los tableros Greenhouse activos del grupo.",
     )
 
     search = commands.add_parser("search", help="Buscar vacantes guardadas.")
@@ -595,7 +607,7 @@ def main() -> int:
                             ),
                             run_kind="workday",
                         )
-                    except (IngestionError, ValueError) as exc:
+                    except (IngestionError, ValueError, sqlite3.Error) as exc:
                         parser.error(str(exc))
                     print(json.dumps(result, ensure_ascii=False, indent=2))
                 else:
@@ -634,6 +646,97 @@ def main() -> int:
                                 run_kind="workday",
                             )
                         except (IngestionError, ValueError) as exc:
+                            failures.append(
+                                {
+                                    "site_id": site_id,
+                                    "run_id": (
+                                        exc.run_id
+                                        if isinstance(exc, IngestionError)
+                                        else None
+                                    ),
+                                    "error": str(exc),
+                                }
+                            )
+                            continue
+                        results.append({"site_id": site_id, **result})
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "group",
+                                "group": args.group,
+                                "sites_selected": len(sites),
+                                "results": results,
+                                "failures": failures,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if failures:
+                        command_exit_code = 1
+            elif args.command == "scrape" and args.scrape_command == "greenhouse":
+                service = IngestionService(repository)
+                fetcher = GreenhouseFetcher()
+                if args.site is not None:
+                    site = repository.get_site(args.site)
+                    if site is None:
+                        parser.error(f"No existe el sitio {args.site!r}.")
+                    config = site.get("site_config") or {}
+                    is_greenhouse = (
+                        site.get("platform_id", "").casefold() == "greenhouse"
+                        or config.get("adapter") == "greenhouse"
+                    )
+                    if not is_greenhouse:
+                        parser.error(
+                            f"El sitio {args.site!r} no esta registrado como Greenhouse."
+                        )
+                    try:
+                        result = service.fetch_and_import(
+                            args.site,
+                            lambda: fetcher.fetch(
+                                site,
+                                skip_source_job_ids=(
+                                    repository.list_skipped_source_job_ids(args.site)
+                                ),
+                            ),
+                            run_kind="greenhouse",
+                        )
+                    except (IngestionError, ValueError, sqlite3.Error) as exc:
+                        parser.error(str(exc))
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    sites = [
+                        site
+                        for site in repository.select_sites(args.group)
+                        if (
+                            site.get("platform_id", "").casefold() == "greenhouse"
+                            or (site.get("site_config") or {}).get("adapter")
+                            == "greenhouse"
+                        )
+                    ]
+                    if not sites:
+                        parser.error(
+                            f"No hay tableros Greenhouse habilitados para el grupo "
+                            f"{args.group!r}."
+                        )
+                    results = []
+                    failures = []
+                    for site in sites:
+                        site_id = site["site_id"]
+                        try:
+                            result = service.fetch_and_import(
+                                site_id,
+                                lambda site=site, site_id=site_id: fetcher.fetch(
+                                    site,
+                                    skip_source_job_ids=(
+                                        repository.list_skipped_source_job_ids(
+                                            site_id
+                                        )
+                                    ),
+                                ),
+                                run_kind="greenhouse",
+                            )
+                        except (IngestionError, ValueError, sqlite3.Error) as exc:
                             failures.append(
                                 {
                                     "site_id": site_id,

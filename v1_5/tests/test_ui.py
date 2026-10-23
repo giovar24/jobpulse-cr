@@ -452,6 +452,63 @@ class TestSourceManagerWindow(unittest.TestCase):
             self.assertEqual(site["provider_type"], "api")
             self.assertEqual(site["site_config"]["adapter"], "workday")
             self.assertEqual(site["site_config"]["country_query"], "Costa Rica")
+            self.assertEqual(site["run_groups"], ["directos"])
+            self.assertIn("acme-cr", manager.sites_table.get_children())
+        finally:
+            manager.close()
+
+    def test_add_greenhouse_dialog_registers_grouped_source(self):
+        manager = SourceManagerWindow(self.root, self.repository)
+        try:
+            manager.open_add_greenhouse()
+            self.root.update()
+            dialogs = [
+                widget
+                for widget in manager.window.winfo_children()
+                if isinstance(widget, tk.Toplevel)
+                and widget.title() == "Agregar tablero Greenhouse"
+            ]
+            self.assertEqual(len(dialogs), 1)
+            dialog = dialogs[0]
+            form = dialog.winfo_children()[0]
+            entries = sorted(
+                (
+                    widget
+                    for widget in form.winfo_children()
+                    if isinstance(widget, ttk.Entry)
+                ),
+                key=lambda widget: int(widget.grid_info()["row"]),
+            )
+            for entry, value in zip(
+                entries,
+                (
+                    "acme-cr",
+                    "Acme Careers CR",
+                    "Acme",
+                    "https://job-boards.greenhouse.io/acme",
+                    "CR",
+                    "Costa Rica",
+                ),
+            ):
+                entry.delete(0, "end")
+                entry.insert(0, value)
+
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+
+            save_button = next(
+                widget
+                for widget in descendants(form)
+                if isinstance(widget, ttk.Button) and widget.cget("text") == "Guardar"
+            )
+            save_button.invoke()
+
+            site = self.repository.get_site("acme-cr")
+            self.assertEqual(site["platform_id"], "greenhouse")
+            self.assertEqual(site["site_config"]["adapter"], "greenhouse")
+            self.assertEqual(site["run_groups"], ["directos"])
             self.assertIn("acme-cr", manager.sites_table.get_children())
         finally:
             manager.close()
@@ -608,6 +665,74 @@ class TestSourceManagerWindow(unittest.TestCase):
             showerror.assert_called_once()
             self.assertIn("acme-cr", showerror.call_args.args[1])
             self.assertFalse(manager.scrape_running)
+        finally:
+            manager.close()
+
+    def test_group_query_supports_greenhouse_boards(self):
+        self.repository.register_platform("greenhouse", "Greenhouse", "api")
+        for site_id in ("greenhouse-good", "greenhouse-fails"):
+            self.repository.register_site(
+                site_id,
+                "greenhouse",
+                site_id,
+                f"https://boards.greenhouse.io/{site_id}",
+                run_groups=("directos",),
+                site_config={"adapter": "greenhouse"},
+            )
+        manager = SourceManagerWindow(self.root, self.repository)
+        manager.sites_table.selection_set("greenhouse-good", "greenhouse-fails")
+        manager._update_action_state()
+        self.assertEqual(str(manager.scrape_group_button["state"]), "normal")
+
+        offer = {
+            "source_job_id": "55",
+            "job": {
+                "job_id": "greenhouse-greenhouse-good-55",
+                "title": "Greenhouse Group Engineer",
+            },
+        }
+
+        def fetch(site, **kwargs):
+            _ = kwargs
+            if site["site_id"] == "greenhouse-fails":
+                raise RuntimeError("portal no disponible")
+            return [offer]
+
+        try:
+            with patch(
+                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui.messagebox.showerror"
+            ) as showerror, patch(
+                "jobpulse_v15.ui.GreenhouseFetcher.fetch", side_effect=fetch
+            ):
+                manager.scrape_selected_group()
+                self.assertIsNotNone(manager.scrape_thread)
+                manager.scrape_thread.join(timeout=5)
+                self.assertFalse(manager.scrape_thread.is_alive())
+                self.root.after(150, self.root.quit)
+                self.root.mainloop()
+
+            self.assertIsNotNone(
+                self.repository.get_job("greenhouse-greenhouse-good-55")
+            )
+            self.assertEqual(
+                self.repository.list_site_runs("greenhouse-good", limit=1)[0][
+                    "run_kind"
+                ],
+                "greenhouse",
+            )
+            self.assertEqual(
+                self.repository.list_site_runs("greenhouse-fails", limit=1)[0][
+                    "site_status"
+                ],
+                "error",
+            )
+            showerror.assert_called_once()
+            self.assertNotIn(
+                "greenhouse-good:",
+                showerror.call_args.args[1],
+            )
         finally:
             manager.close()
 
