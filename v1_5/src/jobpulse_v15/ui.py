@@ -1102,6 +1102,11 @@ class JobPulseWindow:
             text="Revisar duplicados",
             command=self.show_potential_duplicates,
         ).pack(side="right", anchor="ne", padx=(0, 8))
+        ttk.Button(
+            heading,
+            text="Respaldar DB",
+            command=self.backup_database,
+        ).pack(side="right", anchor="ne", padx=(0, 8))
 
         filters = ttk.LabelFrame(outer, text="Filtros", padding=10)
         filters.grid(row=1, column=0, sticky="ew", pady=(0, 10))
@@ -1638,6 +1643,28 @@ class JobPulseWindow:
         messagebox.showinfo(
             "Posibles duplicados",
             "\n".join(lines).rstrip(),
+            parent=self.root,
+        )
+
+    def backup_database(self) -> None:
+        destination = filedialog.asksaveasfilename(
+            parent=self.root,
+            title="Crear respaldo de la base v1.5",
+            defaultextension=".db",
+            filetypes=(("Base SQLite", "*.db"), ("Todos los archivos", "*.*")),
+        )
+        if not destination:
+            return
+        try:
+            backup_path = self.repository.database.backup_to(destination)
+        except (OSError, sqlite3.Error, ValueError) as exc:
+            messagebox.showerror(
+                "No se pudo crear el respaldo", str(exc), parent=self.root
+            )
+            return
+        messagebox.showinfo(
+            "Respaldo creado",
+            f"La copia consistente se guardo en:\n{backup_path}",
             parent=self.root,
         )
 

@@ -1,6 +1,6 @@
 """Persistencia SQLite aislada para JobPulse CR 1.5."""
 
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from pathlib import Path
 import re
 import sqlite3
@@ -45,6 +45,38 @@ class Database:
         with self.connection() as connection:
             row = connection.execute("PRAGMA user_version").fetchone()
             return int(row[0])
+
+    def backup_to(self, destination: str | Path) -> Path:
+        """Crea una copia SQLite consistente sin sobrescribir archivos existentes."""
+        destination_path = Path(destination).expanduser().resolve()
+        source_path = self.path.expanduser().resolve()
+        if destination_path == source_path:
+            raise ValueError("El destino del respaldo no puede ser la base activa.")
+        if not source_path.is_file():
+            raise FileNotFoundError(f"No existe la base de datos: {source_path}")
+
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with destination_path.open("xb"):
+                pass
+        except FileExistsError as exc:
+            raise FileExistsError(
+                f"El archivo de respaldo ya existe: {destination_path}"
+            ) from exc
+
+        try:
+            with closing(sqlite3.connect(source_path, timeout=30)) as source:
+                with closing(sqlite3.connect(destination_path, timeout=30)) as backup:
+                    source.backup(backup)
+                    result = backup.execute("PRAGMA integrity_check").fetchone()
+                    if result is None or result[0] != "ok":
+                        raise sqlite3.DatabaseError(
+                            f"El respaldo no paso integrity_check: {result!r}"
+                        )
+        except BaseException:
+            destination_path.unlink(missing_ok=True)
+            raise
+        return destination_path
 
     def initialize(self) -> int:
         """Aplica migraciones pendientes y devuelve la version resultante."""

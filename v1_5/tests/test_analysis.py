@@ -2,8 +2,10 @@ import csv
 import io
 import json
 import sys
+import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
@@ -528,6 +530,34 @@ class TestBatchAnalysisCLI(unittest.TestCase):
                 report["groups"][0]["job_ids"],
                 ["job-duplicate-1", "job-duplicate-2"],
             )
+
+    def test_backup_cli_creates_sqlite_copy(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database = Database(Path(temp_dir) / "source.db")
+            database.initialize()
+            destination = Path(temp_dir) / "backup" / "copy.db"
+            output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "jobpulse-v15",
+                    "--db",
+                    str(database.path),
+                    "backup",
+                    "--output",
+                    str(destination),
+                ],
+            ), redirect_stdout(output):
+                self.assertEqual(main(), 0)
+
+            self.assertTrue(destination.is_file())
+            self.assertEqual(
+                json.loads(output.getvalue())["backup"], str(destination.resolve())
+            )
+            with closing(sqlite3.connect(destination)) as connection:
+                self.assertEqual(
+                    connection.execute("PRAGMA integrity_check").fetchone()[0], "ok"
+                )
 
     def test_group_workday_scrape_continues_after_site_failure(self):
         with tempfile.TemporaryDirectory() as temp_dir:

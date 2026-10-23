@@ -2,6 +2,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -50,6 +51,49 @@ class TestDatabaseMigrations(unittest.TestCase):
         self.assertTrue(
             {"source_site_id", "source_config_hash"}.issubset(analysis_columns)
         )
+
+    def test_backup_creates_consistent_database_snapshot(self):
+        self.database.initialize()
+        with self.database.connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO source_platforms (platform_id, name, provider_type)
+                VALUES ('workday', 'Workday', 'api')
+                """
+            )
+        destination = Path(self.temp_dir.name) / "backups" / "snapshot.db"
+
+        backup_path = self.database.backup_to(destination)
+
+        self.assertEqual(backup_path, destination.resolve())
+        with closing(sqlite3.connect(backup_path)) as connection:
+            self.assertEqual(
+                connection.execute("PRAGMA integrity_check").fetchone()[0], "ok"
+            )
+            self.assertEqual(
+                connection.execute("PRAGMA user_version").fetchone()[0], 5
+            )
+            self.assertEqual(
+                connection.execute(
+                    "SELECT name FROM source_platforms WHERE platform_id='workday'"
+                ).fetchone()[0],
+                "Workday",
+            )
+
+    def test_backup_rejects_existing_or_active_database_destination(self):
+        self.database.initialize()
+        with self.assertRaisesRegex(ValueError, "base activa"):
+            self.database.backup_to(self.db_path)
+
+        existing = Path(self.temp_dir.name) / "existing.db"
+        existing.write_bytes(b"keep this file")
+        with self.assertRaisesRegex(FileExistsError, "ya existe"):
+            self.database.backup_to(existing)
+        self.assertEqual(existing.read_bytes(), b"keep this file")
+
+    def test_backup_requires_an_existing_source_database(self):
+        with self.assertRaises(FileNotFoundError):
+            self.database.backup_to(Path(self.temp_dir.name) / "backup.db")
 
     def test_site_requires_a_registered_platform(self):
         self.database.initialize()

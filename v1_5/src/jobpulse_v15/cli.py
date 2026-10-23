@@ -81,6 +81,12 @@ def main() -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("init-db", help="Crear la base y aplicar migraciones.")
     commands.add_parser("schema-version", help="Mostrar la version del esquema.")
+    backup = commands.add_parser(
+        "backup", help="Crear un respaldo consistente de la base v1.5."
+    )
+    backup.add_argument(
+        "--output", required=True, type=Path, help="Ruta nueva para el archivo SQLite."
+    )
     platform = commands.add_parser("platform", help="Gestionar plataformas.")
     platform_commands = platform.add_subparsers(dest="platform_command", required=True)
     platform_add = platform_commands.add_parser("add", help="Registrar una plataforma.")
@@ -345,6 +351,12 @@ def main() -> int:
     if args.command == "init-db":
         version = database.initialize()
         print(f"Base v1.5 inicializada: {database.path} (esquema {version})")
+    elif args.command == "backup":
+        try:
+            backup_path = database.backup_to(args.output)
+        except (OSError, sqlite3.Error, ValueError) as exc:
+            parser.error(f"No se pudo crear el respaldo: {exc}")
+        print(json.dumps({"backup": str(backup_path)}, ensure_ascii=False))
     else:
         database.initialize()
         if args.command == "schema-version":

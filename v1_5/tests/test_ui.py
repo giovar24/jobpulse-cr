@@ -1,9 +1,11 @@
 import gc
 import csv
 import io
+import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from unittest.mock import patch
 from pathlib import Path
 from tkinter import ttk
@@ -1007,6 +1009,22 @@ class TestManualJobStateUI(unittest.TestCase):
         self.assertIn("Grupos candidatos: 1", report_text)
         self.assertIn("workday-REQ-1, workday-REQ-2", report_text)
         self.assertIn("no se fusionan vacantes", report_text)
+
+    def test_database_backup_ui_prompts_and_creates_snapshot(self):
+        window = JobPulseWindow(self.root, self.repository)
+        destination = Path(self.temp_dir.name) / "ui-backup.db"
+        with patch(
+            "jobpulse_v15.ui.filedialog.asksaveasfilename",
+            return_value=str(destination),
+        ), patch("jobpulse_v15.ui.messagebox.showinfo") as showinfo:
+            window.backup_database()
+
+        self.assertTrue(destination.is_file())
+        showinfo.assert_called_once()
+        with closing(sqlite3.connect(destination)) as connection:
+            self.assertEqual(
+                connection.execute("PRAGMA integrity_check").fetchone()[0], "ok"
+            )
 
     def test_export_search_results_saves_only_current_results(self):
         window = JobPulseWindow(self.root, self.repository)

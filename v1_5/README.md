@@ -32,6 +32,19 @@ Inicializar la DB exclusiva de v1.5:
 La DB se crea en `v1_5/data/jobpulse_v15.db`. Para probar otro archivo, se
 puede indicar `--db C:\ruta\de\prueba.db` antes del comando.
 
+Para respaldar la base activa sin detener la aplicación:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 backup `
+  --output .\backups\jobpulse-v15-2026-10-23.db
+```
+
+El respaldo usa la API de copia de SQLite, se valida con `integrity_check` y
+no sobrescribe archivos existentes ni la base activa. La UI ofrece la misma
+accion con `Respaldar DB`; restaurar consiste en cerrar JobPulse, conservar
+una copia de la base actual y reemplazar el archivo configurado por un respaldo
+verificado.
+
 ## Interfaz de escritorio
 
 La interfaz Tkinter muestra las vacantes guardadas, permite filtrarlas por
