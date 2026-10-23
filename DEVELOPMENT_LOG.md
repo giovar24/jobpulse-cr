@@ -2797,3 +2797,37 @@ observo el usuario). La auditoria gana la informativa
 `sin_fecha_legible` (cuantas filas procesan con fecha inferida: 19 hoy).
 Para MOSTRAR sigue usandose `date_published` — no se inventa la fecha del
 registro. Tests: `tests/test_dates.py` (52/52 en verde).
+
+
+## 62. FUENTES.md (referencia de portales) + pendientes anotados (2026-10-22, noche)
+
+**FUENTES.md.** Referencia en la raiz del repo con los portales que entregan
+vacantes: nombre + URL + grupo + aporte REAL medido desde la base (crudo y
+candidatas aprobadas sin dup por fuente), las fuentes configuradas sin
+resultados aun (TP, iCIMS, login sites) y los catalogos por-empresa. Lo
+genera `tools/fuentes_md.py` (regenerable tras cada corrida); primera foto
+con los numeros del run de hoy del usuario: 884 crudas, 131 candidatas,
+LinkedIn/Indeed/Workday liderando candidatas (73/27/14). Publicado en
+GitHub a pedido del usuario como referencia/backup. README apunta a el.
+
+**Pendientes anotados para la proxima sesion (pedido del usuario: "lo
+vemos manana").**
+
+1. **Seleccion de QUE evalua la IA externa.** Observacion: "la IA de la API
+   solo sigue evaluando ciertos registros". Estado actual: tras el
+   replanteo (#61) el presupuesto va primero a las CANDIDATAS (curada,
+   mejor gate_score primero) y el tope `IA_MAX_VACANTES=60` + la cache por
+   hash hacen que cada corrida cubra UN SUBCONJUNTO (corridas sucesivas van
+   mordiendo el backlog sin re-pagar). Faltan dos cosas:
+   a) VERIFICAR EN VIVO que la prioridad "las mas relevantes segun la IA
+      local" opera como se espera en el run manual del usuario.
+   b) NUEVO modo de seleccion MANUAL via query: el usuario decide el lote
+      exacto a evaluar. Candidatos de diseno: `--ia-query "WHERE de SQL"`
+      sobre jobs_raw/jobs, `--ia-ids j1,j2,...` para lista explicita, o
+      filtros tipo `--ia-fuente linkedin` / `--ia-min-gate 0.25`. El bypass
+      pisa la prioridad automatica de esa corrida.
+   c) Revisar la interaccion del tope 60 con `IA_MAX_LLAMADAS=12` si se
+      amplian los lotes (130 vacantes = 17 llamadas > 12).
+2. (Menor) el Ranking de la UI podria ordenar las BANDERAS (apta primero,
+   sin evaluar despues) en vez de solo filtrar descartadas — evaluar si
+   conviene con datos reales.

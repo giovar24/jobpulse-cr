@@ -468,5 +468,8 @@ main.py · ui.py · search.py · cv2profile.py · app.py (legado) · credenciale
      cerrar cada corrida.
   Mantenimiento manual: `python main.py --podar` (sectores, exclusiones,
   TTL, duplicados — sin scraping ni navegador).
+- **FUENTES.md** (raíz del repo): referencia de los portales activos y su
+  aporte real (crudo/candidatas por fuente, con URLs) — respaldo consultable
+  y regenerable con `python tools/fuentes_md.py` tras cada corrida.
 - Cambio de equipo: clona + `pip install -r requirements.txt` y arranca; el
   bootstrap crea los archivos faltantes automáticamente.
