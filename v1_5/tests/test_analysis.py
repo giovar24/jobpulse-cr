@@ -529,6 +529,71 @@ class TestBatchAnalysisCLI(unittest.TestCase):
                 ["job-duplicate-1", "job-duplicate-2"],
             )
 
+    def test_group_workday_scrape_continues_after_site_failure(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            database = Database(Path(temp_dir) / "scrape-group.db")
+            database.initialize()
+            repository = Repository(database)
+            repository.register_platform("workday", "Workday", "api")
+            for site_id in ("site-first", "site-fails"):
+                repository.register_site(
+                    site_id,
+                    "workday",
+                    site_id,
+                    f"https://{site_id}.wd1.myworkdayjobs.com/External",
+                    country="CR",
+                    run_groups=("directos",),
+                )
+            repository.register_site(
+                "site-paused",
+                "workday",
+                "Paused",
+                "https://paused.wd1.myworkdayjobs.com/External",
+                run_groups=("directos",),
+                enabled=False,
+            )
+
+            def fetch_site(site, **kwargs):
+                _ = kwargs
+                if site["site_id"] == "site-fails":
+                    raise RuntimeError("portal no disponible")
+                return []
+
+            output = io.StringIO()
+            with patch(
+                "sys.argv",
+                [
+                    "jobpulse-v15",
+                    "--db",
+                    str(database.path),
+                    "scrape",
+                    "workday",
+                    "--group",
+                    "directos",
+                ],
+            ), patch(
+                "jobpulse_v15.cli.WorkdayFetcher.fetch",
+                side_effect=fetch_site,
+            ), redirect_stdout(output):
+                self.assertEqual(main(), 1)
+
+            report = json.loads(output.getvalue())
+            self.assertEqual(report["sites_selected"], 2)
+            self.assertEqual(
+                [result["site_id"] for result in report["results"]],
+                ["site-first"],
+            )
+            self.assertEqual(report["failures"][0]["site_id"], "site-fails")
+            self.assertEqual(
+                repository.list_site_runs("site-first", limit=1)[0]["site_status"],
+                "zero_results",
+            )
+            self.assertEqual(
+                repository.list_site_runs("site-fails", limit=1)[0]["site_status"],
+                "error",
+            )
+            self.assertEqual(repository.list_site_runs("site-paused"), [])
+
 
 if __name__ == "__main__":
     unittest.main()

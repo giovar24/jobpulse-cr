@@ -208,9 +208,14 @@ def main() -> int:
     )
     scrape_commands = scrape.add_subparsers(dest="scrape_command", required=True)
     scrape_workday = scrape_commands.add_parser(
-        "workday", help="Consultar un unico tablero Workday habilitado."
+        "workday", help="Consultar uno o varios tableros Workday habilitados."
     )
-    scrape_workday.add_argument("--site", required=True)
+    scrape_workday_target = scrape_workday.add_mutually_exclusive_group(required=True)
+    scrape_workday_target.add_argument("--site")
+    scrape_workday_target.add_argument(
+        "--group",
+        help="Consultar secuencialmente los tableros Workday activos del grupo.",
+    )
     scrape_workday.add_argument(
         "--pages", type=int, choices=range(1, MAX_PAGES + 1), default=1
     )
@@ -534,35 +539,100 @@ def main() -> int:
                     parser.error(str(exc))
                 print(json.dumps(result, ensure_ascii=False, indent=2))
             elif args.command == "scrape" and args.scrape_command == "workday":
-                site = repository.get_site(args.site)
-                if site is None:
-                    parser.error(f"No existe el sitio {args.site!r}.")
-                config = site.get("site_config") or {}
-                is_workday = (
-                    site.get("platform_id", "").casefold() == "workday"
-                    or config.get("adapter") == "workday"
-                )
-                if not is_workday:
-                    parser.error(
-                        f"El sitio {args.site!r} no esta registrado como Workday."
-                    )
                 service = IngestionService(repository)
-                try:
-                    result = service.fetch_and_import(
-                        args.site,
-                        lambda: WorkdayFetcher().fetch(
-                            site,
-                            pages=args.pages,
-                            search_text=args.search_text,
-                            skip_source_job_ids=(
-                                repository.list_skipped_source_job_ids(args.site)
-                            ),
-                        ),
-                        run_kind="workday",
+                if args.site is not None:
+                    site = repository.get_site(args.site)
+                    if site is None:
+                        parser.error(f"No existe el sitio {args.site!r}.")
+                    config = site.get("site_config") or {}
+                    is_workday = (
+                        site.get("platform_id", "").casefold() == "workday"
+                        or config.get("adapter") == "workday"
                     )
-                except (IngestionError, ValueError) as exc:
-                    parser.error(str(exc))
-                print(json.dumps(result, ensure_ascii=False, indent=2))
+                    if not is_workday:
+                        parser.error(
+                            f"El sitio {args.site!r} no esta registrado como Workday."
+                        )
+                    try:
+                        result = service.fetch_and_import(
+                            args.site,
+                            lambda: WorkdayFetcher().fetch(
+                                site,
+                                pages=args.pages,
+                                search_text=args.search_text,
+                                skip_source_job_ids=(
+                                    repository.list_skipped_source_job_ids(args.site)
+                                ),
+                            ),
+                            run_kind="workday",
+                        )
+                    except (IngestionError, ValueError) as exc:
+                        parser.error(str(exc))
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    sites = [
+                        site
+                        for site in repository.select_sites(args.group)
+                        if (
+                            site.get("platform_id", "").casefold() == "workday"
+                            or (site.get("site_config") or {}).get("adapter")
+                            == "workday"
+                        )
+                    ]
+                    if not sites:
+                        parser.error(
+                            f"No hay tableros Workday habilitados para el grupo "
+                            f"{args.group!r}."
+                        )
+                    fetcher = WorkdayFetcher()
+                    results = []
+                    failures = []
+                    for site in sites:
+                        site_id = site["site_id"]
+                        try:
+                            result = service.fetch_and_import(
+                                site_id,
+                                lambda site=site, site_id=site_id: fetcher.fetch(
+                                    site,
+                                    pages=args.pages,
+                                    search_text=args.search_text,
+                                    skip_source_job_ids=(
+                                        repository.list_skipped_source_job_ids(
+                                            site_id
+                                        )
+                                    ),
+                                ),
+                                run_kind="workday",
+                            )
+                        except (IngestionError, ValueError) as exc:
+                            failures.append(
+                                {
+                                    "site_id": site_id,
+                                    "run_id": (
+                                        exc.run_id
+                                        if isinstance(exc, IngestionError)
+                                        else None
+                                    ),
+                                    "error": str(exc),
+                                }
+                            )
+                            continue
+                        results.append({"site_id": site_id, **result})
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "group",
+                                "group": args.group,
+                                "sites_selected": len(sites),
+                                "results": results,
+                                "failures": failures,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if failures:
+                        command_exit_code = 1
             elif args.command == "search":
                 levels = ["required"]
                 if args.include_preferred:

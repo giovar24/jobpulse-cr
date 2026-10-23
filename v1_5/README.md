@@ -206,10 +206,17 @@ por ejemplo:
   --company Intel --country CR
 .\.venv\Scripts\python.exe -m jobpulse_v15 scrape workday `
   --site intel-cr --pages 1
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape workday `
+  --group directos --pages 1
 ```
 
 La consulta web solo ocurre al ejecutar `scrape workday`; no se inicia al
-abrir la UI ni al importar el paquete. El comando admite de 1 a 10 paginas
+abrir la UI ni al importar el paquete. Se puede indicar un sitio (`--site`)
+o un grupo (`--group`), nunca ambos. El grupo procesa en secuencia sus sitios
+Workday habilitados; cada sitio mantiene su propia corrida y un fallo se
+registra sin impedir los siguientes. El resultado JSON separa importaciones y
+fallos, y la CLI retorna codigo distinto de cero si hubo fallos. El comando
+admite de 1 a 10 paginas
 (20 anuncios por pagina), utiliza `Costa Rica` como busqueda por defecto,
 consulta detalles con una pausa entre vacantes y registra resultados/error
 en una corrida del sitio. Un fallo HTTP o una respuesta inesperada se informa
@@ -268,8 +275,9 @@ habilitados que una corrida futura debe seleccionar y activar/pausar fuentes:
 ```
 
 Los sitios deben apuntar a una plataforma registrada. La configuracion del
-sitio es declarativa y se rechazan claves comunes de credenciales. `select_sites`
-es la funcion central que usara el futuro orquestador; aun no ejecuta scraping.
+sitio es declarativa y se rechazan claves comunes de credenciales.
+`select_sites` selecciona sitios activos, y el comando Workday puede recorrer
+secuencialmente los tableros del grupo elegido.
 `Repository.save_job` guarda la oferta, su registro de fuente y su memoria de
 deduplicacion en una sola transaccion.
 
