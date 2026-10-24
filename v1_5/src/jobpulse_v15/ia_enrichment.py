@@ -401,13 +401,16 @@ async def run_ia_enrichment(
                 UPDATE jobs SET
                     city = ?, region = ?, work_mode = ?, date_published = ?,
                     employment_type = ?,
-                    salary_min = ?, salary_max = ?, salary_currency = ?, salary_period = ?
+                    salary_min = ?, salary_max = ?, salary_currency = ?, salary_period = ?,
+                    skills = ?, languages = ?
                 WHERE job_id = ?
             """, (
                 job.get("city"), job.get("region"), job.get("work_mode"),
                 job.get("date_published"), job.get("employment_type"),
                 job.get("salary_min"), job.get("salary_max"),
                 job.get("salary_currency"), job.get("salary_period"),
+                json.dumps(job.get("skills", []), ensure_ascii=False),
+                json.dumps(job.get("languages", {}), ensure_ascii=False),
                 job["job_id"]
             ))
             if conn.total_changes > 0:
