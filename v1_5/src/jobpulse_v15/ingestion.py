@@ -1,6 +1,8 @@
 """Validacion e ingesta atomica por oferta para la base v1.5."""
 
+import asyncio
 import hashlib
+import inspect
 import json
 import sqlite3
 from collections.abc import Callable, Mapping, Sequence
@@ -44,6 +46,8 @@ class IngestionService:
         run_id = self.repository.start_site_run(site_id, run_kind)
         try:
             offers = fetch_offers()
+            if inspect.iscoroutine(offers):
+                offers = asyncio.run(offers)
             skipped = getattr(offers, "jobs_skipped", 0)
             if isinstance(skipped, bool) or not isinstance(skipped, int) or skipped < 0:
                 raise ValueError("jobs_skipped debe ser un entero no negativo.")

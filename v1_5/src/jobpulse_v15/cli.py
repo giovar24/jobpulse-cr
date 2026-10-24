@@ -9,9 +9,14 @@ from pathlib import Path
 from typing import Any
 
 from jobpulse_v15.analysis import EXTRACTOR_VERSION, RuleBasedExtractor
+from jobpulse_v15.ane import AneFetcher
 from jobpulse_v15.ashby import AshbyFetcher
+from jobpulse_v15.cinde import CindeFetcher
 from jobpulse_v15.db import Database
 from jobpulse_v15.lever import LeverFetcher
+from jobpulse_v15.linkedin import LinkedInFetcher
+from jobpulse_v15.indeed import IndeedFetcher
+from jobpulse_v15.procomer import ProcomerFetcher
 from jobpulse_v15.recruitee import RecruiteeFetcher
 from jobpulse_v15.successfactors import SuccessFactorsFetcher
 from jobpulse_v15.workable import WorkableFetcher
@@ -305,6 +310,91 @@ def main() -> int:
     scrape_successfactors_target.add_argument(
         "--group",
         help="Consultar secuencialmente los portales SuccessFactors activos del grupo.",
+    )
+
+    # === ANE (browser, barrido por fecha) ===
+    scrape_ane = scrape_commands.add_parser(
+        "ane", help="Consultar ANE/Brete (barrido por fecha, requiere Brave CDP)."
+    )
+    scrape_ane_target = scrape_ane.add_mutually_exclusive_group(required=True)
+    scrape_ane_target.add_argument("--site")
+    scrape_ane_target.add_argument(
+        "--group",
+        help="Consultar secuencialmente los sitios ANE activos del grupo.",
+    )
+    scrape_ane.add_argument(
+        "--pages", type=int, default=15, help="Páginas de listado a recorrer (default: 15)."
+    )
+    scrape_ane.add_argument(
+        "--port", type=int, default=9222, help="Puerto CDP de Brave (default: 9222)."
+    )
+    scrape_ane.add_argument(
+        "--dias", type=int, default=30, help="Ventana de días hacia atrás (default: 30)."
+    )
+
+    # === CINDE Jobs (API GraphQL, sin browser) ===
+    scrape_cinde = scrape_commands.add_parser(
+        "cinde", help="Consultar CINDE Jobs (API GraphQL pública, sin browser)."
+    )
+    scrape_cinde_target = scrape_cinde.add_mutually_exclusive_group(required=True)
+    scrape_cinde_target.add_argument("--site")
+    scrape_cinde_target.add_argument(
+        "--group",
+        help="Consultar secuencialmente los sitios CINDE activos del grupo.",
+    )
+    scrape_cinde.add_argument(
+        "--pages", type=int, default=10, help="Páginas de resultados (default: 10, 100 por página)."
+    )
+
+    # === Procomer (API REST) ===
+    scrape_procomer = scrape_commands.add_parser(
+        "procomer", help="Consultar Procomer (API REST pública, sin browser)."
+    )
+    scrape_procomer_target = scrape_procomer.add_mutually_exclusive_group(required=True)
+    scrape_procomer_target.add_argument("--site")
+    scrape_procomer_target.add_argument(
+        "--group",
+        help="Consultar secuencialmente los sitios Procomer activos del grupo.",
+    )
+    scrape_procomer.add_argument(
+        "--pages", type=int, default=5, help="Páginas de resultados (default: 5, 16 por página)."
+    )
+    scrape_procomer.add_argument(
+        "--search-text", help="Término de búsqueda (default: config del sitio o 'Soporte')."
+    )
+
+    # === LinkedIn (browser, búsqueda por término) ===
+    scrape_linkedin = scrape_commands.add_parser(
+        "linkedin", help="Consultar LinkedIn Jobs (requiere Brave CDP con sesión)."
+    )
+    scrape_linkedin_target = scrape_linkedin.add_mutually_exclusive_group(required=True)
+    scrape_linkedin_target.add_argument("--site")
+    scrape_linkedin_target.add_argument(
+        "--group",
+        help="Consultar secuencialmente los sitios LinkedIn activos del grupo.",
+    )
+    scrape_linkedin.add_argument(
+        "--pages", type=int, default=2, help="Páginas de resultados a scroll (default: 2)."
+    )
+    scrape_linkedin.add_argument(
+        "--port", type=int, default=9222, help="Puerto CDP de Brave (default: 9222)."
+    )
+
+    # === Indeed (browser, búsqueda por término) ===
+    scrape_indeed = scrape_commands.add_parser(
+        "indeed", help="Consultar Indeed CR (requiere Brave CDP con sesión)."
+    )
+    scrape_indeed_target = scrape_indeed.add_mutually_exclusive_group(required=True)
+    scrape_indeed_target.add_argument("--site")
+    scrape_indeed_target.add_argument(
+        "--group",
+        help="Consultar secuencialmente los sitios Indeed activos del grupo.",
+    )
+    scrape_indeed.add_argument(
+        "--pages", type=int, default=2, help="Páginas de resultados (default: 2)."
+    )
+    scrape_indeed.add_argument(
+        "--port", type=int, default=9222, help="Puerto CDP de Brave (default: 9222)."
     )
 
     search = commands.add_parser("search", help="Buscar vacantes guardadas.")
@@ -1278,6 +1368,463 @@ def main() -> int:
                     )
                     if failures:
                         command_exit_code = 1
+
+            # === ANE (browser, barrido por fecha) ===
+            elif args.command == "scrape" and args.scrape_command == "ane":
+                service = IngestionService(repository)
+                fetcher = AneFetcher()
+                db_path = repository.database.path
+                if args.site is not None:
+                    site = repository.get_site(args.site)
+                    if site is None:
+                        parser.error(f"No existe el sitio {args.site!r}.")
+                    config = site.get("site_config") or {}
+                    is_ane = (
+                        site.get("platform_id", "").casefold() == "ane"
+                        or config.get("adapter") == "ane"
+                    )
+                    if not is_ane:
+                        parser.error(f"El sitio {args.site!r} no esta registrado como ANE.")
+                    try:
+                        result = service.fetch_and_import(
+                            args.site,
+                            lambda: fetcher.fetch(
+                                site,
+                                pages=args.pages,
+                                skip_source_job_ids=(
+                                    repository.list_skipped_source_job_ids(args.site)
+                                ),
+                                port=args.port,
+                                dias=args.dias,
+                            ),
+                            run_kind="ane",
+                        )
+                    except (IngestionError, ValueError, sqlite3.Error) as exc:
+                        parser.error(str(exc))
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    sites = [
+                        site
+                        for site in repository.select_sites(args.group)
+                        if (
+                            site.get("platform_id", "").casefold() == "ane"
+                            or (site.get("site_config") or {}).get("adapter") == "ane"
+                        )
+                    ]
+                    if not sites:
+                        parser.error(
+                            f"No hay sitios ANE habilitados para el grupo {args.group!r}."
+                        )
+                    results = []
+                    failures = []
+                    for site in sites:
+                        site_id = site["site_id"]
+                        try:
+                            result = service.fetch_and_import(
+                                site_id,
+                                lambda site=site, site_id=site_id: fetcher.fetch(
+                                    site,
+                                    pages=args.pages,
+                                    skip_source_job_ids=(
+                                        repository.list_skipped_source_job_ids(site_id)
+                                    ),
+                                    port=args.port,
+                                    dias=args.dias,
+                                ),
+                                run_kind="ane",
+                            )
+                        except (IngestionError, ValueError, sqlite3.Error) as exc:
+                            failures.append(
+                                {
+                                    "site_id": site_id,
+                                    "run_id": (
+                                        exc.run_id
+                                        if isinstance(exc, IngestionError)
+                                        else None
+                                    ),
+                                    "error": str(exc),
+                                }
+                            )
+                            continue
+                        results.append({"site_id": site_id, **result})
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "group",
+                                "group": args.group,
+                                "sites_selected": len(sites),
+                                "results": results,
+                                "failures": failures,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if failures:
+                        command_exit_code = 1
+
+            # === CINDE Jobs (API GraphQL, sin browser) ===
+            elif args.command == "scrape" and args.scrape_command == "cinde":
+                service = IngestionService(repository)
+                fetcher = CindeFetcher()
+                if args.site is not None:
+                    site = repository.get_site(args.site)
+                    if site is None:
+                        parser.error(f"No existe el sitio {args.site!r}.")
+                    config = site.get("site_config") or {}
+                    is_cinde = (
+                        site.get("platform_id", "").casefold() == "cinde"
+                        or config.get("adapter") == "cinde"
+                    )
+                    if not is_cinde:
+                        parser.error(f"El sitio {args.site!r} no esta registrado como CINDE.")
+                    try:
+                        result = service.fetch_and_import(
+                            args.site,
+                            lambda: fetcher.fetch(
+                                site,
+                                pages=args.pages,
+                                skip_source_job_ids=(
+                                    repository.list_skipped_source_job_ids(args.site)
+                                ),
+                            ),
+                            run_kind="cinde",
+                        )
+                    except (IngestionError, ValueError, sqlite3.Error) as exc:
+                        parser.error(str(exc))
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    sites = [
+                        site
+                        for site in repository.select_sites(args.group)
+                        if (
+                            site.get("platform_id", "").casefold() == "cinde"
+                            or (site.get("site_config") or {}).get("adapter") == "cinde"
+                        )
+                    ]
+                    if not sites:
+                        parser.error(
+                            f"No hay sitios CINDE habilitados para el grupo {args.group!r}."
+                        )
+                    results = []
+                    failures = []
+                    for site in sites:
+                        site_id = site["site_id"]
+                        try:
+                            result = service.fetch_and_import(
+                                site_id,
+                                lambda site=site, site_id=site_id: fetcher.fetch(
+                                    site,
+                                    pages=args.pages,
+                                    skip_source_job_ids=(
+                                        repository.list_skipped_source_job_ids(site_id)
+                                    ),
+                                ),
+                                run_kind="cinde",
+                            )
+                        except (IngestionError, ValueError, sqlite3.Error) as exc:
+                            failures.append(
+                                {
+                                    "site_id": site_id,
+                                    "run_id": (
+                                        exc.run_id
+                                        if isinstance(exc, IngestionError)
+                                        else None
+                                    ),
+                                    "error": str(exc),
+                                }
+                            )
+                            continue
+                        results.append({"site_id": site_id, **result})
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "group",
+                                "group": args.group,
+                                "sites_selected": len(sites),
+                                "results": results,
+                                "failures": failures,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if failures:
+                        command_exit_code = 1
+
+            # === Procomer (API REST) ===
+            elif args.command == "scrape" and args.scrape_command == "procomer":
+                service = IngestionService(repository)
+                fetcher = ProcomerFetcher()
+                if args.site is not None:
+                    site = repository.get_site(args.site)
+                    if site is None:
+                        parser.error(f"No existe el sitio {args.site!r}.")
+                    config = site.get("site_config") or {}
+                    is_procomer = (
+                        site.get("platform_id", "").casefold() == "procomer"
+                        or config.get("adapter") == "procomer"
+                    )
+                    if not is_procomer:
+                        parser.error(f"El sitio {args.site!r} no esta registrado como Procomer.")
+                    try:
+                        result = service.fetch_and_import(
+                            args.site,
+                            lambda: fetcher.fetch(
+                                site,
+                                pages=args.pages,
+                                search_text=args.search_text,
+                                skip_source_job_ids=(
+                                    repository.list_skipped_source_job_ids(args.site)
+                                ),
+                            ),
+                            run_kind="procomer",
+                        )
+                    except (IngestionError, ValueError, sqlite3.Error) as exc:
+                        parser.error(str(exc))
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    sites = [
+                        site
+                        for site in repository.select_sites(args.group)
+                        if (
+                            site.get("platform_id", "").casefold() == "procomer"
+                            or (site.get("site_config") or {}).get("adapter") == "procomer"
+                        )
+                    ]
+                    if not sites:
+                        parser.error(
+                            f"No hay sitios Procomer habilitados para el grupo {args.group!r}."
+                        )
+                    results = []
+                    failures = []
+                    for site in sites:
+                        site_id = site["site_id"]
+                        try:
+                            result = service.fetch_and_import(
+                                site_id,
+                                lambda site=site, site_id=site_id: fetcher.fetch(
+                                    site,
+                                    pages=args.pages,
+                                    search_text=args.search_text,
+                                    skip_source_job_ids=(
+                                        repository.list_skipped_source_job_ids(site_id)
+                                    ),
+                                ),
+                                run_kind="procomer",
+                            )
+                        except (IngestionError, ValueError, sqlite3.Error) as exc:
+                            failures.append(
+                                {
+                                    "site_id": site_id,
+                                    "run_id": (
+                                        exc.run_id
+                                        if isinstance(exc, IngestionError)
+                                        else None
+                                    ),
+                                    "error": str(exc),
+                                }
+                            )
+                            continue
+                        results.append({"site_id": site_id, **result})
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "group",
+                                "group": args.group,
+                                "sites_selected": len(sites),
+                                "results": results,
+                                "failures": failures,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if failures:
+                        command_exit_code = 1
+
+            # === LinkedIn (browser, búsqueda por término) ===
+            elif args.command == "scrape" and args.scrape_command == "linkedin":
+                service = IngestionService(repository)
+                fetcher = LinkedInFetcher()
+                if args.site is not None:
+                    site = repository.get_site(args.site)
+                    if site is None:
+                        parser.error(f"No existe el sitio {args.site!r}.")
+                    config = site.get("site_config") or {}
+                    is_linkedin = (
+                        site.get("platform_id", "").casefold() == "linkedin"
+                        or config.get("adapter") == "linkedin"
+                    )
+                    if not is_linkedin:
+                        parser.error(f"El sitio {args.site!r} no esta registrado como LinkedIn.")
+                    try:
+                        result = service.fetch_and_import(
+                            args.site,
+                            lambda: fetcher.fetch(
+                                site,
+                                pages=args.pages,
+                                skip_source_job_ids=(
+                                    repository.list_skipped_source_job_ids(args.site)
+                                ),
+                                port=args.port,
+                            ),
+                            run_kind="linkedin",
+                        )
+                    except (IngestionError, ValueError, sqlite3.Error) as exc:
+                        parser.error(str(exc))
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    sites = [
+                        site
+                        for site in repository.select_sites(args.group)
+                        if (
+                            site.get("platform_id", "").casefold() == "linkedin"
+                            or (site.get("site_config") or {}).get("adapter") == "linkedin"
+                        )
+                    ]
+                    if not sites:
+                        parser.error(
+                            f"No hay sitios LinkedIn habilitados para el grupo {args.group!r}."
+                        )
+                    results = []
+                    failures = []
+                    for site in sites:
+                        site_id = site["site_id"]
+                        try:
+                            result = service.fetch_and_import(
+                                site_id,
+                                lambda site=site, site_id=site_id: fetcher.fetch(
+                                    site,
+                                    pages=args.pages,
+                                    skip_source_job_ids=(
+                                        repository.list_skipped_source_job_ids(site_id)
+                                    ),
+                                    port=args.port,
+                                ),
+                                run_kind="linkedin",
+                            )
+                        except (IngestionError, ValueError, sqlite3.Error) as exc:
+                            failures.append(
+                                {
+                                    "site_id": site_id,
+                                    "run_id": (
+                                        exc.run_id
+                                        if isinstance(exc, IngestionError)
+                                        else None
+                                    ),
+                                    "error": str(exc),
+                                }
+                            )
+                            continue
+                        results.append({"site_id": site_id, **result})
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "group",
+                                "group": args.group,
+                                "sites_selected": len(sites),
+                                "results": results,
+                                "failures": failures,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if failures:
+                        command_exit_code = 1
+
+            # === Indeed (browser, búsqueda por término) ===
+            elif args.command == "scrape" and args.scrape_command == "indeed":
+                service = IngestionService(repository)
+                fetcher = IndeedFetcher()
+                if args.site is not None:
+                    site = repository.get_site(args.site)
+                    if site is None:
+                        parser.error(f"No existe el sitio {args.site!r}.")
+                    config = site.get("site_config") or {}
+                    is_indeed = (
+                        site.get("platform_id", "").casefold() == "indeed"
+                        or config.get("adapter") == "indeed"
+                    )
+                    if not is_indeed:
+                        parser.error(f"El sitio {args.site!r} no esta registrado como Indeed.")
+                    try:
+                        result = service.fetch_and_import(
+                            args.site,
+                            lambda: fetcher.fetch(
+                                site,
+                                pages=args.pages,
+                                skip_source_job_ids=(
+                                    repository.list_skipped_source_job_ids(args.site)
+                                ),
+                                port=args.port,
+                            ),
+                            run_kind="indeed",
+                        )
+                    except (IngestionError, ValueError, sqlite3.Error) as exc:
+                        parser.error(str(exc))
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    sites = [
+                        site
+                        for site in repository.select_sites(args.group)
+                        if (
+                            site.get("platform_id", "").casefold() == "indeed"
+                            or (site.get("site_config") or {}).get("adapter") == "indeed"
+                        )
+                    ]
+                    if not sites:
+                        parser.error(
+                            f"No hay sitios Indeed habilitados para el grupo {args.group!r}."
+                        )
+                    results = []
+                    failures = []
+                    for site in sites:
+                        site_id = site["site_id"]
+                        try:
+                            result = service.fetch_and_import(
+                                site_id,
+                                lambda site=site, site_id=site_id: fetcher.fetch(
+                                    site,
+                                    pages=args.pages,
+                                    skip_source_job_ids=(
+                                        repository.list_skipped_source_job_ids(site_id)
+                                    ),
+                                    port=args.port,
+                                ),
+                                run_kind="indeed",
+                            )
+                        except (IngestionError, ValueError, sqlite3.Error) as exc:
+                            failures.append(
+                                {
+                                    "site_id": site_id,
+                                    "run_id": (
+                                        exc.run_id
+                                        if isinstance(exc, IngestionError)
+                                        else None
+                                    ),
+                                    "error": str(exc),
+                                }
+                            )
+                            continue
+                        results.append({"site_id": site_id, **result})
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "group",
+                                "group": args.group,
+                                "sites_selected": len(sites),
+                                "results": results,
+                                "failures": failures,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if failures:
+                        command_exit_code = 1
+
             elif args.command == "search":
                 levels = ["required"]
                 if args.include_preferred:
