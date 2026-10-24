@@ -64,24 +64,73 @@ _REQ_UL = (
 
 
 def _parse_date_es(txt: str) -> str:
-    """'Publicado el viernes, 25 de septiembre del 2026' -> '2026-09-25'."""
+    """'Publicado el viernes, 25 de septiembre del 2026' -> '2026-09-25'.
+
+    Soporta:
+      - 'Publicado el viernes, 23 de octubre del 2026' (con o sin 'del')
+      - '23 de octubre de 2026'
+      - 'hace 3 días', '2 weeks ago', etc.
+    """
     if not txt:
         return ""
-    t = txt.replace("Publicado el ", "").replace(" del ", " de ").strip()
-    meses = {
-        "enero": "01", "febrero": "02", "marzo": "03", "abril": "04",
-        "mayo": "05", "junio": "06", "julio": "07", "agosto": "08",
-        "septiembre": "09", "octubre": "10", "noviembre": "11", "diciembre": "12",
+    t = " ".join(str(txt).split())
+    low = t.lower()
+
+    # Fecha relativa: "hace N días/semanas/meses"
+    m = re.search(
+        r"(?:hace\s+)?(\d+)\s*\+?\s*"
+        r"(min|mins|minute|minutes|minuto|minutos|hour|hours|hora|horas|"
+        r"day|days|dia|dias|día|días|week|weeks|semana|semanas|"
+        r"month|months|mes|meses)\b",
+        low,
+    )
+    if m:
+        n = int(m.group(1))
+        unit = m.group(2).lower()
+        _UNITS = {
+            "min": "minutes", "mins": "minutes", "minute": "minutes",
+            "minutes": "minutes", "minuto": "minutes", "minutos": "minutes",
+            "hour": "hours", "hours": "hours", "hora": "hours", "horas": "hours",
+            "day": "days", "days": "days", "dia": "days", "dias": "days",
+            "día": "days", "días": "days",
+            "semana": "weeks", "semanas": "weeks", "week": "weeks", "weeks": "weeks",
+            "mes": "months", "meses": "months", "month": "months", "months": "months",
+        }
+        kind = _UNITS.get(unit, "days")
+        today = date.today()
+        if kind in ("minutes", "hours"):
+            return today.isoformat()
+        if kind == "days":
+            return (today - timedelta(days=n)).isoformat()
+        if kind == "weeks":
+            return (today - timedelta(weeks=n)).isoformat()
+        if kind == "months":
+            return (today - timedelta(days=30 * n)).isoformat()
+        return today.isoformat()
+
+    # Fecha absoluta: "[dia] de [mes] [de] [anio]" (maneja 'del' opcional)
+    _MONTHS_ES = {
+        "enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6,
+        "julio": 7, "agosto": 8, "septiembre": 9, "setiembre": 9, "octubre": 10,
+        "noviembre": 11, "diciembre": 12,
     }
-    try:
-        parts = t.split()
-        if len(parts) >= 5 and parts[1].isdigit() and parts[2] == "de" and parts[3] in meses:
-            dia = int(parts[1])
-            mes = meses[parts[3]]
-            anio = int(parts[4])
-            return f"{anio:04d}-{mes}-{dia:02d}"
-    except Exception:
-        pass
+    m = re.search(
+        r"(\d{1,2})\s+de\s+([a-záéíóúñ]+)(?:\s+de\s+(\d{4}))?",
+        t, re.IGNORECASE,
+    )
+    if m and m.group(2).lower() in _MONTHS_ES:
+        y = int(m.group(3)) if m.group(3) else date.today().year
+        try:
+            return date(y, _MONTHS_ES[m.group(2).lower()], int(m.group(1))).isoformat()
+        except ValueError:
+            pass
+    # ISO: 2026-10-23
+    m = re.search(r"(\d{4})-(\d{2})-(\d{2})", t)
+    if m:
+        try:
+            return date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat()
+        except ValueError:
+            pass
     return ""
 
 
