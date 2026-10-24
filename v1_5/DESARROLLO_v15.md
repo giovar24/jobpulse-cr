@@ -58,8 +58,6 @@
 | **Motor semántico / embeddings** | 🔴 Crítica | `sentence-transformers`, `torch` |
 | **Score ATS + ranking + keywords faltantes** | 🔴 Crítica | Motor semántico |
 | **CV Parsing completo (PDF/DOCX → perfil Harvard/ATS)** | 🔴 Crítica | `pypdf`, `python-docx`, extractores regex |
-| **Auto-login SSO Google (Indeed/LinkedIn)** | 🔴 Crítica | `providers/login/auto_login.py` |
-| **Providers login sitios Cloudflare/manuales** | 🔴 Crítica | `providers/login/browser_sites.py` |
 | **Dedupe cross-source (boards ↔ directos)** | 🟡 Alta | Post-ingest job o en `IngestionService` |
 | **Scheduler / launcher Windows** | 🟢 Media | `recordatorio.py`, `jobpulse-v15.cmd` |
 
@@ -90,7 +88,7 @@ def fetch(self, site: dict, *, pages: int, search_text: str | None,
     # 5. Devolver XxxOffers(offers, jobs_skipped=N)
 ```
 
-### FASE 2: Capa de Inteligencia (Semana 2-3)
+### FASE 2: Capa de Inteligencia (Semana 2-3) — **COMPLETADO**
 | Tarea | Archivo(s) | Notas |
 |-------|------------|-------|
 | `ia_api.py` | **Nuevo** | ✅ Cliente LLM compatible OpenAI (OpenRouter/NVIDIA/Gemini/Ollama/LM Studio/llama.cpp) |
@@ -98,16 +96,18 @@ def fetch(self, site: dict, *, pages: int, search_text: str | None,
 | `ats.py` | Nuevo | Score ponderado (skills 40%, título 30%, exp 15%, educ 7.5%, idiomas 7.5%) |
 | `gate.py` | Nuevo | Gate Fecha Y Relevancia → staging + curado |
 | `ia_calibracion.py` | Nuevo | Pearson/Spearman/MAE gate vs IA + umbral sugerido |
-| `cv_analysis.py` | Nuevo | Extractores regex + embeddings para CV |
-| `cv2profile.py` | Nuevo | CLI: `cv2profile.py "cv.pdf" --save` |
+| `cv_analysis.py` | Nuevo | Extractores regex + embeddings para CV → perfil Harvard/ATS |
+| `cv2profile.py` | Nuevo | CLI: `cv2profile.py "cv.pdf" --save`; conv CV → profile dict JSON |
 
-### FASE 3: Auth/Session/Browser Manager (Semana 3)
+### FASE 3: Auth/Session/Browser Manager — **COMPLETADO**
 | Tarea | Archivo(s) | Notas |
 |-------|------------|-------|
 | `browser_manager.py` | Nuevo/portado | Lanza Brave CDP, comparte cookies, host_resolver_rules |
 | `credenciales.py` | **Nuevo/portado** | ✅ Almacén local (gitignored) + lista sitios login + auto-login fallback |
-| `providers/login/auto_login.py` | Portado | SSO Google, CAPTCHA/2FA detection, fallback a manual |
-| `providers/login/browser_sites.py` | Portado | Sitios manuales (origen "manual") con selectores CSS |
+| `providers/login/auto_login.py` | **Nuevo/portado** | ✅ SSO Google (Indeed/LinkedIn), CAPTCHA/2FA detection, fallback manual |
+| `providers/login/browser_sites.py` | **Nuevo/portado** | ✅ Cloudflare Turnstile + login-wall, modos DOM/API |
+
+**Tests:** 127/127 pasan
 
 ### FASE 4: Dedupe Cross-Source + Bootstrap + Scheduler (Semana 4)
 | Tarea | Archivo(s) | Notas |
@@ -275,7 +275,7 @@ llama-server -m modelo.gguf -c 8192 --port 8080
 
 **Tests:** 127/127 pasan (excluyendo test_ui por entorno Tcl/Tk)
 
-**Próximos pasos FASE 2:** `search_engine.py` (embeddings), `ats.py`, `gate.py`, `ia_calibracion.py`
+**Próximos pasos FASE 2:** `search_engine.py` (embeddings), `ats.py`, `gate.py`, `ia_calibracion.py`, `cv_analysis.py`, `cv2profile.py` — **Todos completados. Pasar a priorizar fetchers CR o FASE 3.
 
 ---
 
@@ -308,4 +308,13 @@ llama-server -m modelo.gguf -c 8192 --port 8080
 
 **Tests:** 127/127 pasan
 
-**Pendiente FASE 3:** `providers/login/auto_login.py` (SSO Google Indeed/LinkedIn), `providers/login/browser_sites.py` (Cloudflare/manuales)
+**Completado FASE 3 (Auth/Session):**
+- **`providers/login/auto_login.py`** — SSO Google Indeed/LinkedIn (iframe GIS, popup, selector cuenta), fallback a login manual si Google pide password/CAPTCHA/2FA; user/pass 1-2 pasos con selectores configurables; `hay_login_configurable()`
+- **`providers/login/browser_sites.py`** — LoginSitesProvider con 2 modos:
+  - `dom`: extraccion por selectores CSS (card_sel, title_sel, etc.) + paginacion + deteccion Cloudflare Turnstile (auto-click checkbox) + login-wall -> registra pendiente
+  - `page_fetch`: fetch API interna del SPA (mismo origen, cookies CF) + JSONPath + dot-paths
+- Ambos usan `credenciales.py` para auto-login opt-in
+
+**Tests:** 127/127 pasan
+
+**Próximos pasos FASE 2:** `search_engine.py` (embeddings), `ats.py`, `gate.py`, `ia_calibracion.py`, `cv_analysis.py`, `cv2profile.py` — **Todos completados. Pasar a priorizar fetchers CR o FASE 3.

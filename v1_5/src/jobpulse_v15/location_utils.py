@@ -164,7 +164,7 @@ def _extract_parts(location: str) -> list[str]:
     """
     Extrae partes de la ubicación manejando ambos separadores.
     Prioridad: slash > coma (porque slash suele indicar jerarquía: provincia/cantón/distrito)
-    Filtra partes que parecen nombres de empresa.
+    Filtra partes que parecen nombres de empresa SOLO a nivel de parte individual.
     """
     if not location:
         return []
@@ -175,21 +175,35 @@ def _extract_parts(location: str) -> list[str]:
         for kw in UBICACION_GENERICA:
             if kw in p_norm:
                 return False
+        # Usar word boundaries para evitar falsos positivos (ej: "sa" en "san jose")
+        import re
         for kw in EMPRESA_KEYWORDS:
-            if kw in p_norm:
+            # Normalizar keyword también
+            kw_norm = _normalize_location_string(kw)
+            # Buscar como palabra completa
+            pattern = r"(^|[^a-z0-9])" + re.escape(kw_norm) + r"([^a-z0-9]|$)"
+            if re.search(pattern, p_norm):
                 return True
         return False
     
     # Primero intentar slash (formato: Provincia / Cantón / Distrito)
     if "/" in location:
-        parts = [p.strip() for p in location.split("/") if p.strip() and not _looks_like_empresa(p)]
+        raw_parts = [p.strip() for p in location.split("/") if p.strip()]
+        # Filtrar cada parte individualmente
+        parts = [p for p in raw_parts if not _looks_like_empresa(p)]
         if len(parts) >= 2:
             return parts
     
-    # Fallback: coma
+    # Fallback: coma - AQUÍ es donde está el problema con "HCLTech, Belen Heredia"
+    # Dividir por coma PRIMERO, luego filtrar cada parte
     if "," in location:
-        parts = [p.strip() for p in location.split(",") if p.strip() and not _looks_like_empresa(p)]
+        raw_parts = [p.strip() for p in location.split(",") if p.strip()]
+        parts = [p for p in raw_parts if not _looks_like_empresa(p)]
         if len(parts) >= 2:
+            return parts
+        # Si después de filtrar queda solo 1 parte pero la original tenía 2+,
+        # mantener las partes no-empresa (puede ser "Belen Heredia" válido)
+        if len(parts) == 1 and len(raw_parts) >= 2:
             return parts
     
     # Sin separador conocido, devolver como lista simple (si no parece empresa)
