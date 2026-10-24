@@ -625,6 +625,62 @@ class TestSourceManagerWindow(unittest.TestCase):
         finally:
             manager.close()
 
+    def test_add_recruitee_dialog_registers_grouped_source(self):
+        manager = SourceManagerWindow(self.root, self.repository)
+        try:
+            manager.open_add_recruitee()
+            self.root.update()
+            dialogs = [
+                widget
+                for widget in manager.window.winfo_children()
+                if isinstance(widget, tk.Toplevel)
+                and widget.title() == "Agregar tablero Recruitee"
+            ]
+            self.assertEqual(len(dialogs), 1)
+            dialog = dialogs[0]
+            form = dialog.winfo_children()[0]
+            entries = sorted(
+                (
+                    widget
+                    for widget in form.winfo_children()
+                    if isinstance(widget, ttk.Entry)
+                ),
+                key=lambda widget: int(widget.grid_info()["row"]),
+            )
+            for entry, value in zip(
+                entries,
+                (
+                    "acme-cr",
+                    "Acme Careers CR",
+                    "Acme",
+                    "https://acme.recruitee.com",
+                    "CR",
+                    "Costa Rica",
+                ),
+            ):
+                entry.delete(0, "end")
+                entry.insert(0, value)
+
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+
+            save_button = next(
+                widget
+                for widget in descendants(form)
+                if isinstance(widget, ttk.Button) and widget.cget("text") == "Guardar"
+            )
+            save_button.invoke()
+
+            site = self.repository.get_site("acme-cr")
+            self.assertEqual(site["platform_id"], "recruitee")
+            self.assertEqual(site["site_config"]["adapter"], "recruitee")
+            self.assertEqual(site["run_groups"], ["directos"])
+            self.assertIn("acme-cr", manager.sites_table.get_children())
+        finally:
+            manager.close()
+
     def test_workday_query_runs_only_after_explicit_confirmation(self):
         manager = SourceManagerWindow(self.root, self.repository)
         manager.sites_table.selection_set("intel-cr")
@@ -1055,6 +1111,50 @@ class TestSourceManagerWindow(unittest.TestCase):
                 "error",
             )
             showerror.assert_called_once()
+        finally:
+            manager.close()
+
+    def test_confirmed_recruitee_query_imports_in_background(self):
+        self.repository.register_platform("recruitee", "Recruitee", "api")
+        self.repository.register_site(
+            "recruitee-cr",
+            "recruitee",
+            "Recruitee Careers CR",
+            "https://acme.recruitee.com",
+            company_name="Acme",
+            country="CR",
+        )
+        manager = SourceManagerWindow(self.root, self.repository)
+        manager.sites_table.selection_set("recruitee-cr")
+        offer = {
+            "source_job_id": "REQ-RECRUITEE-1",
+            "source_url": "https://acme.recruitee.com/o/engineer",
+            "job": {
+                "job_id": "recruitee-acme-REQ-RECRUITEE-1",
+                "title": "Recruitee UI Engineer",
+                "country": "CR",
+            },
+        }
+        try:
+            with patch(
+                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui.messagebox.showinfo"
+            ), patch(
+                "jobpulse_v15.ui.RecruiteeFetcher.fetch", return_value=[offer]
+            ) as fetch:
+                manager.scrape_selected()
+                self.assertIsNotNone(manager.scrape_thread)
+                manager.scrape_thread.join(timeout=5)
+                self.assertFalse(manager.scrape_thread.is_alive())
+                self.root.after(150, self.root.quit)
+                self.root.mainloop()
+
+            fetch.assert_called_once()
+            self.assertIsNotNone(
+                self.repository.get_job("recruitee-acme-REQ-RECRUITEE-1")
+            )
+            self.assertEqual(manager.status_var.get().split(":")[0], "Corrida 1")
         finally:
             manager.close()
 

@@ -150,9 +150,10 @@ La nueva version del extractor no reanaliza historicos automaticamente; usa
 `Analizar seleccionada` para actualizar el analisis de una vacante ya guardada.
 La interfaz solo consulta la DB v1.5 y no inicia scraping automaticamente.
 La administracion de fuentes permite activar o
-pausar sitios, agregar tableros Workday, Greenhouse, Ashby y Lever, y consultar
-manualmente un tablero tras confirmacion. El boton `Historial` muestra las
-ultimas corridas de la fuente seleccionada, con su estado, conteos y errores:
+pausar sitios, agregar tableros Workday, Greenhouse, Ashby, Lever y
+Recruitee, y consultar manualmente un tablero tras confirmacion. El boton
+`Historial` muestra las ultimas corridas de la fuente seleccionada, con su
+estado, conteos y errores:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e .
@@ -324,6 +325,33 @@ modalidad no se deduce y queda `unknown` porque Lever no la expone. La UI
 permite agregar tableros Lever y consultarlos individualmente o en seleccion
 multiple, siempre tras confirmar. Las pruebas usan respuestas simuladas y no
 consultan tableros reales.
+
+### Consulta explicita de tableros Recruitee
+
+Recruitee expone un API publico por tablero. Registra la plataforma y el
+tablero con una URL HTTPS cuyo subdominio identifica la empresa:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 platform add `
+  --id recruitee --name Recruitee --provider-type api
+.\.venv\Scripts\python.exe -m jobpulse_v15 site add `
+  --id acme-cr --platform recruitee --name "Acme Careers CR" `
+  --url https://acme.recruitee.com --company Acme `
+  --country CR --group directos
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape recruitee --site acme-cr
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape recruitee --group directos
+```
+
+El adaptador consulta `https://<token>.recruitee.com/api/offers/` solo bajo
+demanda, conserva el payload original y filtra por `country_query` (por
+defecto `Costa Rica`) en el titulo, la ubicacion principal o las ubicaciones
+secundarias. Completa la descripcion con la seccion de requisitos del anuncio.
+Cuando una oferta coincidente no indica el pais en su ubicacion principal,
+guarda `<country_query> (multi-loc)` sin inferir ciudad o provincia; la
+modalidad no se deduce y queda `unknown`. La UI permite agregar tableros
+Recruitee y consultarlos individualmente o en seleccion multiple, siempre tras
+confirmar. Las pruebas usan respuestas simuladas y no consultan tableros
+reales.
 
 Workday devuelve una ubicacion original que v1.5 siempre conserva en
 `location_raw` y en el payload de origen. Para Costa Rica, el adaptador separa
