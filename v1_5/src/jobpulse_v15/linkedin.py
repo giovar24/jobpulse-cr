@@ -17,6 +17,8 @@ from urllib.parse import quote_plus
 import httpx
 from playwright.async_api import Page
 
+from jobpulse_v15.location_utils import normalize_cr_location
+
 logger = logging.getLogger("jobpulse.linkedin")
 
 DATE_RE = re.compile(
@@ -409,6 +411,7 @@ class LinkedInFetcher:
 
                     date_pub = _parse_date_relative(item["fecha_publicacion"])
 
+                    location_raw = item["ubicacion_oferta"]
                     jobs.append({
                         "source_job_id": job_id,
                         "source_url": item["link"],
@@ -417,10 +420,10 @@ class LinkedInFetcher:
                             "job_id": f"linkedin-{job_id}",
                             "title": item["titulo"],
                             "company": item["empresa"],
-                            "location_raw": item["ubicacion_oferta"],
+                            "location_raw": location_raw,
                             "country": "CR",
-                            **self._normalize_cr_location(item["ubicacion_oferta"]),
-                            "work_mode": self._detect_work_mode(item["ubicacion_oferta"]),
+                            **normalize_cr_location(location_raw),
+                            "work_mode": self._detect_work_mode(location_raw),
                             "employment_type": None,
                             "date_published": date_pub,
                             "expires_at": None,
@@ -467,21 +470,3 @@ class LinkedInFetcher:
         if any(w in loc for w in ("presencial", "onsite", "oficina", "en sitio")):
             return "onsite"
         return "unknown"
-
-    @staticmethod
-    def _normalize_cr_location(location: str) -> Dict[str, str | None]:
-        if not location:
-            return {"city": None, "region": None}
-        loc = location.lower()
-        provinces = {
-            "alajuela": "Alajuela", "cartago": "Cartago", "guanacaste": "Guanacaste",
-            "heredia": "Heredia", "limón": "Limón", "limon": "Limón",
-            "puntarenas": "Puntarenas", "san josé": "San José", "san jose": "San José",
-        }
-        for key, prov in provinces.items():
-            if key in loc:
-                parts = [p.strip() for p in location.split(",")]
-                if len(parts) >= 2 and parts[-1].lower() == key:
-                    return {"city": parts[0], "region": prov}
-                return {"city": None, "region": prov}
-        return {"city": None, "region": None}

@@ -14,6 +14,12 @@ from typing import Any, Dict, List
 import httpx
 from bs4 import BeautifulSoup
 
+from jobpulse_v15.location_utils import (
+    normalize_cr_location,
+    normalize_work_mode,
+    extract_date_from_source_updated,
+)
+
 logger = logging.getLogger("jobpulse.cinde")
 
 API_URL = "https://api.cindejobs.com/graphql"
@@ -196,20 +202,26 @@ class CindeFetcher:
                     slug = item.get("slug") or ""
                     link = _JOB_DETAIL.format(base=BASE_URL, company_slug=company_slug, slug=slug)
 
+                    location_raw = _strip_html(item.get("officeName") or "")
+                    # Usar source_updated_at del scrape como fallback para date_published
+                    from datetime import datetime
+                    scrape_date = datetime.now().isoformat()
+                    date_pub = extract_date_from_source_updated(None, scrape_date)
+                    
                     offers.append({
                         "source_job_id": raw_id,
                         "source_url": link,
-                        "source_updated_at": None,
+                        "source_updated_at": scrape_date,
                         "job": {
                             "job_id": job_id,
                             "title": title,
                             "company": _strip_html(item.get("companyName") or ""),
-                            "location_raw": _strip_html(item.get("officeName") or ""),
+                            "location_raw": location_raw,
                             "country": "CR",
-                            **self._normalize_cr_location(_strip_html(item.get("officeName") or "")),
-                            "work_mode": self._normalize_work_mode(item.get("wfhEs")),
+                            **normalize_cr_location(location_raw),
+                            "work_mode": normalize_work_mode(item.get("wfhEs")),
                             "employment_type": None,
-                            "date_published": None,  # API no expone fecha
+                            "date_published": date_pub,
                             "expires_at": None,
                             "posting_language": "es",
                             "posting_language_origin": "source",
@@ -227,19 +239,6 @@ class CindeFetcher:
 
         logger.info("CINDE: %d ofertas extraídas, %d omitidas", len(offers), skipped)
         return CindeOffers(offers, jobs_skipped=skipped)
-
-    @staticmethod
-    def _normalize_work_mode(wfh: str | None) -> str:
-        if not wfh:
-            return "unknown"
-        w = wfh.strip().lower()
-        if w in ("remoto", "remote", "teletrabajo", "100% remoto"):
-            return "remote"
-        if w in ("híbrido", "hibrido", "hybrid", "mixto", "semipresencial"):
-            return "hybrid"
-        if w in ("presencial", "onsite", "oficina", "en sitio"):
-            return "onsite"
-        return "unknown"
 
     @staticmethod
     def _normalizar_sector_fuente(category: str | None) -> str | None:
@@ -279,21 +278,3 @@ class CindeFetcher:
             if k in cat:
                 return v
         return category.strip().title()
-
-    @staticmethod
-    def _normalize_cr_location(location: str) -> Dict[str, str | None]:
-        if not location:
-            return {"city": None, "region": None}
-        loc = location.lower()
-        provinces = {
-            "alajuela": "Alajuela", "cartago": "Cartago", "guanacaste": "Guanacaste",
-            "heredia": "Heredia", "limón": "Limón", "limon": "Limón",
-            "puntarenas": "Puntarenas", "san josé": "San José", "san jose": "San José",
-        }
-        for key, prov in provinces.items():
-            if key in loc:
-                parts = [p.strip() for p in location.split(",")]
-                if len(parts) >= 2 and parts[-1].lower() == key:
-                    return {"city": parts[0], "region": prov}
-                return {"city": None, "region": prov}
-        return {"city": None, "region": None}

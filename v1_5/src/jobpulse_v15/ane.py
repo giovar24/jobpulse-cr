@@ -22,6 +22,8 @@ from typing import Any, Dict, List
 
 from playwright.async_api import BrowserContext, Page
 
+from jobpulse_v15.location_utils import normalize_cr_location
+
 logger = logging.getLogger("jobpulse.ane")
 
 BASE = "https://www.ane.cr"
@@ -235,6 +237,7 @@ class AneFetcher:
                     detalle_html = await self._obtener(page, c["url"], requiere_sesion=True)
                     det = self._parse_detalle(detalle_html, c) if detalle_html else {}
 
+                    location_raw = det.get("ubicacion") or c["ubicacion"]
                     offers.append({
                         "source_job_id": c["pid"],
                         "source_url": c["url"],
@@ -243,9 +246,9 @@ class AneFetcher:
                             "job_id": f"ane-{c['pid']}",
                             "title": det.get("titulo") or c["titulo"],
                             "company": det.get("empresa") or c["empresa"],
-                            "location_raw": det.get("ubicacion") or c["ubicacion"],
+                            "location_raw": location_raw,
                             "country": "CR",
-                            **self._normalize_cr_location(det.get("ubicacion") or c["ubicacion"]),
+                            **normalize_cr_location(location_raw),
                             "work_mode": "unknown",
                             "employment_type": None,
                             "date_published": iso,
@@ -456,21 +459,3 @@ class AneFetcher:
             "salario": self._campo(der, "Salario"),
             "vence": _parse_date_es(self._campo(der, "Fecha de vencimiento de la vacante")),
         }
-
-    @staticmethod
-    def _normalize_cr_location(location: str) -> Dict[str, str | None]:
-        if not location:
-            return {"city": None, "region": None}
-        loc = location.lower()
-        provinces = {
-            "alajuela": "Alajuela", "cartago": "Cartago", "guanacaste": "Guanacaste",
-            "heredia": "Heredia", "limón": "Limón", "limon": "Limón",
-            "puntarenas": "Puntarenas", "san josé": "San José", "san jose": "San José",
-        }
-        for key, prov in provinces.items():
-            if key in loc:
-                parts = [p.strip() for p in location.split(",")]
-                if len(parts) >= 2 and parts[-1].lower() == key:
-                    return {"city": parts[0], "region": prov}
-                return {"city": None, "region": prov}
-        return {"city": None, "region": None}

@@ -11,6 +11,8 @@ from typing import Any, Dict, List
 import httpx
 from bs4 import BeautifulSoup
 
+from jobpulse_v15.location_utils import normalize_cr_location
+
 logger = logging.getLogger("jobpulse.procomer")
 
 
@@ -125,7 +127,7 @@ class ProcomerFetcher:
                             "company": company,
                             "location_raw": location_raw or None,
                             "country": "CR",
-                            **self._normalize_cr_location(location_raw),
+                            **normalize_cr_location(location_raw),
                             "work_mode": "unknown",
                             "employment_type": None,
                             "date_published": date_pub,
@@ -146,20 +148,4 @@ class ProcomerFetcher:
         logger.info("Procomer: %d ofertas extraídas, %d omitidas", len(offers), skipped)
         return ProcomerOffers(offers, jobs_skipped=skipped)
 
-    @staticmethod
-    def _normalize_cr_location(location: str) -> Dict[str, str | None]:
-        if not location:
-            return {"city": None, "region": None}
-        loc = location.lower()
-        provinces = {
-            "alajuela": "Alajuela", "cartago": "Cartago", "guanacaste": "Guanacaste",
-            "heredia": "Heredia", "limón": "Limón", "limon": "Limón",
-            "puntarenas": "Puntarenas", "san josé": "San José", "san jose": "San José",
-        }
-        for key, prov in provinces.items():
-            if key in loc:
-                parts = [p.strip() for p in location.split(",")]
-                if len(parts) >= 2 and parts[-1].lower() == key:
-                    return {"city": parts[0], "region": prov}
-                return {"city": None, "region": prov}
-        return {"city": None, "region": None}
+    

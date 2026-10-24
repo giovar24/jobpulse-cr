@@ -17,6 +17,8 @@ from urllib.parse import quote_plus
 import httpx
 from playwright.async_api import Page
 
+from jobpulse_v15.location_utils import normalize_cr_location
+
 logger = logging.getLogger("jobpulse.indeed")
 
 _MAX_PAGES = 10
@@ -379,6 +381,7 @@ class IndeedFetcher:
                     seen.add(jk)
 
                     date_iso = _epoch_to_date(item.get("pubDate")) or _parse_date_relative(item.get("relative", ""))
+                    loc_raw = _limpiar_texto(item.get("location", "")) or location
 
                     jobs.append({
                         "source_job_id": jk,
@@ -388,9 +391,9 @@ class IndeedFetcher:
                             "job_id": f"indeed-{jk}",
                             "title": _limpiar_texto(item.get("title", "")),
                             "company": _limpiar_texto(item.get("company", "")) or "Unknown",
-                            "location_raw": _limpiar_texto(item.get("location", "")) or location,
+                            "location_raw": loc_raw,
                             "country": "CR",
-                            **self._normalize_cr_location(_limpiar_texto(item.get("location", "")) or location),
+                            **normalize_cr_location(loc_raw),
                             "work_mode": "unknown",
                             "employment_type": None,
                             "date_published": date_iso,
@@ -426,20 +429,4 @@ class IndeedFetcher:
 
         return jobs, cookies
 
-    @staticmethod
-    def _normalize_cr_location(location: str) -> Dict[str, str | None]:
-        if not location:
-            return {"city": None, "region": None}
-        loc = location.lower()
-        provinces = {
-            "alajuela": "Alajuela", "cartago": "Cartago", "guanacaste": "Guanacaste",
-            "heredia": "Heredia", "limón": "Limón", "limon": "Limón",
-            "puntarenas": "Puntarenas", "san josé": "San José", "san jose": "San José",
-        }
-        for key, prov in provinces.items():
-            if key in loc:
-                parts = [p.strip() for p in location.split(",")]
-                if len(parts) >= 2 and parts[-1].lower() == key:
-                    return {"city": parts[0], "region": prov}
-                return {"city": None, "region": prov}
-        return {"city": None, "region": None}
+    
