@@ -34,6 +34,12 @@ from jobpulse_v15.repository import (
     Repository,
 )
 from jobpulse_v15.workday import MAX_PAGES, WorkdayFetcher
+from jobpulse_v15.credenciales import (
+    lista_sitios_login, resumen, faltantes,
+    upsert_credencial, borrar_credencial, credencial,
+    agregar_sitio_login, quitar_sitio_login,
+    marcar_auto_login, registrar_requerimiento,
+)
 
 
 def _parse_requirement(value: str) -> dict[str, str]:
@@ -235,6 +241,53 @@ def main() -> int:
         action="store_true",
         help="No registrar plataformas/sitios que ya existan.",
     )
+
+    # === Credenciales y Login ===
+    cred_cmd = commands.add_parser(
+        "credenciales", help="Gestionar credenciales y lista de sitios con login."
+    )
+    cred_sub = cred_cmd.add_subparsers(dest="cred_command", required=True)
+
+    cred_list = cred_sub.add_parser("list", help="Mostrar la lista de sitios que piden login.")
+    cred_list.add_argument("--solo-faltantes", action="store_true", help="Solo sitios sin credencial.")
+    cred_list.add_argument("--resumen", action="store_true", help="Solo mostrar conteos.")
+
+    cred_set = cred_sub.add_parser("set", help="Guardar/actualizar credencial.")
+    cred_set.add_argument("--empresa", required=True)
+    cred_set.add_argument("--usuario", required=True)
+    cred_set.add_argument("--password", default="", help="Clave (opcional si usa --sso).")
+    cred_set.add_argument("--sso", choices=("google",), help="Metodo SSO (p.ej. google para Indeed/LinkedIn).")
+    cred_set.add_argument("--url", default="", help="URL de login (opcional, para auto-login).")
+    cred_set.add_argument("--auto", choices=("on", "off"), default="on", help="Activar auto-login (default: on).")
+    cred_set.add_argument("--nota", default="", help="Nota interna.")
+    cred_set.add_argument("--card-sel", default="", help="Selector CSS de tarjeta vacante (para login_sites).")
+    cred_set.add_argument("--loc-sel", default="", help="Selector CSS de ubicacion (para login_sites).")
+
+    cred_del = cred_sub.add_parser("del", help="Borrar credencial guardada.")
+    cred_del.add_argument("--empresa", required=True)
+
+    cred_auto = cred_sub.add_parser("auto", help="Activar/desactivar auto-login para una empresa.")
+    cred_auto.add_argument("--empresa", required=True)
+    cred_auto.add_argument("--estado", choices=("on", "off"), required=True)
+
+    cred_add = cred_sub.add_parser("add-site", help="Dar de alta un sitio nuevo en la lista (+ barrido si --url).")
+    cred_add.add_argument("--empresa", required=True)
+    cred_add.add_argument("--url", default="", help="URL de login (opcional, para barrido).")
+    cred_add.add_argument("--motivo", default="", help="Motivo/descripcion.")
+    cred_add.add_argument("--grupo", choices=("estatales", "boards", "directos"), default="directos")
+    cred_add.add_argument("--obligatorio", action="store_true")
+    cred_add.add_argument("--card-sel", default="")
+    cred_add.add_argument("--loc-sel", default="")
+
+    cred_rm = cred_sub.add_parser("rm-site", help="Quitar un sitio MANUAL del flujo (seeds no se tocan).")
+    cred_rm.add_argument("--empresa", required=True)
+
+    # === Login manual (abre sitios en Brave para loguearse) ===
+    login_cmd = commands.add_parser(
+        "login", help="Abrir sitios en Brave para login manual (reusa tu sesion)."
+    )
+    login_cmd.add_argument("--list", action="store_true", help="Solo listar pendientes/recomendados.")
+    login_cmd.add_argument("--verificar", action="store_true", help="Verificar sesion tras login.")
 
     run = commands.add_parser("run", help="Registrar corridas y resultados.")
     run_commands = run.add_subparsers(dest="run_command", required=True)
@@ -2089,4 +2142,90 @@ def main() -> int:
                         )
                     report["updates"].append(update)
                 print(json.dumps(report, ensure_ascii=False, indent=2))
+            # === credenciales ===
+            elif args.command == "credenciales":
+                if args.cred_command == "list":
+                    if args.resumen:
+                        print(json.dumps(resumen(), ensure_ascii=False, indent=2))
+                    else:
+                        sitios = lista_sitios_login()
+                        if args.solo_faltantes:
+                            sitios = [s for s in sitios if not s["tiene_credencial"]]
+                        print(json.dumps(sitios, ensure_ascii=False, indent=2))
+                elif args.cred_command == "resumen":
+                    print(json.dumps(resumen(), ensure_ascii=False, indent=2))
+                elif args.cred_command == "set":
+                    auto = args.auto == "on"
+                    reg = upsert_credencial(
+                        args.empresa, args.usuario, args.password,
+                        url=args.url, auto_login=auto, nota=args.nota,
+                        sso=args.sso or "", card_sel=args.card_sel, loc_sel=args.loc_sel
+                    )
+                    print(json.dumps(reg, ensure_ascii=False, indent=2))
+                elif args.cred_command == "del":
+                    ok = borrar_credencial(args.empresa)
+                    print(json.dumps({"empresa": args.empresa, "borrado": ok}, ensure_ascii=False))
+                elif args.cred_command == "auto":
+                    ok = marcar_auto_login(args.empresa, args.estado == "on")
+                    print(json.dumps({"empresa": args.empresa, "auto_login": args.estado, "ok": ok}, ensure_ascii=False))
+                elif args.cred_command == "add-site":
+                    reg = agregar_sitio_login(
+                        args.empresa, url=args.url, motivo=args.motivo,
+                        grupo=args.grupo, obligatorio=args.obligatorio,
+                        card_sel=args.card_sel, loc_sel=args.loc_sel
+                    )
+                    print(json.dumps(reg, ensure_ascii=False, indent=2))
+                elif args.cred_command == "rm-site":
+                    reg = quitar_sitio_login(args.empresa)
+                    print(json.dumps(reg, ensure_ascii=False, indent=2))
+            # === login manual ===
+            elif args.command == "login":
+                from jobpulse_v15.browser_manager import BraveManager
+                sitios = lista_sitios_login()
+                print("\n== SESIONES DE NAVEGADOR DE JOB PULSE CR v1.5 ==")
+                print("Por defecto el login lo haces A MANO en tu Brave. Para los sitios\n"
+                      "que exigen password puedes guardar tu credencial localmente:\n"
+                      "  jobpulse-v15 credenciales set --empresa \"Empresa\" --usuario X --password Y\n"
+                      "  (o --sso google para Indeed/LinkedIn)\n")
+                for s in sitios:
+                    est = ("PENDIENTE: " + (s.get("pendiente") or "")
+                           if s.get("pendiente")
+                           else ("recomendado" if s.get("recomendado") else "configurado"))
+                    print(f"  [{est}] {s['empresa']} — {s.get('url','')}")
+                    if s.get("porque"):
+                        print(f"      {s['porque'][:150]}")
+                if not any(s.get("pendiente") for s in sitios):
+                    print("\nSin pendientes bloqueantes. Los 'recomendados' (Indeed) "
+                          "suman cobertura si los activas.")
+                if args.list:
+                    return command_exit_code
+
+                print("\nSe abrira cada sitio en TU Brave (pestaña en tu sesion viva).")
+                print("Logueate con tu cuenta normal y vuelve aqui para confirmar.\n")
+                for s in sitios:
+                    url = s.get("url") or ""
+                    if not url:
+                        continue
+                    mgr = BraveManager()
+                    try:
+                        mgr.start_brave()
+                        import webbrowser
+                        webbrowser.open(url)
+                        print(f">> {s['empresa']}: {url}")
+                        r = input("   Logueado/con sesion activa? [s]=resuelto "
+                                  "[v]=verificar [n]=sigue pendiente "
+                                  "[enter]=siguiente: ").strip().lower()
+                        if r == "s" and s.get("pendiente"):
+                            from jobpulse_v15.credenciales import quitar_pendiente
+                            quitar_pendiente(s["empresa"])
+                            print("   pendiente resuelto ✓")
+                        elif r == "n":
+                            print("   queda pendiente (se reintentara en la proxima corrida)")
+                        elif r == "v":
+                            # TODO: verificar_sesion
+                            print("   verificar: (pendiente implementar)")
+                    finally:
+                        mgr.stop_brave()
+                print("\nListo. La proxima corrida reusa estas sesiones.")
+
     return command_exit_code
