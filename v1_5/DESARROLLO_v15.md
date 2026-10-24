@@ -16,7 +16,7 @@
 | **Fuentes** | Hardcoded en `main.py` | Declarativas: `platform add` + `site add` (JSON config, sin credenciales) | v1_5 **config en BD, no en código** |
 | **Dedupe** | `core/dedupe.py` (boards vs directos cross-source) | `job_field_status` + `source_job_memory` + review manual (no automerge) | v1_5 **más conservador** |
 | **Búsqueda** | Semántica (embeddings) + ATS score + keywords | SQL estructurada (texto + filtros + requisitos + `profile_compatibility`) | **Principal tiene IA; v1_5 no aún** |
-| **IA/Embeddings** | `sentence-transformers` + `core/ia_api.py` (Gemini/NVIDIA/OpenRouter) | **No implementado** | **Gap crítico** |
+| **IA/Embeddings** | `sentence-transformers` + `core/ia_api.py` (Gemini/NVIDIA/OpenRouter) | `ia_api.py` (OpenAI-compatible: OpenRouter/NVIDIA/Gemini/Ollama/LM Studio/llama.cpp) | ✅ **Cliente IA externa completo** |
 | **CV Parsing** | `cv2profile.py` + `reporte_cv.py` (PDF→perfil Harvard/ATS completo) | UI `Mi perfil` + importación básica (extractores limitados) | **Gap crítico** |
 | **Auth/Session** | `core/browser_manager.py` + `hacer_login.py` + `credenciales.py` + `providers/login/` | **No implementado** (solo scrapers API-only) | **Gap crítico para ANE/LinkedIn/Indeed** |
 | **Scheduler** | `recordatorio.py` + `jobpulse.cmd` (login + recordatorio Windows) | **No implementado** | Gap medio |
@@ -57,11 +57,9 @@
 |------------|-----------|--------------|
 | **Motor semántico / embeddings** | 🔴 Crítica | `sentence-transformers`, `torch` |
 | **Score ATS + ranking + keywords faltantes** | 🔴 Crítica | Motor semántico |
-| **IA externa (calibración, re-evaluación crudo, CV)** | 🔴 Crítica | `openai` client compatible (OpenRouter/NVIDIA/Gemini/Ollama) |
 | **CV Parsing completo (PDF/DOCX → perfil Harvard/ATS)** | 🔴 Crítica | `pypdf`, `python-docx`, extractores regex |
 | **Gestión credenciales + auto-login + sesiones Brave** | 🔴 Crítica | `browser_manager.py`, `credenciales.py`, `providers/login/` |
 | **Dedupe cross-source (boards ↔ directos)** | 🟡 Alta | Post-ingest job o en `IngestionService` |
-| **Bootstrap automático fuentes CR** | 🟡 Alta | Script `init-sources` |
 | **Scheduler / launcher Windows** | 🟢 Media | `recordatorio.py`, `jobpulse-v15.cmd` |
 
 ---
@@ -78,7 +76,7 @@
 | Completar Procomer fetcher + CLI | `procomer.py`, `cli.py` | `scrape procomer --site procomer-cr --pages 5` | 🔄 80% |
 | Completar LinkedIn fetcher + CLI | `linkedin.py`, `cli.py` | `scrape linkedin --site linkedin-cr --pages 2 --port 9222` | 🔄 80% |
 | Completar Indeed fetcher + CLI | `indeed.py`, `cli.py` | `scrape indeed --site indeed-cr --pages 2 --port 9222` | 🔄 80% |
-| **Bootstrap fuentes CR** | `cli.py` (nuevo comando `init-sources`) | `jobpulse-v15 init-sources` | ❌ |
+| **Bootstrap fuentes CR** | `cli.py` (comando `init-sources`) | `jobpulse-v15 init-sources` | ✅ **Completo** |
 
 **Patrón obligatorio para cada fetcher**:
 ```python
@@ -94,10 +92,10 @@ def fetch(self, site: dict, *, pages: int, search_text: str | None,
 ### FASE 2: Capa de Inteligencia (Semana 2-3)
 | Tarea | Archivo(s) | Notas |
 |-------|------------|-------|
+| `ia_api.py` | **Nuevo** | ✅ Cliente LLM compatible OpenAI (OpenRouter/NVIDIA/Gemini/Ollama/LM Studio/llama.cpp) |
 | `search_engine.py` | Nuevo | Embeddings locales + cache incremental + expansión ES↔EN |
 | `ats.py` | Nuevo | Score ponderado (skills 40%, título 30%, exp 15%, educ 7.5%, idiomas 7.5%) |
 | `gate.py` | Nuevo | Gate Fecha Y Relevancia → staging + curado |
-| `ia_api.py` | Nuevo | Cliente LLM compatible OpenAI (OpenRouter/NVIDIA/Gemini/Ollama) |
 | `ia_calibracion.py` | Nuevo | Pearson/Spearman/MAE gate vs IA + umbral sugerido |
 | `cv_analysis.py` | Nuevo | Extractores regex + embeddings para CV |
 | `cv2profile.py` | Nuevo | CLI: `cv2profile.py "cv.pdf" --save` |
@@ -232,3 +230,48 @@ py -3.11 -m venv .venv
 
 *Última actualización: 2026-10-23*
 *Próxima revisión: tras completar FASE 1 (5 scrapers CR + CLI + bootstrap)*
+
+---
+
+## 8. HISTORIAL DE CAMBIOS RECENTES
+
+### 2026-10-24 — IA Externa: cliente OpenAI-compatible (`ia_api.py`) + `init-sources` completado
+
+**Implementado:**
+- **`ia_api.py`** — Cliente IA externa compatible OpenAI con 6 presets:
+  - `openrouter` — openrouter.ai/api/v1 (modelo default: `~openai/gpt-latest`)
+  - `nvidia` — integrate.api.nvidia.com/v1 (modelo default: `openai/gpt-oss-20b`)
+  - `google` — generativelanguage.googleapis.com/v1beta/openai/ (modelo default: `gemini-2.5-flash`)
+  - `ollama` — ollama.com/v1 o localhost:11434/v1 (auto-detecta modelo via `/models`)
+  - `lmstudio` — localhost:1234/v1 (auto-detecta modelo via `/models`)
+  - `custom` — cualquier endpoint OpenAI-compatible (**llama.cpp**, vLLM, etc.)
+
+**Características clave:**
+- Cache persistente en disco (hash determinista: proveedor + modelo + mensajes + PROMPT_VERSION)
+- Rate limiting configurable (RPM) + reintentos automáticos en 429/5xx
+- `chat_json()` con `response_format` json_schema/json_object para respuestas estructuradas
+- `listar_modelos()` consulta GET /models en vivo (sin hardcodear modelos)
+- Errores tipados: `IAModeloError` (404/410 fatal), `IACuotaError` (402/429)
+- Hash de vacante/CV para cache determinista
+- `PROMPT_VERSION = "v3"` invalida cache al cambiar prompts
+
+**Configuración llama.cpp / LM Studio (local):**
+```bash
+# .env
+IA_PROVEEDOR=custom
+IA_BASE_URL=http://localhost:8080/v1
+IA_MODEL=llama-3.1-8b-instruct
+IA_API_KEY=sk-no-key-needed
+
+# Levantar llama.cpp
+llama-server -m modelo.gguf -c 8192 --port 8080
+```
+
+**Comando `init-sources` completado:**
+- Registra 12 plataformas + 5 sitios CR automáticamente
+- `--skip-existing` para idempotencia
+- Grupos configurables: `--group-gov cr-gov` / `--group-jobs cr-jobs`
+
+**Tests:** 127/127 pasan (excluyendo test_ui por entorno Tcl/Tk)
+
+**Próximos pasos FASE 2:** `search_engine.py` (embeddings), `ats.py`, `gate.py`, `ia_calibracion.py`
