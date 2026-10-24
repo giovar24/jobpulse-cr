@@ -1113,6 +1113,11 @@ class JobPulseWindow:
             text="Respaldar DB",
             command=self.backup_database,
         ).pack(side="right", anchor="ne", padx=(0, 8))
+        ttk.Button(
+            heading,
+            text="Configuraci\u00f3n",
+            command=self.open_configuration,
+        ).pack(side="right", anchor="ne", padx=(0, 8))
 
         filters = ttk.LabelFrame(outer, text="Filtros", padding=10)
         filters.grid(row=1, column=0, sticky="ew", pady=(0, 10))
@@ -2202,6 +2207,20 @@ class JobPulseWindow:
             self.repository,
             on_import_complete=self.search_jobs,
         )
+
+    def open_configuration(self) -> None:
+        """Abre la ventana de configuraci\u00f3n global."""
+        from jobpulse_v15.configuration_window import ConfigurationWindow
+        
+        if (
+            hasattr(self, '_config_window')
+            and self._config_window is not None
+            and self._config_window.window.winfo_exists()
+        ):
+            self._config_window.window.deiconify()
+            self._config_window.window.lift()
+            return
+        self._config_window = ConfigurationWindow(self.root, self.repository)
 
 
 class SourceManagerWindow:
