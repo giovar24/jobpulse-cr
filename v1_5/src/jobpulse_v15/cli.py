@@ -87,6 +87,75 @@ def _extract_job_analysis(repository: Repository, job_id: str) -> dict[str, Any]
     }
 
 
+def _cmd_init_sources(repository: Repository, args) -> None:
+    """Registra automáticamente las plataformas y sitios de Costa Rica por defecto.
+
+    Este comando crea la configuración base de fuentes para v1.5:
+    - Plataformas: ANE, CINDE, Procomer, LinkedIn, Indeed, Workday, Greenhouse,
+      Ashby, Lever, Recruitee, Workable, SuccessFactors
+    - Sitios: Uno por cada plataforma con configuración CR
+    """
+    group_gov = args.group_gov
+    group_jobs = args.group_jobs
+    skip = args.skip_existing
+
+    # 1. Registrar plataformas
+    platforms = [
+        ("ane", "ANE/Brete", "browser", "es"),
+        ("cinde", "CINDE Jobs", "api", "es"),
+        ("procomer", "Procomer", "api", "es"),
+        ("linkedin", "LinkedIn", "browser", "es"),
+        ("indeed", "Indeed CR", "browser", "es"),
+        ("workday", "Workday", "api", "en"),
+        ("greenhouse", "Greenhouse", "api", "en"),
+        ("ashby", "Ashby", "api", "en"),
+        ("lever", "Lever", "api", "en"),
+        ("recruitee", "Recruitee", "api", "en"),
+        ("workable", "Workable", "api", "en"),
+        ("successfactors", "SuccessFactors", "rss", "en"),
+    ]
+
+    for pid, name, ptype, lang in platforms:
+        if skip:
+            existing = repository.get_platform(pid)
+            if existing:
+                print(f"Plataforma ya existe (omitida): {pid}")
+                continue
+        repository.register_platform(pid, name, ptype, lang)
+        print(f"Plataforma registrada: {pid}")
+
+    # 2. Registrar sitios CR
+    sites = [
+        # Gobierno / portales estatales
+        ("ane-cr", "ane", "ANE Costa Rica", "https://www.ane.cr", "ANE", "CR",
+         [group_gov], {"search_text": "Soporte", "pages": 15}),
+        ("cinde-cr", "cinde", "CINDE Jobs", "https://cindejobs.com", "CINDE", "CR",
+         [group_gov], {"search_text": "Costa Rica", "pages": 10}),
+        ("procomer-cr", "procomer", "Procomer CR", "https://talento.procomer.com", "PROCOMER", "CR",
+         [group_gov], {"search_text": "Soporte", "pages": 5}),
+        # Job boards (agregadores)
+        ("linkedin-cr", "linkedin", "LinkedIn CR", "https://www.linkedin.com/jobs/search/",
+         "LinkedIn", "CR", [group_jobs], {"search_text": "Soporte Técnico", "pages": 2}),
+        ("indeed-cr", "indeed", "Indeed CR", "https://cr.indeed.com/jobs",
+         "Indeed", "CR", [group_jobs], {"search_text": "Soporte Técnico", "pages": 2}),
+    ]
+
+    for site_id, platform, name, url, company, country, groups, config in sites:
+        if skip:
+            existing = repository.get_site(site_id)
+            if existing:
+                print(f"Sitio ya existe (omitido): {site_id}")
+                continue
+        repository.register_site(
+            site_id, platform, name, url,
+            company_name=company, country=country,
+            run_groups=groups, enabled=True, site_config=config
+        )
+        print(f"Sitio registrado: {site_id} (plataforma: {platform}, grupos: {groups})")
+
+    print("\n[OK] Fuentes CR inicializadas. Usa 'jobpulse-v15 site list --enabled-only' para verlas.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="jobpulse-v15")
     parser.add_argument(
@@ -145,6 +214,27 @@ def main() -> int:
     site_commands.add_parser(
         "mark-reviewed", help="Limpiar la bandera de revision manual."
     ).add_argument("--id", required=True)
+
+    # === Bootstrap automático de fuentes Costa Rica ===
+    init_sources = commands.add_parser(
+        "init-sources",
+        help="Registra automáticamente las plataformas y sitios de Costa Rica por defecto.",
+    )
+    init_sources.add_argument(
+        "--group-gov",
+        default="cr-gov",
+        help="Grupo para sitios gubernamentales (ANE, CINDE, Procomer).",
+    )
+    init_sources.add_argument(
+        "--group-jobs",
+        default="cr-jobs",
+        help="Grupo para sitios de empleo general (LinkedIn, Indeed).",
+    )
+    init_sources.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="No registrar plataformas/sitios que ya existan.",
+    )
 
     run = commands.add_parser("run", help="Registrar corridas y resultados.")
     run_commands = run.add_subparsers(dest="run_command", required=True)
@@ -580,6 +670,8 @@ def main() -> int:
                 if not repository.mark_site_reviewed(args.id):
                     parser.error(f"No existe el sitio {args.id!r}.")
                 print(f"Sitio {args.id}: revision marcada como resuelta.")
+            elif args.command == "init-sources":
+                _cmd_init_sources(repository, args)
             elif args.command == "run" and args.run_command == "start":
                 run_id = repository.start_run(args.kind, args.group)
                 print(f"Corrida {run_id} iniciada.")
