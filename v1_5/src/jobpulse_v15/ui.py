@@ -12,28 +12,33 @@ from dataclasses import replace
 from tkinter import filedialog, messagebox, ttk
 from typing import Any, Mapping, Sequence
 
+from jobpulse_v15.ane import AneFetcher
 from jobpulse_v15.analysis import EXTRACTOR_VERSION, RuleBasedExtractor
 from jobpulse_v15.ashby import AshbyFetcher
 from jobpulse_v15.candidate_profile import (
     CandidateProfileImport,
     extract_candidate_profile,
 )
+from jobpulse_v15.cinde import CindeFetcher
 from jobpulse_v15.db import Database
 from jobpulse_v15.exports import (
     PROFILE_COMPATIBILITY_LABELS,
     write_job_search_csv,
 )
 from jobpulse_v15.greenhouse import GreenhouseFetcher
-from jobpulse_v15.lever import LeverFetcher
-from jobpulse_v15.recruitee import RecruiteeFetcher
-from jobpulse_v15.successfactors import SuccessFactorsFetcher
-from jobpulse_v15.workable import WorkableFetcher
 from jobpulse_v15.ingestion import IngestionError, IngestionService
+from jobpulse_v15.indeed import IndeedFetcher
+from jobpulse_v15.lever import LeverFetcher
+from jobpulse_v15.linkedin import LinkedInFetcher
+from jobpulse_v15.procomer import ProcomerFetcher
+from jobpulse_v15.recruitee import RecruiteeFetcher
 from jobpulse_v15.repository import (
     REQUIREMENT_CATEGORIES as REVIEW_CATEGORIES,
     Repository,
     job_review_reasons,
 )
+from jobpulse_v15.successfactors import SuccessFactorsFetcher
+from jobpulse_v15.workable import WorkableFetcher
 from jobpulse_v15.workday import MAX_PAGES, WorkdayFetcher
 
 
@@ -1117,6 +1122,11 @@ class JobPulseWindow:
             heading,
             text="Configuraci\u00f3n",
             command=self.open_configuration,
+        ).pack(side="right", anchor="ne", padx=(0, 8))
+        ttk.Button(
+            heading,
+            text="Scrape",
+            command=self.open_scrape_dialog,
         ).pack(side="right", anchor="ne", padx=(0, 8))
 
         filters = ttk.LabelFrame(outer, text="Filtros", padding=10)
@@ -2207,6 +2217,201 @@ class JobPulseWindow:
             self.repository,
             on_import_complete=self.search_jobs,
         )
+
+    def open_scrape_dialog(self) -> None:
+        """Abre el diálogo para ejecutar scrapers desde la UI principal."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Scrape - JobPulse CR 1.5")
+        dialog.geometry("500x400")
+        dialog.minsize(450, 350)
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        frame = ttk.Frame(dialog, padding=15)
+        frame.grid(row=0, column=0, sticky="nsew")
+        dialog.rowconfigure(0, weight=1)
+        dialog.columnconfigure(0, weight=1)
+        frame.rowconfigure(2, weight=1)
+        frame.columnconfigure(0, weight=1)
+
+        # Título
+        ttk.Label(
+            frame,
+            text="Seleccionar fuente y ejecutar barrido",
+            font=("Segoe UI", 12, "bold"),
+        ).grid(row=0, column=0, sticky="w", pady=(0, 15))
+
+        # Selección de fuente
+        ttk.Label(frame, text="Fuente:").grid(row=1, column=0, sticky="w", pady=5)
+        fuente_var = tk.StringVar(value="cinde")
+        fuente_combo = ttk.Combobox(
+            frame,
+            textvariable=fuente_var,
+            values=[
+                ("CINDE (API)", "cinde"),
+                ("Procomer (API)", "procomer"),
+                ("ANE (Brave CDP)", "ane"),
+                ("Indeed (Brave CDP)", "indeed"),
+                ("LinkedIn (Brave CDP)", "linkedin"),
+            ],
+            state="readonly",
+            width=40,
+        )
+        fuente_combo.grid(row=2, column=0, sticky="ew", pady=5)
+
+        # Páginas
+        ttk.Label(frame, text="Páginas:").grid(row=3, column=0, sticky="w", pady=5)
+        pages_var = tk.StringVar(value="2")
+        pages_spin = ttk.Spinbox(frame, from_=1, to=50, textvariable=pages_var, width=10)
+        pages_spin.grid(row=4, column=0, sticky="w", pady=5)
+
+        # Puerto Brave CDP
+        ttk.Label(frame, text="Puerto CDP Brave:").grid(row=5, column=0, sticky="w", pady=5)
+        port_var = tk.StringVar(value="9222")
+        port_spin = ttk.Spinbox(frame, from_=1024, to=65535, textvariable=port_var, width=10)
+        port_spin.grid(row=6, column=0, sticky="w", pady=5)
+
+        # Área de resultados
+        ttk.Label(frame, text="Resultado:").grid(row=7, column=0, sticky="nw", pady=5)
+        resultado_text = tk.Text(frame, height=8, width=50, wrap="word")
+        resultado_text.grid(row=8, column=0, sticky="nsew", pady=5)
+        scroll = ttk.Scrollbar(frame, orient="vertical", command=resultado_text.yview)
+        scroll.grid(row=8, column=1, sticky="ns")
+        resultado_text.configure(yscrollcommand=scroll.set)
+
+        # Estado
+        status_var = tk.StringVar(value="Listo")
+        status_label = ttk.Label(frame, textvariable=status_var, foreground="gray")
+        status_label.grid(row=9, column=0, sticky="w", pady=5)
+
+        def _ejecutar():
+            fuente = fuente_var.get()
+            try:
+                pages = int(pages_var.get())
+            except ValueError:
+                pages = 2
+            try:
+                port = int(port_var.get())
+            except ValueError:
+                port = 9222
+
+            resultado_text.delete("1.0", "end")
+            resultado_text.insert("end", "Iniciando barrido...\n")
+            status_var.set("Ejecutando...")
+            dialog.update()
+
+            def _run():
+                import asyncio
+                from jobpulse_v15.db import Database
+                from jobpulse_v15.repository import Repository
+
+                db = Database()
+                db.initialize()
+                repo = Repository(db)
+                service = IngestionService(repo)
+
+                try:
+                    if fuente == "cinde":
+                        fetcher = CindeFetcher()
+                        site = repo.get_site("cinde-cr")
+                        if not site:
+                            raise ValueError("Sitio cinde-cr no encontrado en la BD")
+                        result = service.fetch_and_import(
+                            "cinde-cr",
+                            lambda: fetcher.fetch(site, pages=pages),
+                            run_kind="cinde",
+                        )
+                    elif fuente == "procomer":
+                        fetcher = ProcomerFetcher()
+                        site = repo.get_site("procomer-cr")
+                        if not site:
+                            raise ValueError("Sitio procomer-cr no encontrado en la BD")
+                        result = service.fetch_and_import(
+                            "procomer-cr",
+                            lambda: fetcher.fetch(site, pages=pages),
+                            run_kind="procomer",
+                        )
+                    elif fuente == "ane":
+                        fetcher = AneFetcher()
+                        site = repo.get_site("ane-cr")
+                        if not site:
+                            raise ValueError("Sitio ane-cr no encontrado en la BD")
+                        result = service.fetch_and_import(
+                            "ane-cr",
+                            lambda: fetcher.fetch(
+                                site, pages=pages, port=port, dias=30
+                            ),
+                            run_kind="ane",
+                        )
+                    elif fuente == "indeed":
+                        fetcher = IndeedFetcher()
+                        site = repo.get_site("indeed-cr")
+                        if not site:
+                            raise ValueError("Sitio indeed-cr no encontrado en la BD")
+                        result = service.fetch_and_import(
+                            "indeed-cr",
+                            lambda: fetcher.fetch(site, pages=pages, port=port),
+                            run_kind="indeed",
+                        )
+                    elif fuente == "linkedin":
+                        fetcher = LinkedInFetcher()
+                        site = repo.get_site("linkedin-cr")
+                        if not site:
+                            raise ValueError("Sitio linkedin-cr no encontrado en la BD")
+                        result = service.fetch_and_import(
+                            "linkedin-cr",
+                            lambda: fetcher.fetch(site, pages=pages, port=port),
+                            run_kind="linkedin",
+                        )
+                    else:
+                        raise ValueError("Fuente no reconocida")
+
+                    dialog.after(0, lambda: _mostrar_resultado(result))
+                except Exception as e:
+                    dialog.after(0, lambda: _mostrar_error(str(e)))
+
+            def _mostrar_resultado(result):
+                resultado_text.delete("1.0", "end")
+                resultado_text.insert(
+                    "end",
+                    "Barrido completado:\n"
+                    "  Ofertas encontradas: %d\n"
+                    "  Ofertas válidas: %d\n"
+                    "  Ofertas nuevas: %d\n"
+                    "  Ofertas duplicadas: %d\n"
+                    "  Ofertas omitidas: %d\n"
+                    % (
+                        result.get("jobs_found", 0),
+                        result.get("jobs_valid", 0),
+                        result.get("jobs_new", 0),
+                        result.get("jobs_duplicate", 0),
+                        result.get("jobs_skipped", 0),
+                    )
+                )
+                status_var.set("Completado")
+                messagebox.showinfo(
+                    "Barrido completado",
+                    "Se importaron %d ofertas nuevas." % result.get("jobs_new", 0),
+                    parent=dialog,
+                )
+
+            def _mostrar_error(msg):
+                resultado_text.delete("1.0", "end")
+                resultado_text.insert("end", "Error: %s\n" % msg)
+                status_var.set("Error")
+                messagebox.showerror("Error en el barrido", msg, parent=dialog)
+
+            # Ejecutar en hilo separado para no bloquear la UI
+            hilo = threading.Thread(target=_run, daemon=True)
+            hilo.start()
+
+        # Botones
+        btn_frame = ttk.Frame(frame)
+        btn_frame.grid(row=10, column=0, sticky="ew", pady=15)
+        ttk.Button(btn_frame, text="Ejecutar barrido", command=_ejecutar).pack(
+            side="left", padx=(0, 8)
+        )
+        ttk.Button(btn_frame, text="Cerrar", command=dialog.destroy).pack(side="right")
 
     def open_configuration(self) -> None:
         """Abre la ventana de configuraci\u00f3n global."""

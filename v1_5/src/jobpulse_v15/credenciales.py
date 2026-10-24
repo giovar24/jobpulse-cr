@@ -369,16 +369,18 @@ def credencial(empresa: str) -> Optional[dict]:
 def upsert_credencial(empresa: str, usuario: str, password: str = "",
                       url: str = "", auto_login: bool = True,
                       nota: str = "", sso: str = "",
-                      card_sel: str = "", loc_sel: str = "") -> dict:
+                      card_sel: str = "", loc_sel: str = "",
+                      obligatorio: bool = False) -> dict:
     """Guarda una credencial. `password` puede ir vacio si `sso` indica el
     metodo de acceso (p.ej. sso="google" para Indeed, que no tiene clave).
 
     Si el sitio NO existia en el flujo (no esta ni en LA LISTA ni en el
     barrido), se da de alta solo: asi una URL nueva guardada desde la
     pestaña Credenciales/CLI entra al programa en vez de quedar huérfana.
+
+    Si no hay password ni SSO, se guarda solo el registro (para login manual
+    posterior). El scraper pedira sesion cuando lo necesite.
     """
-    if not (password or sso):
-        raise ValueError("hace falta password o un metodo SSO (ej. google)")
     era_nuevo = not sitio_en_flujo(empresa)
     data = cargar_credenciales()
     clave = _norm(empresa)
@@ -407,7 +409,24 @@ def upsert_credencial(empresa: str, usuario: str, password: str = "",
             card_sel=card_sel, loc_sel=loc_sel)
     # tener credencial activa el auto-login del sitio en el registro
     marcar_auto_login(empresa, bool(auto_login))
+    # actualizar obligatorio en login_requerido.json
+    try:
+        marcar_obligatorio(empresa, bool(obligatorio))
+    except Exception:
+        pass
     return reg
+
+
+def marcar_obligatorio(empresa: str, valor: bool) -> bool:
+    """Marca si un sitio es obligatorio en login_requerido.json."""
+    with _LOCK:
+        data = cargar_requeridos()
+        for it in data:
+            if _norm(it.get("empresa", "")) == _norm(empresa):
+                it["obligatorio"] = bool(valor)
+                it["ts"] = _ahora()
+                return guardar_requeridos(data)
+    return False
 
 
 def borrar_credencial(empresa: str) -> bool:

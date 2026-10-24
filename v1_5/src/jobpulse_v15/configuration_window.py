@@ -118,6 +118,13 @@ class ConfigurationWindow:
         # Botones inferiores
         btn_frame = ttk.Frame(main_frame)
         btn_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        
+        # Botón guardar credenciales (si está en la pestaña de credenciales)
+        self.btn_guardar_cred = ttk.Button(
+            btn_frame, text="Guardar credenciales", command=self._guardar_credenciales_ui
+        )
+        self.btn_guardar_cred.pack(side="right", padx=(0, 8))
+        
         ttk.Button(btn_frame, text="Guardar todo", command=self._save_all).pack(side="right")
         ttk.Button(btn_frame, text="Cerrar", command=self.close).pack(side="right", padx=(0, 8))
 
@@ -646,29 +653,39 @@ class ConfigurationWindow:
         # Credenciales
         self._refresh_cred_list()
 
-    def _save_all(self) -> None:
-        """Guarda todas las configuraciones."""
-        # IA Provider -> .env (solo lectura, no escribimos .env aqu\u00ed)
-        # El usuario debe editar .env manualmente o usar CLI
-        
-        # UI prefs -> archivo JSON
-        ui_cfg = {
-            "theme": self.ui_theme_var.get(),
-            "font_size": self.ui_font_size_var.get(),
-            "save_geometry": self.ui_save_geom_var.get(),
-            "confirm_exit": self.ui_confirm_exit_var.get(),
-        }
-        _save_ui_config(ui_cfg)
-        
-        # Scraping -> podr\u00eda guardarse en .env o DB, por ahora solo feedback
-        messagebox.showinfo(
-            "Guardado",
-            "Preferencias de UI guardadas.\n\n"
-            "Nota: La configuraci\u00f3n de IA (proveedor, URL, modelo, key) "
-            "debe editarse en el archivo .env manualmente.\n"
-            "Las preferencias de scraping se usan en memoria durante la sesi\u00f3n.",
-            parent=self.window
-        )
+    def _guardar_credenciales_ui(self) -> None:
+        """Guarda las credenciales del formulario actual."""
+        empresa = self.cred_empresa_var.get().strip()
+        if not empresa:
+            messagebox.showwarning(
+                "Empresa requerida", 
+                "Ingrese el nombre de la empresa.", 
+                parent=self.window
+            )
+            return
+        try:
+            upsert_credencial(
+                empresa=empresa,
+                usuario=self.cred_usuario_var.get().strip() or None,
+                password=self.cred_password_var.get() or None,
+                sso=self.cred_sso_var.get().strip() or None,
+                auto_login=self.cred_auto_var.get(),
+                url=self.cred_url_var.get().strip() or None,
+                obligatorio=self.cred_obligatorio_var.get(),
+            )
+            if self.cred_auto_var.get():
+                marcar_auto_login(empresa, True)
+            else:
+                marcar_auto_login(empresa, False)
+            self._refresh_cred_list()
+            self._cred_clear_form()
+            messagebox.showinfo(
+                "Guardado", 
+                f"Credencial de {empresa} guardada en data/empresas/credenciales.json.", 
+                parent=self.window
+            )
+        except Exception as e:
+            messagebox.showerror("Error guardando credencial", str(e), parent=self.window)
 
     def close(self) -> None:
         self.window.destroy()
