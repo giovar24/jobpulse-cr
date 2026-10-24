@@ -142,6 +142,22 @@ class Repository:
         platform["enabled"] = bool(platform["enabled"])
         return platform
 
+    def list_platforms(self) -> list[dict[str, Any]]:
+        """Lista todas las plataformas de scraping registradas."""
+        with self.database.connection() as connection:
+            rows = connection.execute(
+                "SELECT * FROM source_platforms ORDER BY name"
+            ).fetchall()
+        platforms = []
+        for row in rows:
+            platform = dict(row)
+            platform["default_config"] = json.loads(
+                platform.pop("default_config_json")
+            )
+            platform["enabled"] = bool(platform["enabled"])
+            platforms.append(platform)
+        return platforms
+
     def register_site(
         self,
         site_id: str,

@@ -2221,13 +2221,14 @@ class JobPulseWindow:
     def open_scrape_dialog(self) -> None:
         """Abre el diálogo para ejecutar scrapers desde la UI principal.
 
-        Lee los sitios configurados en la BD y permite ejecutar el barrido
-        de uno o varios, sin necesidad de usar la CLI.
+        Lista solo las fuentes ACTIVAS agrupadas por plataforma de
+        scraping (ane, cinde, procomer, indeed, linkedin...). Las
+        pausadas se activan desde 'Administrar fuentes'.
         """
         dialog = tk.Toplevel(self.root)
         dialog.title("Scrape - JobPulse CR 1.5")
-        dialog.geometry("700x520")
-        dialog.minsize(600, 450)
+        dialog.geometry("780x560")
+        dialog.minsize(660, 480)
         dialog.transient(self.root)
         dialog.grab_set()
 
@@ -2238,67 +2239,101 @@ class JobPulseWindow:
         frame.rowconfigure(2, weight=1)
         frame.columnconfigure(0, weight=1)
 
-        # Título
+        resumen_var = tk.StringVar(value="Cargando scrapers...")
         ttk.Label(
             frame,
-            text="Seleccionar fuente y ejecutar barrido",
+            textvariable=resumen_var,
             font=("Segoe UI", 12, "bold"),
-        ).grid(row=0, column=0, sticky="w", pady=(0, 15))
+        ).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        ttk.Label(
+            frame,
+            text=(
+                "Marca los sitios a ejecutar. Solo se muestran las fuentes "
+                "activas; pausa o agrega fuentes en 'Administrar fuentes'."
+            ),
+            foreground="gray",
+        ).grid(row=1, column=0, sticky="w", pady=(0, 8))
 
-        # Lista de sitios configurados
-        ttk.Label(frame, text="Fuentes configuradas:").grid(
-            row=1, column=0, sticky="w", pady=5
-        )
-
-        # Treeview con checkbox simulado (checkbox column)
-        columns = ("seleccionar", "sitio", "plataforma", "tipo", "paginas")
+        columns = ("tipo", "estado", "paginas")
         tree = ttk.Treeview(
-            frame, columns=columns, show="headings", selectmode="extended"
+            frame, columns=columns, show="tree headings", selectmode="none"
         )
-        tree.heading("seleccionar", text="✓")
-        tree.heading("sitio", text="Sitio")
-        tree.heading("plataforma", text="Plataforma")
-        tree.heading("tipo", text="Tipo")
-        tree.heading("paginas", text="Páginas")
-        tree.column("seleccionar", width=50, minwidth=40, anchor="center")
-        tree.column("sitio", width=150, minwidth=100)
-        tree.column("plataforma", width=120, minwidth=80)
-        tree.column("tipo", width=90, minwidth=60)
-        tree.column("paginas", width=60, minwidth=50, anchor="center")
-
-        # Cargar sitios desde la BD
-        sitios = self.repository.list_sites()
-        site_vars: dict[str, tk.BooleanVar] = {}
-        for site in sitios:
-            site_id = site.get("site_id", "")
-            site_name = site.get("site_name", site_id)
-            platform_id = site.get("platform_id", "")
-            provider_type = site.get("provider_type", "api")
-            site_config = site.get("site_config") or {}
-            pages = site_config.get("pages", 2)
-            var = tk.BooleanVar(value=True)  # seleccionado por defecto
-            site_vars[site_id] = var
-            tree.insert(
-                "", "end",
-                iid=site_id,
-                values=("✓" if var.get() else "○", site_name, platform_id, provider_type, pages),
-            )
+        tree.heading("#0", text="Scraper / Fuente", anchor="w")
+        tree.heading("tipo", text="Tipo", anchor="w")
+        tree.heading("estado", text="Estado", anchor="w")
+        tree.heading("paginas", text="P\u00e1ginas", anchor="center")
+        tree.column("#0", width=330, minwidth=220, stretch=True)
+        tree.column("tipo", width=90, minwidth=70, anchor="w")
+        tree.column("estado", width=160, minwidth=110, anchor="w")
+        tree.column("paginas", width=70, minwidth=50, anchor="center")
 
         tree.grid(row=2, column=0, sticky="nsew", pady=5)
         scroll = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
         scroll.grid(row=2, column=1, sticky="ns")
         tree.configure(yscrollcommand=scroll.set)
 
-        # Checkbox toggle al hacer clic en la primera columna
-        def _toggle_select(event):
+        seleccionados: set[str] = set()
+
+        def _cargar() -> None:
+            """(Re)construye el \u00e1rbol de plataformas y sitios desde la BD."""
+            tree.delete(*tree.get_children())
+            seleccionados.clear()
+
+            plataformas = self.repository.list_platforms()
+            sitios = self.repository.list_sites(enabled_only=True)
+            sitios_por_plataforma: dict[str, list[dict[str, Any]]] = {}
+            for sitio in sitios:
+                sitios_por_plataforma.setdefault(
+                    sitio.get("platform_id", ""), []
+                ).append(sitio)
+
+            total_pausados = len(self.repository.list_sites()) - len(sitios)
+            resumen_var.set(
+                f"{len(sitios)} fuentes activas listas para correr"
+                + (f" \u00b7 {total_pausados} pausadas (ver Administrar fuentes)"
+                   if total_pausados else "")
+            )
+
+            # Solo plataformas con al menos un sitio activo
+            for plataforma in plataformas:
+                pid = plataforma.get("platform_id", "")
+                nombre = plataforma.get("name", pid)
+                ptype = plataforma.get("provider_type", "")
+                hijos = sitios_por_plataforma.get(pid, [])
+                if not hijos:
+                    continue
+                plat_iid = f"plat::{pid}"
+                tree.insert(
+                    "", "end", iid=plat_iid, open=True,
+                    text=f"\u2630 {nombre}",
+                    values=(ptype, f"{len(hijos)} sitio(s)", ""),
+                )
+                for sitio in hijos:
+                    sid = sitio.get("site_id", "")
+                    site_config = sitio.get("site_config") or {}
+                    paginas = site_config.get("pages", 2)
+                    seleccionados.add(sid)
+                    tree.insert(
+                        plat_iid, "end", iid=sid,
+                        text=f"\u2713 {sitio.get('site_name', sid)}",
+                        values=(ptype, "Activa", paginas),
+                    )
+
+        _cargar()
+
+        def _toggle_select(event) -> None:
             item = tree.identify_row(event.y)
-            column = tree.identify_column(event.x)
-            if item and column == "#1":  # primera columna (seleccionar)
-                var = site_vars.get(item)
-                if var is not None:
-                    new_val = not var.get()
-                    var.set(new_val)
-                    tree.item(item, values=("✓" if new_val else "○",) + tree.item(item)["values"][1:])
+            if not item or item.startswith("plat::"):
+                return
+            if tree.identify_column(event.x) not in ("#0", "#1"):
+                return
+            texto = tree.item(item, "text")
+            if item in seleccionados:
+                seleccionados.discard(item)
+                tree.item(item, text=texto.replace("\u2713", "\u25cb", 1))
+            else:
+                seleccionados.add(item)
+                tree.item(item, text=texto.replace("\u25cb", "\u2713", 1))
 
         tree.bind("<Button-1>", _toggle_select)
 
@@ -2354,7 +2389,6 @@ class JobPulseWindow:
             dialog.update()
 
             def _run():
-                import asyncio
                 from jobpulse_v15.db import Database
                 from jobpulse_v15.repository import Repository
 
@@ -2362,6 +2396,7 @@ class JobPulseWindow:
                 db.initialize()
                 repo = Repository(db)
                 service = IngestionService(repo)
+                pages_default = 2
 
                 fetcher_map = {
                     "ane": AneFetcher(),
@@ -2389,6 +2424,7 @@ class JobPulseWindow:
                         ))
                         continue
 
+                    site_name = site.get("site_name", site_id)
                     platform_id = site.get("platform_id", "")
                     site_config = site.get("site_config") or {}
                     pages = site_config.get("pages", pages_default)
@@ -2457,6 +2493,9 @@ class JobPulseWindow:
                     f"Ofertas nuevas: {total_new}\n"
                 )
                 status_var.set("Completado")
+                # Refresca la lista de fuentes activas y la ventana principal
+                dialog.after(0, _cargar)
+                dialog.after(0, self.search_jobs)
                 messagebox.showinfo(
                     "Barrido completado",
                     f"Se importaron {total_new} ofertas nuevas.",
