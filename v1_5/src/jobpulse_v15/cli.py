@@ -13,6 +13,7 @@ from jobpulse_v15.ashby import AshbyFetcher
 from jobpulse_v15.db import Database
 from jobpulse_v15.lever import LeverFetcher
 from jobpulse_v15.recruitee import RecruiteeFetcher
+from jobpulse_v15.successfactors import SuccessFactorsFetcher
 from jobpulse_v15.workable import WorkableFetcher
 from jobpulse_v15.exports import PROFILE_COMPATIBILITY_LABELS, write_job_search_csv
 from jobpulse_v15.greenhouse import GreenhouseFetcher
@@ -293,6 +294,17 @@ def main() -> int:
     scrape_workable_target.add_argument(
         "--group",
         help="Consultar secuencialmente los tableros Workable activos del grupo.",
+    )
+    scrape_successfactors = scrape_commands.add_parser(
+        "successfactors", help="Consultar portales SuccessFactors via su feed RSS."
+    )
+    scrape_successfactors_target = scrape_successfactors.add_mutually_exclusive_group(
+        required=True
+    )
+    scrape_successfactors_target.add_argument("--site")
+    scrape_successfactors_target.add_argument(
+        "--group",
+        help="Consultar secuencialmente los portales SuccessFactors activos del grupo.",
     )
 
     search = commands.add_parser("search", help="Buscar vacantes guardadas.")
@@ -1143,6 +1155,99 @@ def main() -> int:
                                     ),
                                 ),
                                 run_kind="workable",
+                            )
+                        except (IngestionError, ValueError, sqlite3.Error) as exc:
+                            failures.append(
+                                {
+                                    "site_id": site_id,
+                                    "run_id": (
+                                        exc.run_id
+                                        if isinstance(exc, IngestionError)
+                                        else None
+                                    ),
+                                    "error": str(exc),
+                                }
+                            )
+                            continue
+                        results.append({"site_id": site_id, **result})
+                    print(
+                        json.dumps(
+                            {
+                                "mode": "group",
+                                "group": args.group,
+                                "sites_selected": len(sites),
+                                "results": results,
+                                "failures": failures,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        )
+                    )
+                    if failures:
+                        command_exit_code = 1
+            elif args.command == "scrape" and args.scrape_command == "successfactors":
+                service = IngestionService(repository)
+                fetcher = SuccessFactorsFetcher()
+                if args.site is not None:
+                    site = repository.get_site(args.site)
+                    if site is None:
+                        parser.error(f"No existe el sitio {args.site!r}.")
+                    config = site.get("site_config") or {}
+                    is_successfactors = (
+                        site.get("platform_id", "").casefold() == "successfactors"
+                        or config.get("adapter") == "successfactors"
+                    )
+                    if not is_successfactors:
+                        parser.error(
+                            f"El sitio {args.site!r} no esta registrado como "
+                            f"SuccessFactors."
+                        )
+                    try:
+                        result = service.fetch_and_import(
+                            args.site,
+                            lambda: fetcher.fetch(
+                                site,
+                                skip_source_job_ids=(
+                                    repository.list_skipped_source_job_ids(args.site)
+                                ),
+                            ),
+                            run_kind="successfactors",
+                        )
+                    except (IngestionError, ValueError, sqlite3.Error) as exc:
+                        parser.error(str(exc))
+                    print(json.dumps(result, ensure_ascii=False, indent=2))
+                else:
+                    sites = [
+                        site
+                        for site in repository.select_sites(args.group)
+                        if (
+                            site.get("platform_id", "").casefold()
+                            == "successfactors"
+                            or (site.get("site_config") or {}).get("adapter")
+                            == "successfactors"
+                        )
+                    ]
+                    if not sites:
+                        parser.error(
+                            f"No hay portales SuccessFactors habilitados para el "
+                            f"grupo {args.group!r}."
+                        )
+                    results = []
+                    failures = []
+                    for site in sites:
+                        site_id = site["site_id"]
+                        try:
+                            result = service.fetch_and_import(
+                                site_id,
+                                lambda site=site, site_id=site_id: fetcher.fetch(
+                                    site,
+                                    skip_source_job_ids=(
+                                        repository.list_skipped_source_job_ids(
+                                            site_id
+                                        )
+                                    ),
+                                ),
+                                run_kind="successfactors",
                             )
                         except (IngestionError, ValueError, sqlite3.Error) as exc:
                             failures.append(

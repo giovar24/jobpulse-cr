@@ -737,6 +737,62 @@ class TestSourceManagerWindow(unittest.TestCase):
         finally:
             manager.close()
 
+    def test_add_successfactors_dialog_registers_grouped_source(self):
+        manager = SourceManagerWindow(self.root, self.repository)
+        try:
+            manager.open_add_successfactors()
+            self.root.update()
+            dialogs = [
+                widget
+                for widget in manager.window.winfo_children()
+                if isinstance(widget, tk.Toplevel)
+                and widget.title() == "Agregar portal SuccessFactors"
+            ]
+            self.assertEqual(len(dialogs), 1)
+            dialog = dialogs[0]
+            form = dialog.winfo_children()[0]
+            entries = sorted(
+                (
+                    widget
+                    for widget in form.winfo_children()
+                    if isinstance(widget, ttk.Entry)
+                ),
+                key=lambda widget: int(widget.grid_info()["row"]),
+            )
+            for entry, value in zip(
+                entries,
+                (
+                    "kn-cr",
+                    "Kuehne+Nagel Careers",
+                    "Kuehne+Nagel",
+                    "https://careers.kuehne-nagel.com",
+                    "CR",
+                    "Costa Rica",
+                ),
+            ):
+                entry.delete(0, "end")
+                entry.insert(0, value)
+
+            def descendants(widget):
+                for child in widget.winfo_children():
+                    yield child
+                    yield from descendants(child)
+
+            save_button = next(
+                widget
+                for widget in descendants(form)
+                if isinstance(widget, ttk.Button) and widget.cget("text") == "Guardar"
+            )
+            save_button.invoke()
+
+            site = self.repository.get_site("kn-cr")
+            self.assertEqual(site["platform_id"], "successfactors")
+            self.assertEqual(site["site_config"]["adapter"], "successfactors")
+            self.assertEqual(site["run_groups"], ["directos"])
+            self.assertIn("kn-cr", manager.sites_table.get_children())
+        finally:
+            manager.close()
+
     def test_workday_query_runs_only_after_explicit_confirmation(self):
         manager = SourceManagerWindow(self.root, self.repository)
         manager.sites_table.selection_set("intel-cr")
@@ -1253,6 +1309,51 @@ class TestSourceManagerWindow(unittest.TestCase):
             fetch.assert_called_once()
             self.assertIsNotNone(
                 self.repository.get_job("workable-acme-REQ-WORKABLE-1")
+            )
+            self.assertEqual(manager.status_var.get().split(":")[0], "Corrida 1")
+        finally:
+            manager.close()
+
+    def test_confirmed_successfactors_query_imports_in_background(self):
+        self.repository.register_platform("successfactors", "SuccessFactors", "rss")
+        self.repository.register_site(
+            "sf-cr",
+            "successfactors",
+            "SF Careers CR",
+            "https://careers.kuehne-nagel.com",
+            company_name="Kuehne+Nagel",
+            country="CR",
+        )
+        manager = SourceManagerWindow(self.root, self.repository)
+        manager.sites_table.selection_set("sf-cr")
+        offer = {
+            "source_job_id": "1234567",
+            "source_url": "https://careers.kuehne-nagel.com/job/San-Jose/1234567/",
+            "job": {
+                "job_id": "successfactors-1234567",
+                "title": "SF UI Engineer",
+                "country": "CR",
+            },
+        }
+        try:
+            with patch(
+                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui.messagebox.showinfo"
+            ), patch(
+                "jobpulse_v15.ui.SuccessFactorsFetcher.fetch",
+                return_value=[offer],
+            ) as fetch:
+                manager.scrape_selected()
+                self.assertIsNotNone(manager.scrape_thread)
+                manager.scrape_thread.join(timeout=5)
+                self.assertFalse(manager.scrape_thread.is_alive())
+                self.root.after(150, self.root.quit)
+                self.root.mainloop()
+
+            fetch.assert_called_once()
+            self.assertIsNotNone(
+                self.repository.get_job("successfactors-1234567")
             )
             self.assertEqual(manager.status_var.get().split(":")[0], "Corrida 1")
         finally:

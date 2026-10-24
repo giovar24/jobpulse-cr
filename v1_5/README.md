@@ -150,10 +150,10 @@ La nueva version del extractor no reanaliza historicos automaticamente; usa
 `Analizar seleccionada` para actualizar el analisis de una vacante ya guardada.
 La interfaz solo consulta la DB v1.5 y no inicia scraping automaticamente.
 La administracion de fuentes permite activar o
-pausar sitios, agregar tableros Workday, Greenhouse, Ashby, Lever, Recruitee
-y Workable, y consultar manualmente un tablero tras confirmacion. El boton
-`Historial` muestra las ultimas corridas de la fuente seleccionada, con su
-estado, conteos y errores:
+pausar sitios, agregar tableros Workday, Greenhouse, Ashby, Lever, Recruitee,
+Workable y SuccessFactors, y consultar manualmente un tablero tras
+confirmacion. El boton `Historial` muestra las ultimas corridas de la fuente
+seleccionada, con su estado, conteos y errores:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -e .
@@ -379,6 +379,34 @@ Workable indica telecommuting; de lo contrario queda `unknown`. La UI permite
 agregar tableros Workable y consultarlos individualmente o en seleccion
 multiple, siempre tras confirmar. Las pruebas usan respuestas simuladas y no
 consultan tableros reales.
+
+### Consulta explicita de portales SuccessFactors
+
+Los portales SAP SuccessFactors "Career Section" exponen un feed RSS publico
+sin credenciales. Registra la plataforma y el portal con su URL base HTTPS:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 platform add `
+  --id successfactors --name SuccessFactors --provider-type rss
+.\.venv\Scripts\python.exe -m jobpulse_v15 site add `
+  --id kn-cr --platform successfactors --name "Kuehne+Nagel CR" `
+  --url https://careers.kuehne-nagel.com --company "Kuehne+Nagel" `
+  --country CR --group directos
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape successfactors --site kn-cr
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape successfactors --group directos
+```
+
+El adaptador consulta `https://<portal>/services/rss/job/?locale=en_US&keywords=<country_query>`
+solo bajo demanda. El filtro de la API no es estricto y puede traer vacantes
+de paises vecinos, por lo que v1.5 valida `country_query` del lado cliente
+sobre el titulo, el enlace decodificado o el pie de la descripcion (SAP suele
+indicar ahi la ubicacion). La descripcion ya viene incluida en el RSS y no se
+consulta detalle adicional. La fecha `pubDate` RFC 2822 se convierte a fecha
+ISO. Los portales confirmados como compatibles son dominios por empresa como
+`careers.kuehne-nagel.com`, `jobs.foundever.com` y `careers.ey.com`. La UI
+permite agregar portales SuccessFactors y consultarlos individualmente o en
+seleccion multiple, siempre tras confirmar. Las pruebas usan feeds simulados
+y no consultan portales reales.
 
 Workday devuelve una ubicacion original que v1.5 siempre conserva en
 `location_raw` y en el payload de origen. Para Costa Rica, el adaptador separa
