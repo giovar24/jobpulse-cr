@@ -2357,10 +2357,14 @@ class JobPulseWindow:
         scroll2.grid(row=5, column=1, sticky="ns")
         resultado_text.configure(yscrollcommand=scroll2.set)
 
+        # Barra de progreso
+        progress = ttk.Progressbar(frame, mode="determinate", maximum=1, value=0)
+        progress.grid(row=6, column=0, sticky="ew", pady=(8, 2))
+
         # Estado
         status_var = tk.StringVar(value="Listo")
         status_label = ttk.Label(frame, textvariable=status_var, foreground="gray")
-        status_label.grid(row=6, column=0, sticky="w", pady=5)
+        status_label.grid(row=7, column=0, sticky="w", pady=5)
 
         def _ejecutar():
             sitios_seleccionados = [
@@ -2383,6 +2387,8 @@ class JobPulseWindow:
             except ValueError:
                 dias = 30
 
+            total_sel = len(sitios_seleccionados)
+            progress.configure(value=0, maximum=total_sel)
             resultado_text.delete("1.0", "end")
             resultado_text.insert("end", "Iniciando barridos...\n\n")
             status_var.set("Ejecutando...")
@@ -2415,13 +2421,23 @@ class JobPulseWindow:
 
                 total_offers = 0
                 total_new = 0
+                errores = 0
+                total_sel = len(sitios_seleccionados)
 
-                for site_id in sitios_seleccionados:
+                def _progreso_inicio(n, t, nombre):
+                    status_var.set(f"Sitio {n}/{t}: {nombre}...")
+
+                def _progreso_paso():
+                    progress.step(1)
+
+                for idx, site_id in enumerate(sitios_seleccionados):
                     site = repo.get_site(site_id)
                     if not site:
+                        dialog.after(0, _progreso_paso)
                         dialog.after(0, lambda s=site_id: resultado_text.insert(
                             "end", f"  {s}: sitio no encontrado en BD\n"
                         ))
+                        errores += 1
                         continue
 
                     site_name = site.get("site_name", site_id)
@@ -2429,11 +2445,16 @@ class JobPulseWindow:
                     site_config = site.get("site_config") or {}
                     pages = site_config.get("pages", pages_default)
 
+                    dialog.after(0, lambda n=idx + 1, t=total_sel,
+                                 s=site_name: _progreso_inicio(n, t, s))
+
                     fetcher = fetcher_map.get(platform_id)
                     if not fetcher:
+                        dialog.after(0, _progreso_paso)
                         dialog.after(0, lambda p=platform_id, s=site_id: resultado_text.insert(
                             "end", f"  {s} ({p}): no hay fetcher implementado\n"
                         ))
+                        errores += 1
                         continue
 
                     dialog.after(0, lambda s=site_name: resultado_text.insert(
@@ -2476,39 +2497,65 @@ class JobPulseWindow:
                             "end", f"{n} nuevas\n"
                         ))
                         dialog.after(0, lambda: resultado_text.see("end"))
+                        dialog.after(0, _progreso_paso)
 
                     except Exception as e:
+                        errores += 1
                         dialog.after(0, lambda s=site_id, e=str(e): resultado_text.insert(
                             "end", f"  {s}: ERROR - {e}\n"
                         ))
                         dialog.after(0, lambda: resultado_text.see("end"))
+                        dialog.after(0, _progreso_paso)
 
-                dialog.after(0, lambda: _mostrar_resultado(total_offers, total_new))
+                dialog.after(0, lambda: _mostrar_resultado(
+                    total_offers, total_new, errores
+                ))
 
-            def _mostrar_resultado(total_offers, total_new):
+            def _mostrar_resultado(total_offers, total_new, errores=0):
                 resultado_text.insert(
                     "end",
                     f"\n=== RESUMEN ===\n"
                     f"Ofertas encontradas: {total_offers}\n"
                     f"Ofertas nuevas: {total_new}\n"
+                    f"Errores: {errores}\n"
                 )
                 status_var.set("Completado")
+                if errores == 0:
+                    resultado_var.set(
+                        f"\u2714 Barrido terminado correctamente \u00b7 "
+                        f"{total_new} ofertas nuevas"
+                    )
+                    resultado_lbl.configure(foreground="#1a7f37")
+                elif total_offers or total_new:
+                    resultado_var.set(
+                        f"\u26a0 Barrido terminado con {errores} error(es) \u00b7 "
+                        f"{total_new} ofertas nuevas \u00b7 revisa el detalle"
+                    )
+                    resultado_lbl.configure(foreground="#b45309")
+                else:
+                    resultado_var.set(
+                        f"\u2716 El barrido no se complet\u00f3 \u00b7 "
+                        f"{errores} error(es) \u00b7 revisa el detalle"
+                    )
+                    resultado_lbl.configure(foreground="#c62828")
                 # Refresca la lista de fuentes activas y la ventana principal
                 dialog.after(0, _cargar)
                 dialog.after(0, self.search_jobs)
-                messagebox.showinfo(
-                    "Barrido completado",
-                    f"Se importaron {total_new} ofertas nuevas.",
-                    parent=dialog,
-                )
 
             # Ejecutar en hilo separado para no bloquear la UI
             hilo = threading.Thread(target=_run, daemon=True)
             hilo.start()
 
+        # Cuadro de resultado del barrido (dentro de la misma ventana)
+        resultado_var = tk.StringVar(value="")
+        resultado_lbl = ttk.Label(
+            frame, textvariable=resultado_var, font=("Segoe UI", 10, "bold")
+        )
+        resultado_lbl.grid(row=8, column=0, sticky="w", pady=(6, 0))
+
         # Botones
         btn_frame = ttk.Frame(frame)
-        btn_frame.grid(row=7, column=0, sticky="ew", pady=15)
+        btn_frame.grid(row=9, column=0, sticky="ew", pady=15)
         ttk.Button(btn_frame, text="Ejecutar barrido", command=_ejecutar).pack(
             side="left", padx=(0, 8)
         )
