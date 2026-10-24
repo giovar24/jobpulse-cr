@@ -150,8 +150,8 @@ La nueva version del extractor no reanaliza historicos automaticamente; usa
 `Analizar seleccionada` para actualizar el analisis de una vacante ya guardada.
 La interfaz solo consulta la DB v1.5 y no inicia scraping automaticamente.
 La administracion de fuentes permite activar o
-pausar sitios, agregar tableros Workday, Greenhouse, Ashby, Lever y
-Recruitee, y consultar manualmente un tablero tras confirmacion. El boton
+pausar sitios, agregar tableros Workday, Greenhouse, Ashby, Lever, Recruitee
+y Workable, y consultar manualmente un tablero tras confirmacion. El boton
 `Historial` muestra las ultimas corridas de la fuente seleccionada, con su
 estado, conteos y errores:
 
@@ -352,6 +352,33 @@ modalidad no se deduce y queda `unknown`. La UI permite agregar tableros
 Recruitee y consultarlos individualmente o en seleccion multiple, siempre tras
 confirmar. Las pruebas usan respuestas simuladas y no consultan tableros
 reales.
+
+### Consulta explicita de tableros Workable
+
+Workable expone un API publico por cuenta. Registra la plataforma y el
+tablero con una URL `https://apply.workable.com/<token>`:
+
+```powershell
+.\.venv\Scripts\python.exe -m jobpulse_v15 platform add `
+  --id workable --name Workable --provider-type api
+.\.venv\Scripts\python.exe -m jobpulse_v15 site add `
+  --id acme-cr --platform workable --name "Acme Careers CR" `
+  --url https://apply.workable.com/acme --company Acme `
+  --country CR --group directos
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape workable --site acme-cr
+.\.venv\Scripts\python.exe -m jobpulse_v15 scrape workable --group directos
+```
+
+El adaptador consulta el endpoint publico de Workable con detalles, conserva
+el payload original y filtra por `country_query` (por defecto `Costa Rica`)
+en el titulo, ciudad o pais de la ubicacion. Completa la descripcion con la
+seccion de requisitos. La ubicacion guarda ciudad, region y pais tal como
+llegan; cuando una oferta coincidente no menciona el pais, guarda
+`<country_query> (multi-loc)`. La modalidad solo se marca `remote` si
+Workable indica telecommuting; de lo contrario queda `unknown`. La UI permite
+agregar tableros Workable y consultarlos individualmente o en seleccion
+multiple, siempre tras confirmar. Las pruebas usan respuestas simuladas y no
+consultan tableros reales.
 
 Workday devuelve una ubicacion original que v1.5 siempre conserva en
 `location_raw` y en el payload de origen. Para Costa Rica, el adaptador separa
