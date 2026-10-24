@@ -58,7 +58,8 @@
 | **Motor semántico / embeddings** | 🔴 Crítica | `sentence-transformers`, `torch` |
 | **Score ATS + ranking + keywords faltantes** | 🔴 Crítica | Motor semántico |
 | **CV Parsing completo (PDF/DOCX → perfil Harvard/ATS)** | 🔴 Crítica | `pypdf`, `python-docx`, extractores regex |
-| **Gestión credenciales + auto-login + sesiones Brave** | 🔴 Crítica | `browser_manager.py`, `credenciales.py`, `providers/login/` |
+| **Auto-login SSO Google (Indeed/LinkedIn)** | 🔴 Crítica | `providers/login/auto_login.py` |
+| **Providers login sitios Cloudflare/manuales** | 🔴 Crítica | `providers/login/browser_sites.py` |
 | **Dedupe cross-source (boards ↔ directos)** | 🟡 Alta | Post-ingest job o en `IngestionService` |
 | **Scheduler / launcher Windows** | 🟢 Media | `recordatorio.py`, `jobpulse-v15.cmd` |
 
@@ -104,7 +105,7 @@ def fetch(self, site: dict, *, pages: int, search_text: str | None,
 | Tarea | Archivo(s) | Notas |
 |-------|------------|-------|
 | `browser_manager.py` | Nuevo/portado | Lanza Brave CDP, comparte cookies, host_resolver_rules |
-| `credenciales.py` | Nuevo/portado | Almacén local (gitignored) + lista sitios login + auto-login fallback |
+| `credenciales.py` | **Nuevo/portado** | ✅ Almacén local (gitignored) + lista sitios login + auto-login fallback |
 | `providers/login/auto_login.py` | Portado | SSO Google, CAPTCHA/2FA detection, fallback a manual |
 | `providers/login/browser_sites.py` | Portado | Sitios manuales (origen "manual") con selectores CSS |
 
@@ -275,3 +276,36 @@ llama-server -m modelo.gguf -c 8192 --port 8080
 **Tests:** 127/127 pasan (excluyendo test_ui por entorno Tcl/Tk)
 
 **Próximos pasos FASE 2:** `search_engine.py` (embeddings), `ats.py`, `gate.py`, `ia_calibracion.py`
+
+---
+
+### 2026-10-24 — Credenciales + Login manual (`credenciales.py`, CLI `credenciales`/`login`)
+
+**Implementado:**
+- **`credenciales.py`** — Almacén local completo (gitignored):
+  - `credenciales.json` — credenciales usuario/password/SSO
+  - `login_requerido.json` — LA LISTA maestra (seeds + runtime + manual)
+  - `pending_login.json` — pendientes detectados en corridas
+  - `login_sites.json` — portales employer para barrido con navegador
+
+**Seeds configurados:**
+- **ANE** — obligatorio, auto_login, user/password (fallback .env: ANE_USER/ANE_PASSWORD)
+- **Indeed** — obligatorio, auto_login, SSO Google (cuenta Gmail, no password propia)
+- **LinkedIn** — opcional, SSO Google, prioridad login manual en Brave
+
+**CLI `credenciales`:**
+- `list` / `list --resumen` / `list --solo-faltantes`
+- `set --empresa --usuario [--password|--sso google] [--auto on|off] [--url]`
+- `del --empresa`
+- `auto --empresa --estado on|off`
+- `add-site --empresa [--url] [--grupo] [--obligatorio]`
+- `rm-site --empresa`
+
+**CLI `login`:**
+- `login --list` — lista pendientes/recomendados
+- `login` — abre cada sitio en TU Brave (pestaña en sesión viva), tú te logueas, confirmas, y la sesión queda para el scraper
+- Reusa `BraveManager` para lanzar Brave con CDP
+
+**Tests:** 127/127 pasan
+
+**Pendiente FASE 3:** `providers/login/auto_login.py` (SSO Google Indeed/LinkedIn), `providers/login/browser_sites.py` (Cloudflare/manuales)
