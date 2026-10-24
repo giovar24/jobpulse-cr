@@ -305,11 +305,12 @@ class IndeedFetcher:
             headers=self.headers, cookies=cookies, timeout=15.0, follow_redirects=True
         ) as client:
             for job in basic_jobs:
-                if job["job"]["link"] and not job["job"]["description_raw"]:
-                    details = await self._fetch_details_http(client, job["job"]["link"])
-                    job["job"]["description_raw"] = details.get("description") or job["job"]["description_raw"]
-                    job["job"]["requirements_raw"] = details.get("requirements") or job["job"]["requirements_raw"]
-                    job["job"]["salary_raw"] = details.get("salary") or job["job"]["salary_raw"]
+                source_url = job.get("source_url")
+                if source_url and not job["job"].get("description_raw"):
+                    details = await self._fetch_details_http(client, source_url)
+                    job["job"]["description_raw"] = details.get("description") or job["job"].get("description_raw")
+                    job["job"]["requirements_raw"] = details.get("requirements") or job["job"].get("requirements_raw")
+                    job["job"]["salary_raw"] = details.get("salary") or job["job"].get("salary_raw")
                 if job["job"]["description_raw"] and not job["job"]["requirements_raw"]:
                     job["job"]["description_raw"], job["job"]["requirements_raw"] = _split_requirements(
                         job["job"]["description_raw"]

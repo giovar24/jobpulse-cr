@@ -8,6 +8,10 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from jobpulse_v15.analysis import EXTRACTOR_VERSION, RuleBasedExtractor
 from jobpulse_v15.ane import AneFetcher
 from jobpulse_v15.ashby import AshbyFetcher

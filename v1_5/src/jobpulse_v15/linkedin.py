@@ -257,7 +257,9 @@ class LinkedInFetcher:
         async with async_playwright() as p:
             browser = await p.chromium.connect_over_cdp(f"http://localhost:{port}")
             ctx = browser.contexts[0]
-            basic_jobs, cookies = await self._run_sync_scraping(ctx, search_term, location, pages)
+            basic_jobs, cookies = await self._run_sync_scraping(
+                ctx, search_term, location, pages, skipped_ids
+            )
         if not basic_jobs:
             return LinkedInOffers([], jobs_skipped=0)
 
@@ -267,11 +269,11 @@ class LinkedInFetcher:
             headers=self.headers, cookies=cookies, timeout=15.0, follow_redirects=True
         ) as client:
             for job in basic_jobs:
-                if job["job"]["link"]:
-                    jid = _numeric_id(job["job"]["job_id"], job["job"]["link"])
+                if job.get("source_url"):
+                    jid = _numeric_id(job.get("source_job_id"), job.get("source_url"))
                     details = await self._fetch_details_guest(client, jid) if jid else {}
                     if not details.get("description"):
-                        details = await self._fetch_details_http(client, job["job"]["link"]) or details
+                        details = await self._fetch_details_http(client, job.get("source_url")) or details
 
                     job["job"]["description_raw"] = details.get("description") or job["job"]["description_raw"]
                     job["job"]["requirements_raw"] = details.get("requirements") or job["job"]["requirements_raw"]
@@ -290,7 +292,8 @@ class LinkedInFetcher:
         return LinkedInOffers(enriched_jobs, jobs_skipped=0)
 
     async def _run_sync_scraping(
-        self, ctx: BrowserContext, search_term: str, location: str, pages: int
+        self, ctx: BrowserContext, search_term: str, location: str, pages: int,
+        skipped_ids: set[str] | None = None,
     ) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
         jobs: List[Dict[str, Any]] = []
         cookies: Dict[str, str] = {}
