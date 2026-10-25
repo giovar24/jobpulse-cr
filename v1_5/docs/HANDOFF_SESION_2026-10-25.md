@@ -5,9 +5,22 @@ Estado exacto del proyecto al cerrar esta sesión.
 
 ## TL;DR
 
-- **O1 (Enriquecimiento IA) quedó operativo**: servidor auto-arrancable, pipeline robusto, límite de llamadas opt-in, 11 tests nuevos con IA simulada.
-- **El pase completo está CORRIENDO en segundo plano** al momento de cerrar esta sesión (shell `sh_173e5d0d900186rND50gL0vxu5`). Ver resultado con `python estado_bd.py` (faltan city/work_mode/skills) o releer el log de ese shell.
+- **O1 (Enriquecimiento IA) COMPLETO**: servidor auto-arrancable, pipeline robusto, límite de llamadas opt-in, 11 tests nuevos con IA simulada y **pase completo ejecutado con éxito** (resultados abajo).
 - Siguiente trabajo acordado con el usuario: **O6 — sistema de perfiles del candidato** (varios perfiles, tipos de documento, qué se extrae, cómo se guarda).
+
+### Resultado final del pase IA (2026-10-25, 70 min de corrida)
+
+| Campo | Cobertura |
+|---|---|
+| `date_published` / `employment_type` | 175/175 (100%) |
+| `region` | 161 (92%) |
+| `skills` | 160 (91%) |
+| `work_mode` resuelto | 152 (86%) — los otros 23 son `unknown` legítimo (el texto no menciona modalidad; el ciclo 2 lo confirmó sin progreso) |
+| `city` | 147 (84%) |
+| `salary_min` | 93 (53%) — solo donde el texto lo declara explícitamente |
+| `languages` | 40 (22%) — solo con nivel CEFR explícito, correcto |
+
+Ciclos: CRITICO 1 → 152 enriquecidos; CRITICO 2 → 0 progreso (para solo, sin bucle infinito); COMPLETO → 7 extra. Los "failed" del ciclo 2/COMPLETO son jobs donde la IA no dijo nada nuevo (semántica de contador, no errores de red).
 
 ## 1. Lo que se hizo en esta sesión
 
@@ -53,11 +66,11 @@ Estado exacto del proyecto al cerrar esta sesión.
 
 | Objetivo | Estado |
 |---|---|
-| O1 Enriquecimiento IA | ✅ salvo 1.3: **pase completo corriendo** al cierre (ver abajo) |
+| O1 Enriquecimiento IA | ✅ **COMPLETO** (pase ejecutado, cobertura arriba; 23 unknown legítimos) |
 | O2 ATS + gate + ranking en la búsqueda UI | ⏳ no iniciado |
 | O3 Validar 7 fetchers ATS huérfanos (workday/greenhouse/ashby/lever/recruitee/workable/successfactors — 0 sitios) | ⏳ no iniciado |
 | O4 Calibración gate-vs-IA | ⏳ depende de O1+O2 |
-| O5 Higiene (`.ps1` roto: rutas viejas Brave+`User Data\Default`; scripts sueltos → `tools/`; re-barrido de ~10 jobs con descripción basura) | ⏳ no iniciado |
+| O5 Higiene (`.ps1` roto: rutas viejas Brave+`User Data\Default`; re-barrido de ~10 jobs con descripción basura) | ⏳ parcial: `tools/` creado; falta `.ps1` y re-barrido |
 | **O6 Sistema de perfiles del candidato** | 🎯 **acordado como siguiente** — borrador abajo |
 
 ## 4. O6 — borrador acordado (siguiente sesión)
@@ -75,9 +88,9 @@ El usuario confirmó que quiere analizar/crear el sistema de perfiles: pueden se
 ## 5. Cómo retomar (comandos)
 
 ```powershell
-# Verificar el estado del pase que quedó corriendo:
-python tools/estado_bd.py            # total jobs, faltan city/work_mode/skills
-# (o releer el log del shell sh_173e5d0d900186rND50gL0vxu5 si sigue vivo)
+# Cobertura de campos tras el pase IA:
+python tools/cobertura_campos.py     # tabla de cobertura por campo
+python tools/estado_bd.py            # total jobs, faltan city, por fuente
 
 # Servidor IA:
 python start_ia_server.py --check   # 0=arriba / 1=apagado
@@ -114,7 +127,9 @@ python -m pytest tests/ -q --ignore=tests/test_ui.py
 
 ## 8. Pendiente inmediato en la próxima sesión
 
-1. **Verificar el pase completo terminó bien** (log del shell o `python tools/estado_bd.py`); si quedaron fallas por descripción basura, re-barrido (O5.3).
-2. Arrancar **O6** con el borrador de §4 (primera pregunta al usuario: singleton+swap vs profile_id real).
+1. **Arrancar O6** con el borrador de §4 (primera pregunta al usuario: singleton+swap vs profile_id real).
+2. Calidad de skills (menor): el modelo 2B a veces ignora "maximo 10 skills" en textos largos y trunca el JSON (~15 jobs quedaron sin skills). Mejoras posibles: few-shot en el prompt, modelo mas grande, o extraer en 2 pasadas. NO bloquea O6/O2.
+3. Los 23 `work_mode=unknown` son legitimos (ciclo 2 sin progreso lo confirmo) — no reintentarlos.
+4. O5.3: re-barrido para los ~10 jobs con descripcion basura de login-wall (el pase IA no los recupera).
 
-Nota: los fixes de esta sesión (límites opt-in en `ia_api.py`, prompt de skills, scripts `tools/`, este handoff) se commitean AL FINAL de esta sesión — ver historial de git para confirmar.
+Nota: todo el trabajo de esta sesion quedo commiteado y pusheado (ver historial de git).
