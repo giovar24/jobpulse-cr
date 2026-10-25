@@ -33,7 +33,7 @@ SECCIONES_CV = (
     "language",
 )
 
-CONTACTO_CODIGOS = ("nombre", "email", "telefono", "ubicacion", "linkedin")
+CONTACTO_CODIGOS = ("nombre", "email", "telefono", "ubicacion", "linkedin", "portfolio")
 RESUMEN_CODE = "perfil-profesional"
 EXPERIENCIA_TOTAL_CODE = "total"
 UNIT_ANIOS = "años"

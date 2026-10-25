@@ -456,7 +456,8 @@ class CandidateProfileWindowCV:
             "email": "Correo electrónico",
             "telefono": "Teléfono",
             "ubicacion": "Ubicación",
-            "linkedin": "LinkedIn / portfolio",
+            "linkedin": "LinkedIn",
+            "portfolio": "Portfolio / proyectos",
         }
         for fila, (codigo, etiqueta) in enumerate(etiquetas.items(), start=1):
             ttk.Label(tab, text=etiqueta).grid(row=fila, column=0, sticky="w", pady=6)
