@@ -33,21 +33,23 @@ PUERTO = BASE_URL.split("/")[-2].split(":")[-1] if ":" in BASE_URL else "8081"
 # Comando real (replica el que usa el usuario). Editar aqui si cambia el
 # modelo o la ruta del build de llama.cpp.
 LLAMA_SERVER = r"D:\llama-b11662-bin-win-vulkan-x64\llama-server.exe"
-MODELO_DIR = r"D:\Models\Qwen352B"
+MODELO_DIR = r"D:\Models\gemma-4-E2B-it-qat-UD-Q4_K_XL"
 CMD = [
     LLAMA_SERVER,
-    "-m", rf"{MODELO_DIR}\Qwen3.5-2B-UD-Q8_K_XL.gguf",
+    "-m", rf"{MODELO_DIR}\gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf",
     "--mmproj", rf"{MODELO_DIR}\mmproj-BF16.gguf",
-    "--alias", "qwen3.5-2b",
+    "--model-draft", rf"{MODELO_DIR}\mtp-gemma-4-E2B-it-Q4_0.gguf",
+    "--spec-type", "draft-mtp", "--spec-draft-n-max", "2", "--spec-draft-ngl", "all",
+    "--alias", "gemma4-e2b-qat",
     "--port", PUERTO,
     "--host", "127.0.0.1",
     "--gpu-layers", "all", "--flash-attn", "on",
     "--cache-type-k", "q8_0", "--cache-type-v", "q8_0", "--kv-unified",
-    "--ctx-size", "16384", "--parallel", "1",
+    "--ctx-size", "8192", "--parallel", "1",
     "--threads", "4", "--threads-batch", "8",
-    "--jinja", "--reasoning", "off",
+    "--jinja", "--chat-template-kwargs", '{"enable_thinking":false}',
     "--temp", "1.0", "--top-p", "0.95", "--top-k", "64", "--min-p", "0.0",
-    "--seed", "1",
+    "--metrics", "--log-verbosity", "3",
 ]
 
 

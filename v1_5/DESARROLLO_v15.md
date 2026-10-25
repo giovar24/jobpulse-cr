@@ -3,6 +3,12 @@
 > **Propósito**: Documento único de referencia para continuar el desarrollo si se cambia de IA/agente.
 > Contiene: comparación arquitecturas, pasos ejecutados, pendientes, objetivos y comandos clave.
 
+> **⚠️ CONVENCIÓN DE SESIONES (obligatoria)**: cuando el usuario dice "vamos a otra sesión", se debe
+> **escribir `docs/HANDOFF_SESION_YYYY-MM-DD.md`** antes de cerrar, con la misma estructura del handoff
+> de 2026-10-25: TL;DR, lo que se hizo, decisiones de diseño, estado de objetivos (tabla), cómo retomar
+> (comandos), archivos clave, datos de contexto y pendiente inmediato. La sesión nueva debe **empezar
+> leyendo el handoff más reciente** para no arrastrar contexto acumulado.
+
 ---
 
 ## 1. COMPARACIÓN ARQUITECTURAL: PRINCIPAL vs v1_5
@@ -216,6 +222,12 @@ py -3.11 -m venv .venv
 4. **`jobs_skipped`**: Contador de ofertas omitidas por `skip_source_job_ids` (se pasa a `IngestionService` para health tracking).
 5. **Campos `job` obligatorios** (ver `Repository.save_job`): `job_id`, `title`, `company`, `location_raw`, `country`, `city`, `region`, `work_mode`, `employment_type`, `date_published`, `expires_at`, `posting_language`, `posting_language_origin`, `description_raw`, `requirements_raw`, `salary_raw`, `sector` (opcional).
 6. **Tests**: Cada fetcher nuevo debe tener test en `tests/test_<nombre>.py` (mock HTTP/Playwright, BD temporal).
+7. **Modelo IA local: Gemma 4 E2B QAT (canónico desde 2026-10-25)**. A/B y pase real demostraron que es
+   ~6.5x más rápido que Qwen 3.5 2B y llena mucho más (detalle completo en `docs/IA_ENRIQUECIMIENTO.md`):
+   pase completo 175 jobs en 10.3 min (Qwen: ~67 min); skills 100%, languages 97.7%. Config viva en
+   `.env` (`IA_MODEL=gemma4-e2b-qat`), `start_ia_server.py` (con `--metrics`) y `ia-server.bat`.
+   ⚠️ Al probar/benchmarkar: la caché en disco (`data/usuario/ia_cache/`) responde instantáneo si el
+   (job+modelo+prompt) ya se pidió — aislarla con `JOBPULSE_IA_CACHE` (así lo hace `tools/comparar_ia.py`).
 
 ---
 
