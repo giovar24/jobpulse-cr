@@ -28,6 +28,7 @@ from jobpulse_v15.exports import (
 from jobpulse_v15.greenhouse import GreenhouseFetcher
 from jobpulse_v15.ingestion import IngestionError, IngestionService
 from jobpulse_v15.indeed import IndeedFetcher
+from jobpulse_v15.ui_perfil import CandidateProfileWindowCV
 from jobpulse_v15.lever import LeverFetcher
 from jobpulse_v15.linkedin import LinkedInFetcher
 from jobpulse_v15.procomer import ProcomerFetcher
@@ -2155,7 +2156,7 @@ class JobPulseWindow:
             self.profile_window.window.lift()
             self.profile_window.refresh()
             return
-        self.profile_window = CandidateProfileWindow(self.root, self.repository)
+        self.profile_window = CandidateProfileWindowCV(self.root, self.repository)
 
     def compare_selected_profile(self) -> None:
         if self.selected_job_id is None:

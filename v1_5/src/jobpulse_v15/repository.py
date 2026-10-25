@@ -25,6 +25,11 @@ REQUIREMENT_CATEGORIES = {
 }
 FIELD_STATUSES = {"found", "not_mentioned", "unknown", "ambiguous"}
 ANALYSIS_STATUSES = {"complete", "partial", "error"}
+
+# Categorias extra SOLO para facts del perfil del candidato (no para
+# requisitos de vacantes): datos personales, resumen y proyectos del CV
+# (secciones harvard-ats-v1). Inertes para el matching job<->perfil.
+PROFILE_FACT_CATEGORIES = REQUIREMENT_CATEGORIES | {"contact", "summary", "project"}
 REQUIREMENT_LEVELS = {"required", "preferred", "inferred", "ambiguous"}
 REQUIREMENT_ORIGINS = {"source_field", "rule", "local_ai", "api", "manual"}
 JOB_MANUAL_OVERRIDE_FIELDS = {
@@ -2189,7 +2194,7 @@ class Repository:
             raise ValueError(
                 f"Campos de perfil no soportados: {', '.join(map(str, unexpected))}."
             )
-        category = cls._validate_category(fact.get("category"))
+        category = cls._validate_profile_category(fact.get("category"))
         value_code = cls._required_text(fact.get("value_code"), "value_code")
         value_text = cls._required_text(fact.get("value_text"), "value_text")
         qualifier = cls._optional_text(fact.get("qualifier"))
@@ -2457,6 +2462,13 @@ class Repository:
     def _validate_category(category: Any) -> str:
         if not isinstance(category, str) or category not in REQUIREMENT_CATEGORIES:
             raise ValueError(f"Categoria de requisito no valida: {category!r}.")
+        return category
+
+    @staticmethod
+    def _validate_profile_category(category: Any) -> str:
+        """Como _validate_category pero acepta secciones propias del CV."""
+        if not isinstance(category, str) or category not in PROFILE_FACT_CATEGORIES:
+            raise ValueError(f"Categoria de perfil no valida: {category!r}.")
         return category
 
     @classmethod
