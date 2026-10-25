@@ -161,8 +161,8 @@ class IAClient:
         timeout: float = 120.0,
         lote: int = 8,
         max_vacantes: int = 60,
-        max_llamadas: int = 12,
-        rpm: int = 8,
+        max_llamadas: Optional[int] = None,
+        rpm: Optional[int] = None,
     ) -> None:
         """
         Args:
@@ -172,10 +172,16 @@ class IAClient:
                 - modelo: override del default del preset
                 - api_key: override (si no, usa env var del preset)
             timeout: timeout por request (segundos)
-            lote: tamaño de lote para procesamiento batch
+            lote: tamano de lote para procesamiento batch
             max_vacantes: tope de items a evaluar en una corrida
-            max_llamadas: tope de llamadas HTTP por corrida
-            rpm: requests por minuto (rate limit)
+            max_llamadas: tope de llamadas HTTP por corrida.
+                None (default) -> toma IA_MAX_LLAMADAS; si no hay env var:
+                servidores LOCALES (127.0.0.1/localhost) sin tope practico
+                (no hay costo), APIs EXTERNAS conservan el tope
+                conservador de pago (12). Un int explicito siempre gana.
+            rpm: requests por minuto (rate limit).
+                None (default) -> toma IA_RPM; si no hay env var: 60 para
+                servidores locales, 8 para externos de pago.
         """
         config = config or {}
 
@@ -219,18 +225,35 @@ class IAClient:
         elif not self.modelo:
             raise IAError(f"modelo requerido para proveedor '{self.proveedor}'")
 
-        # Parámetros de control
+        # Parámetros de control.
+        # POR DEFECTO NO HAY TOPE (salir corriendo no es gratis en una API
+        # local y el usuario decide si pone limites). Los limites son
+        # OPT-IN para APIs externas de pago, via .env (IA_MAX_LLAMADAS /
+        # IA_RPM) o via argumento explicito. Un int explicito siempre gana.
         self.timeout = timeout
         self.lote = lote
         self.max_vacantes = max_vacantes
-        self.max_llamadas = max_llamadas
-        self.rpm = rpm
+        self._es_local = (
+            "127.0.0.1" in self.base_url or "localhost" in self.base_url
+        )
+        if max_llamadas is not None:
+            self.max_llamadas = max_llamadas            # explicito gana
+        elif os.getenv("IA_MAX_LLAMADAS"):
+            self.max_llamadas = int(os.getenv("IA_MAX_LLAMADAS"))
+        else:
+            self.max_llamadas = None                    # sin tope
+        if rpm is not None:
+            self.rpm = rpm
+        elif os.getenv("IA_RPM"):
+            self.rpm = int(os.getenv("IA_RPM"))
+        else:
+            self.rpm = None                             # sin rate limit
 
         # Estado runtime
         self.llamadas = 0
         self.tokens_in = 0
         self.tokens_out = 0
-        self._min_interval = 60.0 / max(1, rpm)
+        self._min_interval = 0.0 if self.rpm is None else 60.0 / max(1, self.rpm)
         self._last_call = 0.0
 
         # Cliente HTTP
@@ -348,7 +371,7 @@ class IAClient:
         use_cache: bool = True,
     ) -> Dict:
         """Chat completion asíncrono con cache opcional."""
-        if self.llamadas >= self.max_llamadas:
+        if self.max_llamadas is not None and self.llamadas >= self.max_llamadas:
             raise IAError(f"Límite de llamadas alcanzado ({self.max_llamadas})")
 
         # Cache key

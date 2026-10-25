@@ -155,8 +155,12 @@ Si no hay salario explícito -> todos null.
 
 Responde SOLO JSON: {"salary_min": ..., "salary_max": ..., "salary_currency": "...", "salary_period": "..."}"""
 
-SKILLS_PROMPT = """Extrae lista de skills TÉCNICAS explícitas (Python, AWS, SQL, React, Docker, Kubernetes, Java, JavaScript, etc.).
-NO incluyas soft skills ni requisitos genéricos.
+SKILLS_PROMPT = """Extrae SOLO las skills TECNICAS que aparecen LITERALMENTE en el texto.
+Reglas estrictas:
+- NO inventes skills que no esten escritas en el texto.
+- NO incluyas soft skills ni conceptos genericos.
+- MAXIMO 10 skills, las mas importantes.
+- Si no hay skills tecnicas claras -> lista vacia.
 Responde SOLO JSON: {"skills": ["...", "..."]}"""
 
 LANGUAGES_PROMPT = """Extrae idiomas CON NIVEL CEFR explícito (A1, A2, B1, B2, C1, C2, nativo).
