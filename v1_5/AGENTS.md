@@ -71,8 +71,9 @@ de recuperación). Reglas de oro que resumen todo el documento:
 .\.venv\Scripts\python.exe tools\progreso_enriquecimiento.py   # % por campo
 .\.venv\Scripts\python.exe tools\huecos_restantes.py     # huecos: basura vs recuperable
 
-# Tests (el de UI falla sin display Tcl/Tk)
-.\.venv\Scripts\python.exe -m pytest tests/ -q --ignore=tests/test_ui.py
+# Tests — test_ui requiere display; corre OK en el PC del usuario (200 tests).
+# pytest vive en el python del sistema (el venv no lo tiene instalado).
+python -m pytest tests/ -q
 
 # UI
 .\.venv\Scripts\python.exe -m jobpulse_v15.ui
@@ -102,3 +103,5 @@ de recuperación). Reglas de oro que resumen todo el documento:
   `docs/IA_ENRIQUECIMIENTO.md`).
 - BD: 175 jobs. Huecos restantes: skills 0, languages 4, city 24, region 13,
   work_mode 'unknown' 23, salary sin texto en fuente 82 (no extraíble).
+- Perfil: 48 facts (editor CV en `ui_perfil.py`; datos personales y resumen
+  reales ya cargados; `value_code='portfolio'` reservado).
