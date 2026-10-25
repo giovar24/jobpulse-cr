@@ -236,6 +236,36 @@ class IndeedFetcher:
             logger.warning("Indeed auto-login fallo: %s", e)
             return False
 
+    _POPUP_SELECTORES = (
+        "button[aria-label='Close']",
+        "button[aria-label='Cerrar']",
+        "button[data-testid='alerts-popup-close-button']",
+        "[data-testid='modal-close-button']",
+        "button[data-testid='serp_close_button']",
+    )
+
+    async def _cerrar_popups(self, page: Page) -> None:
+        """Cierra overlays de Indeed (alertas de empleo, modales) que
+        interceptan los clicks de paginacion. El popup DesktopSERPJobAlert
+        con el email prellenado bloquea next_btn si no se retira."""
+        try:
+            await page.keyboard.press("Escape")
+        except Exception:
+            pass
+        for sel in self._POPUP_SELECTORES:
+            try:
+                btn = page.locator(sel).first
+                if await btn.is_visible(timeout=400):
+                    await btn.click(timeout=1_500)
+            except Exception:
+                continue
+        try:
+            await page.evaluate(
+                "() => document.querySelectorAll('ifl-portal').forEach(el => el.remove())"
+            )
+        except Exception:
+            pass
+
     async def _enrich_descriptions(self, page: Page, jobs: List[Dict[str, Any]]) -> None:
         """Obtiene descripción completa vía /rpc/jobdescs usando la sesión del navegador."""
         targets = [j for j in jobs if re.fullmatch(r"[0-9a-f]{16}", j["source_job_id"] or "")]
@@ -353,6 +383,7 @@ class IndeedFetcher:
             url = f"{self.base_url}?q={quote_plus(search_term)}&l={quote_plus(location)}"
             await page.goto(url, wait_until="domcontentloaded")
             await page.wait_for_timeout(3000)
+            await self._cerrar_popups(page)
 
             seen: set = set()
             for _ in range(pages):
@@ -409,7 +440,15 @@ class IndeedFetcher:
 
                 next_btn = await page.query_selector("a[data-testid='pagination-page-next'], a[aria-label='Next Page'], a.next")
                 if next_btn and await next_btn.is_enabled():
-                    await next_btn.click()
+                    await self._cerrar_popups(page)
+                    try:
+                        await next_btn.click(timeout=10_000)
+                    except Exception as e:
+                        logger.warning("Indeed: click en paginacion fallo (%s); reintento con JS.", e)
+                        await page.evaluate(
+                            "el => el.click()",
+                            await next_btn.element_handle(),
+                        )
                     await page.wait_for_timeout(3000)
                 else:
                     break

@@ -308,6 +308,9 @@ async def run_ia_enrichment(
     """
     Pipeline principal: carga jobs sin campos críticos, enriquece campo por campo, guarda.
     """
+    from dotenv import load_dotenv
+    load_dotenv()  # asegura IA_* disponibles tambien desde UI/scripts
+
     if not IA_AVAILABLE:
         return {"error": "IA client no disponible (import failed)"}
     

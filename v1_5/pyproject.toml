@@ -18,6 +18,7 @@ dependencies = [
     "torch>=2.3",
     "python-dotenv>=1.0",
     "aiosqlite>=0.19",
+    "keyring>=25",
 ]
 
 [project.optional-dependencies]

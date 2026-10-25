@@ -110,6 +110,78 @@ def _ahora() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
+# --------------------------------------------- almacén seguro de contraseñas
+# Las contraseñas NUNCA van en texto plano en credenciales.json (que vive
+# dentro del proyecto y puede acabar en un backup/repo). Se guardan en el
+# Administrador de Credenciales de Windows (keyring) por par servicio/empresa.
+# El JSON conserva solo metadatos: usuario, sso, url, flags y notas.
+_KEYRING_SERVICIO = "JobPulse CR v1.5"
+
+try:
+    import keyring as _keyring
+    import keyring.errors as _keyring_errors
+
+    def _password_guardar(empresa: str, password: str) -> bool:
+        try:
+            _keyring.set_password(_KEYRING_SERVICIO, _norm(empresa), password)
+            return True
+        except _keyring_errors.KeyringError as e:
+            logger.warning("No se pudo guardar password en keyring: %s", e)
+            return False
+
+    def _password_leer(empresa: str) -> Optional[str]:
+        try:
+            return _keyring.get_password(_KEYRING_SERVICIO, _norm(empresa))
+        except _keyring_errors.KeyringError as e:
+            logger.warning("No se pudo leer password del keyring: %s", e)
+            return None
+
+    def _password_borrar(empresa: str) -> None:
+        try:
+            _keyring.delete_password(_KEYRING_SERVICIO, _norm(empresa))
+        except Exception:
+            pass  # no existia
+
+    _KEYRING_OK = True
+except ImportError:
+    # Sin keyring (p.ej. Linux sin dbus): fallback al archivo como antes,
+    # con aviso claro. En Windows siempre hay WinVaultKeyring.
+    logger.warning(
+        "keyring no instalado: las passwords se guardaran en el JSON local "
+        "(texto plano). Instala 'pip install keyring' para almacen seguro."
+    )
+
+    def _password_guardar(empresa: str, password: str) -> bool:
+        return False
+
+    def _password_leer(empresa: str) -> Optional[str]:
+        return None
+
+    def _password_borrar(empresa: str) -> None:
+        pass
+
+    _KEYRING_OK = False
+
+
+def _migrar_passwords_plano(data: Dict[str, dict]) -> Dict[str, dict]:
+    """One-time: si el JSON trae passwords en texto plano (formato antiguo),
+    las mueve al keyring y las retira del archivo."""
+    if not _KEYRING_OK:
+        return data
+    migradas = False
+    for clave, reg in data.items():
+        pw = reg.get("password")
+        if pw:  # texto plano legado
+            if _password_guardar(clave, pw):
+                reg["password"] = ""
+                reg["password_almacen"] = "keyring"
+                migradas = True
+                logger.info("Password de %s migrada al keyring.", clave)
+    if migradas:
+        _escribir(CRED_JSON, data)
+    return data
+
+
 def _norm(empresa: str) -> str:
     return (empresa or "").strip().casefold()
 
@@ -339,7 +411,9 @@ def cargar_credenciales() -> Dict[str, dict]:
     data = _leer(CRED_JSON, {})
     if not isinstance(data, dict):
         return {}
-    return {k: v for k, v in data.items() if isinstance(v, dict)}
+    data = {k: v for k, v in data.items() if isinstance(v, dict)}
+    # Migracion one-time: passwords legadas en texto plano -> keyring
+    return _migrar_passwords_plano(data)
 
 
 def guardar_credenciales(data: Dict[str, dict]) -> bool:
@@ -349,15 +423,22 @@ def guardar_credenciales(data: Dict[str, dict]) -> bool:
 def credencial(empresa: str) -> Optional[dict]:
     """Credencial guardada para `empresa` (case-insensitive).
 
-    Fallback .env: ANE sigue soportando ANE_USER/ANE_PASSWORD (compatibilidad
-    con lo que ya existe); si no hay JSON, se usa esa.
+    La password se resuelve desde el keyring (Administrador de Credenciales
+    de Windows); el JSON solo tiene metadatos. Fallback .env: ANE sigue
+    soportando ANE_USER/ANE_PASSWORD (compatibilidad con lo que ya existe).
     """
     data = cargar_credenciales()
     for k, v in data.items():
         if _norm(k) == _norm(empresa) or _norm(v.get("empresa", "")) == _norm(empresa):
+            copia = dict(v)
+            # password real desde el almacen seguro (o texto plano legado)
+            pw = copia.get("password") or _password_leer(k)
+            copia["password"] = pw or ""
+            if _password_leer(k):
+                copia["password_almacen"] = "keyring"
             # vale con usuario + (password O metodo SSO como Google)
-            if v.get("usuario") and (v.get("password") or v.get("sso")):
-                return v
+            if copia.get("usuario") and (copia.get("password") or copia.get("sso")):
+                return copia
     if _norm(empresa) == "ane":
         u, p = os.getenv("ANE_USER"), os.getenv("ANE_PASSWORD")
         if u and p:
@@ -388,13 +469,28 @@ def upsert_credencial(empresa: str, usuario: str, password: str = "",
     reg = {
         "empresa": empresa.strip(),
         "usuario": usuario.strip(),
-        "password": password,
+        "password": "",  # NUNCA texto plano en el JSON; va al keyring
         "sso": (sso or prev.get("sso", "")) if not password else "",
         "url": url or prev.get("url", ""),
         "auto_login": bool(auto_login),
         "nota": nota or prev.get("nota", ""),
         "ts": _ahora(),
     }
+    # password: al almacen seguro del SO. Si viene vacia se conserva la
+    # existente (editar metadatos sin re-teclear la clave).
+    if password:
+        if _password_guardar(clave, password):
+            reg["password_almacen"] = "keyring"
+        else:
+            # fallback sin keyring: texto plano como antes (con aviso)
+            reg["password"] = password
+    else:
+        prev_almacen = prev.get("password_almacen")
+        prev_pw = prev.get("password")
+        if prev_pw:  # legado en texto plano: conservarlo
+            reg["password"] = prev_pw
+        elif prev_almacen == "keyring":
+            reg["password_almacen"] = "keyring"
     data[clave] = reg
     guardar_credenciales(data)
     if era_nuevo:
@@ -440,6 +536,7 @@ def borrar_credencial(empresa: str) -> bool:
         return False
     del data[hit]
     guardar_credenciales(data)
+    _password_borrar(clave)  # limpiar tambien el keyring
     marcar_auto_login(empresa, False)
     return True
 

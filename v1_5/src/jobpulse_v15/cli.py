@@ -2229,3 +2229,7 @@ def main() -> int:
                 print("\nListo. La proxima corrida reusa estas sesiones.")
 
     return command_exit_code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
