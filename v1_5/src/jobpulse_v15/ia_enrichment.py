@@ -175,8 +175,9 @@ async def _extract_field(
     field_name: str,
     max_tokens: int = 300
 ) -> Optional[Dict]:
-    """Extrae un campo individual con reintentos."""
-    for attempt in range(2):
+    """Extrae un campo individual con reintentos (3 intentos, backoff)."""
+    ultimo_error = None
+    for attempt in range(3):
         try:
             resp = await client.chat_json(
                 messages=[
@@ -189,9 +190,10 @@ async def _extract_field(
             )
             return resp
         except Exception as e:
-            if attempt == 1:
-                logger.debug(f"IA extract {field_name} failed: {e}")
-            await asyncio.sleep(0.5)
+            ultimo_error = e
+            if attempt < 2:
+                await asyncio.sleep(1.0 * (attempt + 1))  # 1s, 2s
+    logger.warning(f"IA extract {field_name} fallo tras 3 intentos: {ultimo_error}")
     return None
 
 
@@ -256,8 +258,10 @@ async def enrich_job_fields(job: Dict[str, Any], client: IAClient) -> Dict[str, 
             filled["salary_period"] = result["salary_period"]
     
     # Skills
+    # Skills 600 tokens: la lista puede ser larga y un JSON truncado
+    # aborta el parseo (antes 300 truncaba y se perdian skills).
     if not job.get("skills") and (job.get("description_raw") or job.get("requirements_raw")):
-        result = await _extract_field(client, SKILLS_PROMPT, full_text, SKILLS_SCHEMA, "skills", 300)
+        result = await _extract_field(client, SKILLS_PROMPT, full_text, SKILLS_SCHEMA, "skills", 600)
         if result and result.get("skills"):
             filled["skills"] = result["skills"]
     
@@ -289,6 +293,46 @@ def needs_critical_enrichment(job: Dict[str, Any]) -> bool:
     )
 
 
+def needs_secondary_enrichment(job: Dict[str, Any]) -> bool:
+    """Verifica si el job necesita campos SECUNDARIOS (solo pase completo)."""
+    return (
+        not job.get("employment_type") or
+        (job.get("salary_min") is None and bool(job.get("salary_raw"))) or
+        not job.get("skills") or
+        not job.get("languages")
+    )
+
+
+async def verificar_servidor_ia(client: IAClient) -> Optional[str]:
+    """Preflight: verifica que el servidor IA responde antes del pase.
+
+    Devuelve None si responde, o un mensaje de error si no. Evita lanzar
+    el pase completo cuando el backend esta apagado (mil fallas en fila).
+    """
+    try:
+        await client.chat_json(
+            messages=[
+                {"role": "system", "content": "Responde SOLO JSON."},
+                {"role": "user", "content": 'Responde: {"ok": true}'},
+            ],
+            schema={
+                "type": "object",
+                "properties": {"ok": {"type": "boolean"}},
+                "required": ["ok"],
+                "additionalProperties": False,
+            },
+            temperature=0.0,
+            max_tokens=20,
+        )
+        return None
+    except Exception as e:
+        return (
+            f"Servidor IA no responde en {getattr(client, 'base_url', '?')} "
+            f"(modelo {getattr(client, 'modelo', '?')}): {e}. "
+            "Arranca llama-server y reintenta."
+        )
+
+
 def get_ia_client() -> Optional[IAClient]:
     """Crea cliente IA si está configurado."""
     if not IA_AVAILABLE:
@@ -298,6 +342,23 @@ def get_ia_client() -> Optional[IAClient]:
     except Exception as e:
         logger.warning(f"IA no configurada: {e}")
         return None
+
+
+# Escaparate de guardado: campo IA -> (columna jobs, valor a escribir).
+# skills/languages se serializan a JSON; el resto es texto/numero directo.
+MAPEO_SAVE = {
+    "city": ("city", lambda j: j.get("city")),
+    "region": ("region", lambda j: j.get("region")),
+    "work_mode": ("work_mode", lambda j: j.get("work_mode")),
+    "date_published": ("date_published", lambda j: j.get("date_published")),
+    "employment_type": ("employment_type", lambda j: j.get("employment_type")),
+    "salary_min": ("salary_min", lambda j: j.get("salary_min")),
+    "salary_max": ("salary_max", lambda j: j.get("salary_max")),
+    "salary_currency": ("salary_currency", lambda j: j.get("salary_currency")),
+    "salary_period": ("salary_period", lambda j: j.get("salary_period")),
+    "skills": ("skills", lambda j: json.dumps(j.get("skills") or [], ensure_ascii=False)),
+    "languages": ("languages", lambda j: json.dumps(j.get("languages") or {}, ensure_ascii=False)),
+}
 
 
 async def run_ia_enrichment(
@@ -317,6 +378,12 @@ async def run_ia_enrichment(
     ia_client = get_ia_client()
     if not ia_client:
         return {"error": "IA no configurada (ver .env: IA_PROVEEDOR, IA_BASE_URL, IA_MODEL, IA_API_KEY)"}
+
+    # Preflight: si el backend esta apagado, abortar de inmediato y no
+    # generar una avalancha de fallos job por job.
+    error_preflight = await verificar_servidor_ia(ia_client)
+    if error_preflight:
+        return {"error": error_preflight}
     
     from jobpulse_v15.db import Database
     from jobpulse_v15.repository import Repository
@@ -350,7 +417,13 @@ async def run_ia_enrichment(
     jobs = []
     for jid in job_ids:
         job = repo.get_job(jid)
-        if job and needs_critical_enrichment(job):
+        if not job:
+            continue
+        if only_critical:
+            if needs_critical_enrichment(job):
+                jobs.append(job)
+        elif needs_critical_enrichment(job) or needs_secondary_enrichment(job):
+            # Pase completo: tambien jobs que solo faltan secundarios.
             jobs.append(job)
     
     if not jobs:
@@ -364,6 +437,7 @@ async def run_ia_enrichment(
     
     for i in range(0, len(jobs), batch_size):
         batch = jobs[i:i+batch_size]
+        logger.info(f"IA lote {i // batch_size + 1}/{-(-len(jobs) // batch_size)}: {len(batch)} jobs")
         
         # Procesar en paralelo dentro del lote
         tasks = [enrich_job(job, ia_client) for job in batch]
@@ -373,49 +447,52 @@ async def run_ia_enrichment(
             if isinstance(filled, Exception) or not filled:
                 stats["failed"] += 1
                 continue
-            
-            # Merge: solo llenar lo que falte
+
+            # Merge: solo llenar lo que falte y anotar SOLO los campos
+            # realmente cambiados (lo que governa el UPDATE posterior).
+            tocado = []
             for field, value in filled.items():
-                if field in ("city", "region", "work_mode", "date_published", "employment_type") and job.get(field) in (None, "", "unknown") and value:
-                    job[field] = value
-                    if field in stats["fields_filled"]:
-                        stats["fields_filled"][field] += 1
-                elif field in ("salary_min", "salary_max", "salary_currency", "salary_period") and job.get("salary_min") is None and value is not None:
-                    job[field] = value
-                    stats["fields_filled"]["salary"] += 1
-                elif field == "skills" and not job.get("skills") and value:
-                    job["skills"] = value
-                    stats["fields_filled"]["skills"] += 1
-                elif field == "languages" and not job.get("languages") and value:
-                    job["languages"] = value
-                    stats["fields_filled"]["languages"] += 1
-            
-            job["_ia_fields_filled"] = list(filled.keys())
+                if field not in MAPEO_SAVE or value in (None, "", [], {}):
+                    continue
+                if field == "work_mode":
+                    vacio = job.get(field) in (None, "", "unknown")
+                elif field in ("salary_min", "salary_max", "salary_currency", "salary_period"):
+                    vacio = job.get(field) is None
+                else:
+                    vacio = job.get(field) in (None, "", [], {})
+                if not vacio:
+                    continue
+                job[field] = value
+                tocado.append(field)
+            if not tocado:
+                stats["skipped"] += 1  # la IA no devolvio nada nuevo
+                continue
+            job["_ia_fields_filled"] = tocado
             stats["enriched"] += 1
+            for field in tocado:
+                if field.startswith("salary"):
+                    continue  # el grupo se cuenta 1 vez por job
+                if field in stats["fields_filled"]:
+                    stats["fields_filled"][field] += 1
+            if any(f.startswith("salary") for f in tocado):
+                stats["fields_filled"]["salary"] += 1
             updated_jobs.append(job)
-    
-    # Guardar en BD
+
+    # Guardar en BD: SOLO las columnas tocadas (nunca sobreescribir
+    # skills/languages con 'null' por campos que no se consultaron).
     db_updated = 0
     from jobpulse_v15.db import Database
     db = Database(db_path)
     for job in updated_jobs:
+        tocado = job.get("_ia_fields_filled") or []
+        columnas = [MAPEO_SAVE[f][0] for f in tocado]
+        valores = [MAPEO_SAVE[f][1](job) for f in tocado]
         with db.connection() as conn:
-            conn.execute("""
-                UPDATE jobs SET
-                    city = ?, region = ?, work_mode = ?, date_published = ?,
-                    employment_type = ?,
-                    salary_min = ?, salary_max = ?, salary_currency = ?, salary_period = ?,
-                    skills = ?, languages = ?
-                WHERE job_id = ?
-            """, (
-                job.get("city"), job.get("region"), job.get("work_mode"),
-                job.get("date_published"), job.get("employment_type"),
-                job.get("salary_min"), job.get("salary_max"),
-                job.get("salary_currency"), job.get("salary_period"),
-                json.dumps(job.get("skills", []), ensure_ascii=False),
-                json.dumps(job.get("languages", {}), ensure_ascii=False),
-                job["job_id"]
-            ))
+            conn.execute(
+                f"UPDATE jobs SET {', '.join(c + ' = ?' for c in columnas)}"
+                " WHERE job_id = ?",
+                (*valores, job["job_id"]),
+            )
             if conn.total_changes > 0:
                 db_updated += 1
     

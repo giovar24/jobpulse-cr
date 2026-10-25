@@ -12,9 +12,30 @@ echo ============================================================
 echo.
 
 REM ----------------------------------------------------------
+REM 0. Entorno virtual y servidor IA (llama.cpp)
+REM ----------------------------------------------------------
+echo [1/4] Verificando entorno Python...
+if exist ".venv\Scripts\python.exe" (
+    echo     Entorno virtual existe ✓
+    set "PYTHON=.venv\Scripts\python.exe"
+) else (
+    echo     Creando entorno virtual...
+    python -m venv .venv >nul 2>&1
+    echo     Instalando dependencias...
+    .venv\Scripts\pip install -e . >nul 2>&1
+    .venv\Scripts\playwright install chromium >nul 2>&1
+    set "PYTHON=.venv\Scripts\python.exe"
+    echo     Entorno listo ✓
+)
+
+echo [2/4] Verificando servidor IA local (puerto 8081)...
+"%PYTHON%" start_ia_server.py
+echo     (si no se pudo arrancar, la UI sigue igual: el enriquecimiento se reintenta)
+
+REM ----------------------------------------------------------
 REM 1. Iniciar Brave con CDP
 REM ----------------------------------------------------------
-echo [1/3] Iniciando Brave con CDP (puerto 9222)...
+echo [3/4] Iniciando Brave con CDP (puerto 9222)...
 
 rem Verificar si Brave ya responde en CDP
 powershell -Command "Invoke-WebRequest -Uri 'http://127.0.0.1:9222/json/version' -TimeoutSec 2 -ErrorAction SilentlyContinue" >nul 2>&1
@@ -29,26 +50,9 @@ if %errorlevel% equ 0 (
 )
 
 REM ----------------------------------------------------------
-REM 2. Entorno virtual
+REM 2. Lanzar UI
 REM ----------------------------------------------------------
-echo [2/3] Verificando entorno Python...
-if exist ".venv\Scripts\python.exe" (
-    echo     Entorno virtual existe ✓
-    set "PYTHON=.venv\Scripts\python.exe"
-) else (
-    echo     Creando entorno virtual...
-    python -m venv .venv >nul 2>&1
-    echo     Instalando dependencias...
-    .venv\Scripts\pip install -e . >nul 2>&1
-    .venv\Scripts\playwright install chromium >nul 2>&1
-    set "PYTHON=.venv\Scripts\python.exe"
-    echo     Entorno listo ✓
-)
-
-REM ----------------------------------------------------------
-REM 3. Lanzar UI
-REM ----------------------------------------------------------
-echo [3/3] Lanzando JobPulse CR UI...
+echo [4/4] Lanzando JobPulse CR UI...
 echo.
 echo ============================================================
 echo  JobPulse CR v1.5 - UI abierta
