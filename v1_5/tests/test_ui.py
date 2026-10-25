@@ -14,16 +14,11 @@ import tkinter as tk
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from jobpulse_v15.candidate_profile import (
-    CandidateProfileImport,
-    CandidateProfileSuggestion,
-)
+from jobpulse_v15.profile_model import parse_experiencia_notes
 from jobpulse_v15.db import Database
 from jobpulse_v15.repository import Repository
 from jobpulse_v15.ui import (
     ApplicationTrackingWindow,
-    CandidateProfileImportWindow,
-    CandidateProfileWindow,
     JobPulseWindow,
     SourceManagerWindow,
     format_job_detail,
@@ -34,6 +29,7 @@ from jobpulse_v15.ui import (
     format_source_row,
     write_job_search_csv,
 )
+from jobpulse_v15.ui_perfil import CandidateProfileWindowCV, _DialogoRevision
 
 
 class TestFormatJobDetail(unittest.TestCase):
@@ -1820,55 +1816,63 @@ class TestManualJobStateUI(unittest.TestCase):
         finally:
             window.close()
 
-    def test_candidate_profile_window_saves_structured_local_profile_data(self):
-        window = CandidateProfileWindow(self.root, self.repository)
+    def test_candidate_profile_window_saves_personal_data(self):
+        window = CandidateProfileWindowCV(self.root, self.repository)
         try:
-            window.category_var.set("experience")
-            window.code_var.set("years_experience")
-            window.value_var.set("Experiencia profesional")
-            window.numeric_value_var.set("5")
-            window.unit_var.set("years")
-            window.notes_entry.insert(0, "Experiencia indicada en CV")
-            window.save()
+            window.contacto_vars["nombre"].set("Giovanni Vargas Cruz")
+            window.contacto_vars["email"].set("giovar24@gmail.com")
+            window._guardar_contacto()
+
+            facts = self.repository.list_candidate_profile_facts()
+            self.assertEqual(len(facts), 2)
+            self.assertEqual({f["category"] for f in facts}, {"contact"})
+            self.assertEqual({f["value_code"] for f in facts}, {"nombre", "email"})
+        finally:
+            window.window.destroy()
+
+    def test_experience_section_computes_years_and_structures_notes(self):
+        window = CandidateProfileWindowCV(self.root, self.repository)
+        try:
+            seccion = window.seccion_experiencia
+            seccion.widgets["empresa"].insert(0, "Acme Corp")
+            seccion.widgets["puesto"].insert(0, "IT Support")
+            seccion.widgets["inicio"].insert(0, "01/2020")
+            seccion.widgets["fin"].insert(0, "01/2024")
+            seccion.widgets["logros"].insert("1.0", "MTTR -30%\nMigracion IAM")
+            seccion._guardar()
 
             facts = self.repository.list_candidate_profile_facts()
             self.assertEqual(len(facts), 1)
-            self.assertEqual(facts[0]["numeric_value"], 5.0)
-            self.assertEqual(facts[0]["unit"], "years")
-            self.assertEqual(window.facts_table.get_children(), ("1",))
+            fact = facts[0]
+            self.assertEqual(fact["category"], "experience")
+            self.assertEqual(fact["numeric_value"], 4.0)
+            self.assertEqual(fact["unit"], "años")
+            self.assertIn(
+                "IT Support — Acme Corp (01/2020 a 01/2024)", fact["value_text"]
+            )
+            ubicacion, logros = parse_experiencia_notes(fact["notes"])
+            self.assertEqual(ubicacion, "")
+            self.assertEqual(logros, ["MTTR -30%", "Migracion IAM"])
         finally:
-            window.close()
+            window.window.destroy()
 
-    def test_profile_import_saves_only_explicitly_selected_suggestions(self):
-        imported = CandidateProfileImport(
-            source_name="candidate.txt",
-            suggestions=(
-                CandidateProfileSuggestion(
-                    category="skill",
-                    value_code="python",
-                    value_text="Python",
-                    evidence="Technical skills: Python.",
-                ),
-                CandidateProfileSuggestion(
-                    category="language",
-                    value_code="en",
-                    value_text="English",
-                    qualifier="advanced",
-                    evidence="English - advanced.",
-                ),
-            ),
-            warnings=("Revisa las sugerencias.",),
-        )
-        window = CandidateProfileImportWindow(
-            self.root,
-            self.repository,
-            imported,
-            on_import_complete=lambda: None,
+    def test_profile_import_dialog_saves_only_selected_rows(self):
+        propuestos = [
+            {"category": "skill", "value_code": "python", "value_text": "Python",
+             "notes": "Evidencia: Technical skills: Python."},
+            {"category": "language", "value_code": "en", "value_text": "English",
+             "qualifier": "advanced", "notes": "Evidencia: English - advanced."},
+        ]
+        dialogo = _DialogoRevision(
+            self.root, self.repository, source_name="candidate.txt",
+            facts=propuestos, aviso="", al_terminar=lambda: None,
         )
         try:
-            window.suggestions_table.selection_set("1")
-            with patch("jobpulse_v15.ui.messagebox.showinfo"):
-                window.import_selected()
+            self.root.update()
+            dialogo.filas[0]["var"].set(False)
+            dialogo._actualizar_contador()
+            with patch("jobpulse_v15.ui_perfil.messagebox.showinfo"):
+                dialogo._guardar()
 
             facts = self.repository.list_candidate_profile_facts()
             self.assertEqual(len(facts), 1)
@@ -1877,149 +1881,101 @@ class TestManualJobStateUI(unittest.TestCase):
             self.assertEqual(facts[0]["origin"], "imported")
             self.assertEqual(facts[0]["import_source_name"], "candidate.txt")
         finally:
-            if window.window.winfo_exists():
-                window.close()
+            if dialogo.winfo_exists():
+                dialogo.destroy()
 
-    def test_profile_import_suggestion_can_be_corrected_before_saving(self):
-        imported = CandidateProfileImport(
-            source_name="candidate.txt",
-            suggestions=(
-                CandidateProfileSuggestion(
-                    category="skill",
-                    value_code="python",
-                    value_text="Python",
-                    evidence="Technical skills: Python.",
-                ),
-            ),
-            warnings=(),
-        )
-        window = CandidateProfileImportWindow(
-            self.root,
-            self.repository,
-            imported,
-            on_import_complete=lambda: None,
+    def test_profile_import_dialog_allows_editing_before_saving(self):
+        propuestos = [
+            {"category": "skill", "value_code": "python", "value_text": "Python",
+             "notes": "Evidencia: Skills: Python."},
+        ]
+        dialogo = _DialogoRevision(
+            self.root, self.repository, source_name="candidate.txt",
+            facts=propuestos, aviso="", al_terminar=lambda: None,
         )
         try:
-            window.suggestions_table.selection_set("0")
-            window.edit_selected()
-            dialog = next(
-                child
-                for child in window.window.winfo_children()
-                if isinstance(child, tk.Toplevel)
-                and child.title() == "Editar sugerencia del CV"
-            )
-
-            def descendants(widget):
-                for child in widget.winfo_children():
-                    yield child
-                    yield from descendants(child)
-
-            value_entry = next(
-                widget
-                for widget in descendants(dialog)
-                if isinstance(widget, ttk.Entry)
-                and int(widget.grid_info().get("row", -1)) == 2
-            )
-            value_entry.delete(0, "end")
-            value_entry.insert(0, "Python 3")
-            apply_button = next(
-                widget
-                for widget in descendants(dialog)
-                if isinstance(widget, ttk.Button)
-                and widget.cget("text") == "Aplicar cambios"
-            )
-            apply_button.invoke()
-
-            self.assertEqual(window.suggestions[0].value_text, "Python 3")
-            self.assertEqual(
-                window.suggestions_table.set("0", "value"), "Python 3"
-            )
-            window.suggestions_table.selection_set("0")
-            with patch("jobpulse_v15.ui.messagebox.showinfo"):
-                window.import_selected()
+            self.root.update()
+            dialogo.filas[0]["texto"].set("Python 3")
+            with patch("jobpulse_v15.ui_perfil.messagebox.showinfo"):
+                dialogo._guardar()
             self.assertEqual(
                 self.repository.list_candidate_profile_facts()[0]["value_text"],
                 "Python 3",
             )
         finally:
-            if window.window.winfo_exists():
-                window.close()
+            if dialogo.winfo_exists():
+                dialogo.destroy()
 
     def test_profile_import_file_picker_only_previews_before_user_selection(self):
-        profile_window = CandidateProfileWindow(self.root, self.repository)
+        window = CandidateProfileWindowCV(self.root, self.repository)
         path = Path(self.temp_dir.name) / "candidate.txt"
         path.write_text("Technical skills: Python.", encoding="utf-8")
         try:
             with patch(
-                "jobpulse_v15.ui.filedialog.askopenfilename", return_value=str(path)
+                "jobpulse_v15.ui_perfil.filedialog.askopenfilename",
+                return_value=str(path),
             ):
-                profile_window.import_cv()
+                window._importar_cv()
 
-            review_windows = [
+            revisiones = [
                 child
-                for child in profile_window.window.winfo_children()
+                for child in window.window.winfo_children()
                 if isinstance(child, tk.Toplevel)
-                and child.title().startswith("Revisar importacion")
+                and child.title().startswith("Revisar importación")
             ]
-            self.assertEqual(len(review_windows), 1)
+            self.assertEqual(len(revisiones), 1)
             self.assertEqual(self.repository.list_candidate_profile_facts(), [])
-            review_windows[0].destroy()
+            revisiones[0].destroy()
             self.root.update()
         finally:
-            profile_window.close()
+            window.window.destroy()
             self.root.update()
 
-    def test_profile_import_requires_confirmation_to_replace_existing_fact(self):
+    def test_profile_import_replaces_existing_fact_and_revert_restores_it(self):
         self.repository.save_candidate_profile_fact("skill", "python", "Python 2")
-        imported = CandidateProfileImport(
-            source_name="candidate.txt",
-            suggestions=(
-                CandidateProfileSuggestion(
-                    category="skill",
-                    value_code="python",
-                    value_text="Python 3",
-                    evidence="Skills: Python.",
-                ),
-            ),
-            warnings=(),
+        propuestos = [
+            {"category": "skill", "value_code": "python", "value_text": "Python 3",
+             "notes": "Evidencia: Skills: Python."},
+        ]
+        dialogo = _DialogoRevision(
+            self.root, self.repository, source_name="candidate.txt",
+            facts=propuestos, aviso="", al_terminar=lambda: None,
         )
-        window = CandidateProfileImportWindow(
-            self.root,
-            self.repository,
-            imported,
-            on_import_complete=lambda: None,
-        )
-        window.suggestions_table.selection_set("0")
         try:
-            with patch(
-                "jobpulse_v15.ui.messagebox.askyesno", return_value=False
-            ) as confirm:
-                window.import_selected()
+            with patch("jobpulse_v15.ui_perfil.messagebox.showinfo"):
+                dialogo._guardar()
+            guardado = self.repository.list_candidate_profile_facts()[0]
+            self.assertEqual(guardado["value_text"], "Python 3")
+            self.assertEqual(guardado["origin"], "imported")
 
-            confirm.assert_called_once()
+            resultado = self.repository.revert_last_candidate_profile_import()
+            self.assertEqual(resultado["restored"], 1)
             fact = self.repository.list_candidate_profile_facts()[0]
             self.assertEqual(fact["value_text"], "Python 2")
+            self.assertEqual(fact["origin"], "manual")
         finally:
-            window.close()
+            if dialogo.winfo_exists():
+                dialogo.destroy()
 
     def test_profile_window_reverts_latest_import_after_confirmation(self):
         self.repository.import_candidate_profile_facts(
             "candidate.txt",
             [{"category": "skill", "value_code": "python", "value_text": "Python"}],
         )
-        window = CandidateProfileWindow(self.root, self.repository)
+        window = CandidateProfileWindowCV(self.root, self.repository)
         try:
             with patch(
-                "jobpulse_v15.ui.messagebox.askyesno", return_value=True
-            ), patch("jobpulse_v15.ui.messagebox.showinfo") as showinfo:
-                window.revert_last_import()
+                "jobpulse_v15.ui_perfil.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui_perfil.messagebox.showinfo"
+            ) as showinfo:
+                window._revertir()
 
             self.assertEqual(self.repository.list_candidate_profile_facts(), [])
             self.assertEqual(self.repository.list_candidate_profile_imports(), [])
-            self.assertEqual(window.facts_table.get_children(), ())
             showinfo.assert_called_once()
         finally:
-            window.close()
+            window.window.destroy()
 
     def test_job_window_opens_comparison_for_selected_job(self):
         window = JobPulseWindow(self.root, self.repository)
