@@ -1,5 +1,22 @@
-"""Login de ANE en Brave real (CDP 9222) con credenciales guardadas."""
+"""Login de ANE en Brave real (CDP 9222) con credenciales guardadas.
+
+Las credenciales NUNCA viven en este archivo (regla del proyecto: el repo no
+contiene secretos). Se leen del almacen local con `credencial("ANE")`:
+  - keyring de Windows (Administrador de Credenciales) + metadatos en
+    `data/empresas/credenciales.json` (gitignored), o
+  - fallback `.env`: ANE_USER / ANE_PASSWORD.
+
+Guardar/actualizar la credencial:
+    .\.venv\Scripts\python.exe -m jobpulse_v15 credenciales set --empresa ANE --usuario <usuario> --password <password>
+"""
+import sys
+
+from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
+
+from jobpulse_v15.credenciales import credencial
+
+load_dotenv()  # asegura ANE_USER/ANE_PASSWORD disponibles desde .env
 
 LOGIN_URL = "https://www.ane.cr/Cuenta/Login"
 CFG = {
@@ -10,8 +27,18 @@ CFG = {
     "submit_sel": "button[type=submit], input[type=submit], button:has-text('Ingresar')",
     "espera": 5000,
 }
-USUARIO = "giovar24"
-PASSWORD = "8aT4XKBYI305"
+
+cred = credencial("ANE")
+if not cred or not cred.get("usuario") or not cred.get("password"):
+    print("ERROR: no hay credencial ANE usable (usuario + password).")
+    print("Guardala con:")
+    print("  .\\.venv\\Scripts\\python.exe -m jobpulse_v15 credenciales set "
+          "--empresa ANE --usuario <usuario> --password <password>")
+    print("o define ANE_USER/ANE_PASSWORD en .env.")
+    raise SystemExit(1)
+
+USUARIO = cred["usuario"]
+PASSWORD = cred["password"]
 
 with sync_playwright() as p:
     browser = p.chromium.connect_over_cdp("http://127.0.0.1:9222")

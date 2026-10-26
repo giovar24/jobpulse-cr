@@ -21,23 +21,23 @@
 | **Orquestación** | `main.py` (asyncio.gather, fases hardcoded en `BARRIDOS`) | CLI `scrape <provider> --site/--group` + `IngestionService.fetch_and_import()` | v1_5 **modular, cada fuente independiente** |
 | **Fuentes** | Hardcoded en `main.py` | Declarativas: `platform add` + `site add` (JSON config, sin credenciales) | v1_5 **config en BD, no en código** |
 | **Dedupe** | `core/dedupe.py` (boards vs directos cross-source) | `job_field_status` + `source_job_memory` + review manual (no automerge) | v1_5 **más conservador** |
-| **Búsqueda** | Semántica (embeddings) + ATS score + keywords | SQL estructurada (texto + filtros + requisitos + `profile_compatibility`) | **Principal tiene IA; v1_5 no aún** |
-| **IA/Embeddings** | `sentence-transformers` + `core/ia_api.py` (Gemini/NVIDIA/OpenRouter) | `ia_api.py` (OpenAI-compatible: OpenRouter/NVIDIA/Gemini/Ollama/LM Studio/llama.cpp) | ✅ **Cliente IA externa completo** |
-| **CV Parsing** | `cv2profile.py` + `reporte_cv.py` (PDF→perfil Harvard/ATS completo) | UI `Mi perfil` + importación básica (extractores limitados) | **Gap crítico** |
-| **Auth/Session** | `core/browser_manager.py` + `hacer_login.py` + `credenciales.py` + `providers/login/` | **No implementado** (solo scrapers API-only) | **Gap crítico para ANE/LinkedIn/Indeed** |
-| **Scheduler** | `recordatorio.py` + `jobpulse.cmd` (login + recordatorio Windows) | **No implementado** | Gap medio |
-| **Tests** | 7 unitarios (texto, dedupe, gate) | 13 (DB, repo, ingest, analysis, scrapers, UI, search, profile) | v1_5 **mejor cobertura** |
+| **Búsqueda** | Semántica (embeddings) + ATS score + keywords | SQL estructurada (texto + filtros + requisitos + `profile_compatibility`) + embeddings (`search_engine.py`) | Paridad razonable |
+| **IA/Embeddings** | `sentence-transformers` + `core/ia_api.py` (Gemini/NVIDIA/OpenRouter) | `ia_api.py` (OpenAI-compatible) + **enriquecimiento IA local** (`ia_enrichment.py`, Gemma en 8081) + `ia_calibracion.py` | ✅ Cliente externo + pase IA local |
+| **CV Parsing** | `cv2profile.py` + `reporte_cv.py` (PDF→perfil Harvard/ATS completo) | Editor harvard-ats-v1 (`ui_perfil.py`) + reglas + **pase IA `cv_ia.py`** (E2E Gemma/Gemini, integrado al asistente de import) | ✅ Gap cerrado (O6.2) |
+| **Auth/Session** | `core/browser_manager.py` + `hacer_login.py` + `credenciales.py` + `providers/login/` | ✅ FASE 3 completa: `browser_manager` + `credenciales` (keyring) + `providers/login/auto_login.py` + `browser_sites.py` | Cerrado |
+| **Scheduler** | `recordatorio.py` + `jobpulse.cmd` (login + recordatorio Windows) | Parcial: launcher `jobpulse-v15.bat` (venv + IA + Brave CDP + UI); sin recordatorio | Gap medio |
+| **Tests** | 7 unitarios (texto, dedupe, gate) | 17 suites / 217 tests + 46 subtests (pytest, python del sistema) | v1_5 **mejor cobertura** |
 | **UI** | Streamlit (`app.py`) legacy + Tkinter (`ui.py`) completa | Tkinter (`ui.py`) completa (filtros, edición, seguimiento, perfil, calidad, duplicados, admin fuentes) | Similares |
 
 ---
 
-## 2. ESTADO ACTUAL DE v1_5 (2026-10-23)
+## 2. ESTADO ACTUAL DE v1_5 (2026-10-26)
 
 ### ✅ YA IMPLEMENTADO Y FUNCIONAL
 
 | Componente | Archivo(s) | Estado |
 |------------|------------|--------|
-| BD + migraciones (5 esquemas) | `db.py`, `migrations/001-005.sql` | ✅ Completo |
+| BD + migraciones (7 esquemas) | `db.py`, `migrations/001-007.sql` | ✅ Completo |
 | `Repository` (CRUD sitios, jobs, analysis, profile) | `repository.py` | ✅ Completo |
 | `IngestionService` (runs, health, validación, idempotencia) | `ingestion.py` | ✅ Completo |
 | CLI base (`init-db`, `backup`, `db check`, `platform`, `site`, `run`, `search`, `quality`, `ingest`, `location`) | `cli.py` | ✅ Completo |
@@ -47,40 +47,34 @@
 | Tests (13 suites) | `tests/test_*.py` | ✅ Pasan |
 | Config declarativa (platform/site) | `repository.py` + CLI | ✅ Funcional |
 
-### 🔄 EN PROGRESO (parcial)
+### ✅ Scrapers CR browser (antes EN PROGRESO — completados 2026-10-24/25)
 
-| Componente | Archivo | Queda por hacer |
-|------------|---------|-----------------|
-| **ANE fetcher** | `ane.py` | ✅ Lógica de barrido portada; ❌ Integrar con CLI `scrape ane` + recibir `port` CDP |
-| **CINDE fetcher** | `cinde.py` | ✅ Lógica GraphQL portada; ❌ Integrar con CLI `scrape cinde` |
-| **Procomer fetcher** | `procomer.py` | ✅ Lógica API portada; ❌ Integrar con CLI `scrape procomer` |
-| **LinkedIn fetcher** | `linkedin.py` | ✅ Lógica portada; ❌ Integrar con CLI `scrape linkedin` + recibir `port` CDP |
-| **Indeed fetcher** | `indeed.py` | ✅ Lógica portada; ❌ Integrar con CLI `scrape indeed` + recibir `port` CDP |
+ANE, CINDE, Procomer, LinkedIn e Indeed: lógica portada E integrados con la CLI
+(`scrape ane|cinde|procomer|linkedin|indeed`), la UI y `run_scrapes.py`; los
+browser reciben `port` CDP del caller (nunca crean navegador).
 
-### ❌ NO IMPLEMENTADO (gaps críticos)
+### ❌ PENDIENTE (gaps reales al 2026-10-26)
 
-| Componente | Prioridad | Dependencias |
-|------------|-----------|--------------|
-| **Motor semántico / embeddings** | 🔴 Crítica | `sentence-transformers`, `torch` |
-| **Score ATS + ranking + keywords faltantes** | 🔴 Crítica | Motor semántico |
-| **CV Parsing completo (PDF/DOCX → perfil Harvard/ATS)** | 🔴 Crítica | `pypdf`, `python-docx`, extractores regex |
-| **Dedupe cross-source (boards ↔ directos)** | 🟡 Alta | Post-ingest job o en `IngestionService` |
-| **Scheduler / launcher Windows** | 🟢 Media | `recordatorio.py`, `jobpulse-v15.cmd` |
+| Componente | Prioridad | Notas |
+|------------|-----------|-------|
+| **Dedupe cross-source (boards ↔ directos)** | 🟡 Alta | Hoy solo idempotencia misma-fuente + `quality duplicates` (revisión manual); `dup_of` previsto, sin columna |
+| **Scheduler / recordatorio Windows** | 🟢 Media | Launcher `jobpulse-v15.bat` ya existe; falta portar `recordatorio.py` |
+| **O2 / O3 / O4** (ATS + ranking en búsqueda UI; validar 7 fetchers ATS huérfanos; calibración gate-vs-IA) | 🟡 | Ver handoff vigente |
 
 ---
 
 ## 3. PLAN DE EJECUCIÓN (ORDEN DE PRIORIDAD)
 
-### FASE 1: Scrapers Browser + API CR (Semana 1-2) — **EN CURSO**
+### FASE 1: Scrapers Browser + API CR (Semana 1-2) — **COMPLETADO**
 **Objetivo**: Traer el 80%+ de vacantes de Costa Rica.
 
 | Tarea | Archivo(s) | Comando CLI | Estado |
 |-------|------------|-------------|--------|
-| Completar ANE fetcher + CLI | `ane.py`, `cli.py` | `scrape ane --site ane-cr --pages 15 --port 9222` | 🔄 80% |
-| Completar CINDE fetcher + CLI | `cinde.py`, `cli.py` | `scrape cinde --site cinde-cr --pages 10` | 🔄 80% |
-| Completar Procomer fetcher + CLI | `procomer.py`, `cli.py` | `scrape procomer --site procomer-cr --pages 5` | 🔄 80% |
-| Completar LinkedIn fetcher + CLI | `linkedin.py`, `cli.py` | `scrape linkedin --site linkedin-cr --pages 2 --port 9222` | 🔄 80% |
-| Completar Indeed fetcher + CLI | `indeed.py`, `cli.py` | `scrape indeed --site indeed-cr --pages 2 --port 9222` | 🔄 80% |
+| Completar ANE fetcher + CLI | `ane.py`, `cli.py` | `scrape ane --site ane-cr --pages 15 --port 9222` | ✅ 100% |
+| Completar CINDE fetcher + CLI | `cinde.py`, `cli.py` | `scrape cinde --site cinde-cr --pages 10` | ✅ 100% |
+| Completar Procomer fetcher + CLI | `procomer.py`, `cli.py` | `scrape procomer --site procomer-cr --pages 5` | ✅ 100% |
+| Completar LinkedIn fetcher + CLI | `linkedin.py`, `cli.py` | `scrape linkedin --site linkedin-cr --pages 2 --port 9222` | ✅ 100% |
+| Completar Indeed fetcher + CLI | `indeed.py`, `cli.py` | `scrape indeed --site indeed-cr --pages 2 --port 9222` | ✅ 100% |
 | **Bootstrap fuentes CR** | `cli.py` (comando `init-sources`) | `jobpulse-v15 init-sources` | ✅ **Completo** |
 
 **Patrón obligatorio para cada fetcher**:
@@ -138,8 +132,11 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m jobpulse_v15 init-db
 .\.venv\Scripts\python.exe -m jobpulse_v15 db check
 
-# === FUENTES (bootstrap manual hasta que exista init-sources) ===
-# Plataformas
+# === FUENTES ===
+# Bootstrap CR (12 plataformas + 5 sitios, idempotente):
+.\.venv\Scripts\python.exe -m jobpulse_v15 init-sources
+
+# Alta manual de plataformas/sitios NUEVOS (p. ej. otro tablero ATS):
 .\.venv\Scripts\python.exe -m jobpulse_v15 platform add --id ane --name "ANE/Brete" --provider-type browser --default-language es
 .\.venv\Scripts\python.exe -m jobpulse_v15 platform add --id cinde --name "CINDE Jobs" --provider-type api --default-language es
 .\.venv\Scripts\python.exe -m jobpulse_v15 platform add --id linkedin --name "LinkedIn" --provider-type browser --default-language es
@@ -155,8 +152,10 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m jobpulse_v15 site add --id procomer-cr --platform procomer --name "Procomer CR" --url https://talento.procomer.com --country CR --group boards --config '{"search_text": "Soporte", "pages": 5}'
 
 # === SCRAPING ===
-# Brave DEBE estar corriendo con CDP en puerto 9222 para scrapers browser:
-# brave.exe --remote-debugging-port=9222 --user-data-dir="C:\Users\<user>\AppData\Local\BraveSoftware\Brave-Browser\User Data\Default"
+# Brave DEBE estar corriendo con CDP en puerto 9222 para scrapers browser,
+# con el PERFIL REAL: --user-data-dir apunta a la RAIZ "User Data", NUNCA a
+# "User Data\Default" (crea perfil vacio y todos los logins "fallan"):
+# brave.exe --remote-debugging-port=9222 --user-data-dir="C:\Users\<user>\AppData\Local\BraveSoftware\Brave-Browser\User Data"
 
 # ANE (browser)
 .\.venv\Scripts\python.exe -m jobpulse_v15 scrape ane --site ane-cr --pages 15 --port 9222
@@ -183,20 +182,21 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m jobpulse_v15.ui
 
 # === TESTS ===
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+python -m pytest tests/ -q    # pytest vive en el python del sistema (el venv no lo trae)
 ```
 
 ---
 
 ## 5. PRÓXIMA ACCIÓN INMEDIATA
 
-**Completar ANE + CINDE + sus comandos CLI** (son los de mayor volumen en CR y ya tienen la lógica portada).
+Pendientes vivos (handoff vigente `docs/HANDOFF_SESION_2026-10-25_noche.md`):
 
-### Pasos concretos ahora:
-1. **ANE**: Ajustar `fetch()` para recibir `port` obligatorio y devolver `AneOffers`; agregar comando `scrape ane` en `cli.py`
-2. **CINDE**: Ajustar `fetch()` (sin `port`); agregar comando `scrape cinde` en `cli.py`
-3. **Probar**: `scrape ane --site ane-cr --pages 3 --port 9222` y `scrape cinde --site cinde-cr --pages 2`
-4. **Verificar**: `jobpulse-v15 search --text "soporte" --country CR --format json`
+1. **O6.3**: matching afinado (niveles/CEFR/work_authorization).
+2. **O5.3**: re-barrido de los ~14-19 jobs con descripción basura (login-wall).
+3. **Dedupe semántico del perfil**: slugs ES/EN distintos para el mismo hecho —
+   decidir si se normaliza en import o se deja al usuario en el diálogo.
+4. Luego: O2 (ATS + gate + ranking en la búsqueda UI), O3 (validar 7 fetchers
+   ATS huérfanos), O4 (calibración gate-vs-IA).
 
 ---
 
@@ -241,8 +241,8 @@ py -3.11 -m venv .venv
 
 ---
 
-*Última actualización: 2026-10-23*
-*Próxima revisión: tras completar FASE 1 (5 scrapers CR + CLI + bootstrap)*
+*Última actualización: 2026-10-26*
+*Próxima revisión: tras cerrar O6.3 / O5.3 (ver §5)*
 
 ---
 
@@ -330,3 +330,26 @@ llama-server -m modelo.gguf -c 8192 --port 8080
 **Tests:** 127/127 pasan
 
 **Próximos pasos FASE 2:** `search_engine.py` (embeddings), `ats.py`, `gate.py`, `ia_calibracion.py`, `cv_analysis.py`, `cv2profile.py` — **Todos completados. Pasar a priorizar fetchers CR o FASE 3.
+
+---
+
+### 2026-10-25/26 — IA local canónica, instalador, capa IA de CVs, repo al día
+
+- **Gemma 4 E2B QAT canónico** (8k ctx + MTP draft, puerto 8081): A/B vs Qwen
+  3.5 2B — ~6.5x más rápido; pase completo 175 jobs en 10.3 min (detalle en
+  `docs/IA_ENRIQUECIMIENTO.md`). `ia-server.bat` + `start_ia_server.py` (`--metrics`).
+- **Instalador IA equipo nuevo**: `instalar-modelo-ia.bat` / `instalacion_ia.py`
+  (modelo Unsloth con SHA256 verificados + llama.cpp Vulkan; `--check` = verificar).
+- **Capa IA de CVs (O6.2)**: `cv_ia.py` (PDF/DOCX/TXT → harvard-ats-v1, E2E con
+  Gemma local y Gemini) e **integrada** al asistente "Importar CV…" de la UI
+  (reglas primero; pase IA si sugieren <5 facts; revisión en `_DialogoRevision`).
+- **Suite**: 217 tests + 46 subtests (pytest del sistema; el venv no trae
+  pytest). Flaky de Tk estabilizado con `_tkroot_reintentos()` (tests/test_ui.py).
+- **Seguridad**: `login_ane.py` SIN credenciales en el código — lee del almacén
+  (`credencial("ANE")`: keyring de Windows + `data/empresas/credenciales.json`,
+  fallback `.env` ANE_USER/ANE_PASSWORD). `keyring` instalado en el venv y
+  credencial ANE migrada al almacén. **Pendiente del usuario: rotar la
+  contraseña de ANE** (quedó expuesta en el historial git público) y
+  actualizarla con `credenciales set`.
+- **Docs al día y verificados contra el código**: `AGENTS.md`, este documento
+  (estado, FASE 1, gaps, comandos) y `README.md` (tests con pytest).

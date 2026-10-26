@@ -23,6 +23,10 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 ```
 
+Alternativa de un clic: `.\jobpulse-v15.bat` crea el venv si falta (con
+`pip install -e .` y chromium de playwright), levanta el servidor IA local,
+abre Brave con CDP 9222 y lanza la UI.
+
 Inicializar la DB exclusiva de v1.5:
 
 ```powershell
@@ -105,7 +109,10 @@ registro es un evento separado y sobrevive a la purga del contenido de la
 vacante.
 El boton `Mi perfil` permite registrar manualmente datos estructurados tomados
 del CV o importar un PDF, DOCX o TXT local; `Comparar perfil` contrasta los
-datos aprobados con los requisitos explicitos del analisis vigente.
+datos aprobados con los requisitos explicitos del analisis vigente. La
+importacion prueba primero reglas locales y, si sugieren pocos datos, ofrece un
+pase IA opcional (`cv_ia.py`, motor del `.env`: local o externo, con aviso de
+privacidad si es externo); todo pasa por revision antes de guardarse.
 La importacion solo lee el archivo seleccionado, trabaja localmente y no
 conserva el texto extraido. Muestra sugerencias y fragmentos detectados para
 revision; solo las filas seleccionadas se guardan. Reemplazar un dato existente
@@ -435,10 +442,10 @@ conflictivas se omiten y aparecen contados en el reporte.
 
 ## Ejecutar las pruebas
 
-Desde `v1_5/`:
+Desde `v1_5/` (pytest vive en el python del sistema; el venv no lo trae):
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+python -m pytest tests/ -q
 ```
 
 ## Gestionar fuentes y vacantes

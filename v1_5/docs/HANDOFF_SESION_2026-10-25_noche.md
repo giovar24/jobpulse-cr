@@ -156,6 +156,18 @@ python -m pytest tests/ -q
 > sirve para tests). Suite 217 tests: mis módulos OK; la clase flaky
 > `TestSourceManagerWindow` (hilos + `after` cross-thread en `ui.py`)
 > falla intermitente preexistente, pendiente de estabilizar.
+>
+> **Addendum 2026–10–26 (2)**: flaky estabilizado. Diagnóstico real (con
+> traceback): NO era cross-thread en `SourceManagerWindow` (el worker ya
+> usa queue + poll correctamente) sino la **inicializacion de Tk**:
+> encadenar un `tk.Tk()` + `destroy()` por test hace fallar de vez en cuando
+> `_tkinter.create` en Windows (`Can't find a usable tk.tcl`,
+> `invalid command name "tcl_findLibrary"`). Fix: `_tkroot_reintentos()`
+> en `tests/test_ui.py` — 5 reintentos con 0.2 s de espera. Suite completa
+> limpia 3 corridas seguidas (217 passed + 46 subtests, ~26-36 s).
+> Queda como mejora futura (opcional): el patrón `window.after(...)` desde
+> hilos worker en `ui.py`/`configuration_window.py` es fragil sin mainloop
+> y conviene migrarlo al mismo poll-queue de `_poll_scrape_results`.
   (skill 23, experience 9, certification 6, contact 5, education 2, language 2,
   summary 1). Tras las pruebas quedó EXACTA (revert verificado).
 - **CVs de prueba** (`data/usuario/cv/`): DOCX ES, PDF ES, PDF EN y TXT

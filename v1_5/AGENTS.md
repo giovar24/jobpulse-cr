@@ -9,11 +9,15 @@ Objetivo: orientación instantánea sin re-explorar el proyecto.
    objetivos (O1–O6), decisiones y pendiente inmediato.
 2. Referencia de arquitectura y comparación con el proyecto principal:
    `DESARROLLO_v15.md` (§6 = notas técnicas importantes).
+3. La raíz del repo es el proyecto principal v1.x, **congelado** (su `AGENTS.md`
+   lo advierte): no modificarlo. Sus comandos (`main.py`, `unittest`,
+   `tools/auditar.py`) NO aplican en `v1_5/`.
 
 ## Al cerrar sesión (OBLIGATORIO)
 
 Cuando el usuario dice "vamos a otra sesión":
-- Escribir `docs/HANDOFF_SESION_YYYY-MM-DD.md` con la estructura estándar:
+- Escribir `docs/HANDOFF_SESION_YYYY-MM-DD[_turno].md` (varias sesiones el mismo
+  día → sufijo `_tarde`/`_noche`, como los existentes) con la estructura estándar:
   TL;DR, lo que se hizo, decisiones de diseño, estado de objetivos (tabla),
   cómo retomar (comandos), archivos clave, datos de contexto, pendiente inmediato.
 - Commitear los cambios de la sesión.
@@ -26,6 +30,7 @@ Cuando el usuario dice "vamos a otra sesión":
 | `docs/IA_ENRIQUECIMIENTO.md` | Operación del pase IA: modelo local, caché, depuración |
 | `docs/SITIOS_PROBLEMATICOS.md` | Guía ANE / Indeed / LinkedIn (login-wall, Cloudflare) |
 | `DESARROLLO_v15.md` | Arquitectura vs proyecto principal, objetivos O1–O6, comandos |
+| `README.md` | Setup equipo nuevo: venv, `pip install -e .`, `init-db`, backup |
 
 ## Scrapers de navegador: ANE, Indeed, LinkedIn
 
@@ -36,8 +41,11 @@ de recuperación). Reglas de oro que resumen todo el documento:
 1. **Brave DEBE correr con CDP 9222 y el perfil real**: `--user-data-dir` apunta
    a la raíz `User Data`, **NUNCA** a `User Data\Default` (crea perfil vacío y
    todos los logins "fallan"). Verificar: `curl http://127.0.0.1:9222/json/version`.
+   Arranque de todo (venv + servidor IA + Brave CDP + UI): `.\jobpulse-v15.bat`.
 2. **ANE (ane.cr)**: sesión obligatoria. Sin sesión el barrido se omite limpio
-   (no es error). Re-login: `python login_ane.py` → re-barrido `run_scrapes.py ane`.
+   (no es error). Re-login: `.\.venv\Scripts\python.exe login_ane.py` → re-barrido
+   `.\.venv\Scripts\python.exe run_scrapes.py ane` (scripts de la raíz del fork:
+   siempre el python del venv).
 3. **Indeed (cr.indeed.com)**: SSO Google. El popup de alertas de empleo
    intercepta clics — ya resuelto con `_cerrar_popups`; si aparece un popup
    nuevo, agregar su selector en `_POPUP_SELECTORES`.
@@ -54,12 +62,22 @@ de recuperación). Reglas de oro que resumen todo el documento:
   servidores locales sin tope por defecto.
 - **Scrapers browser reciben `port` CDP** del caller; el fetcher nunca crea navegador.
 - **Config declarativa**: plataformas/sitios en BD (`init-sources`), no en código.
-- **Dedupe conservador**: marcar `dup_of`, sin automerge.
+- **Dedupe conservador**: `quality duplicates` lista grupos candidatos para
+  revisión manual; nunca automerge (`dup_of` previsto, hoy no existe la columna).
+- **Esquema solo con migraciones**: cambio de BD = archivo nuevo
+  `src/jobpulse_v15/migrations/00N_*.sql`; nunca ALTER manual ni editar una
+  migración ya aplicada.
 - **Cada fetcher nuevo** lleva test en `tests/test_<nombre>.py`.
 
 ## Comandos esenciales
 
 ```powershell
+# Arranque completo (equipo nuevo incluido): venv + servidor IA + Brave CDP 9222 + UI
+.\jobpulse-v15.bat
+
+# CLI de orquestación: scrape, site, platform, credenciales, login, run, search, quality…
+.\.venv\Scripts\python.exe -m jobpulse_v15 --help
+
 # Servidor IA local (Gemma 4 E2B QAT, puerto 8081) — verificar/arrancar
 .\ia-server.bat                # o: .\.venv\Scripts\python.exe start_ia_server.py
 
@@ -69,13 +87,16 @@ de recuperación). Reglas de oro que resumen todo el documento:
 # Enriquecimiento (idempotente: solo procesa lo que falta)
 .\.venv\Scripts\python.exe run_enriquecimiento.py
 
-# Diagnóstico BD
+# Diagnóstico BD (SQLite: data/jobpulse_v15.db)
 .\.venv\Scripts\python.exe tools\estado_bd.py            # resumen
 .\.venv\Scripts\python.exe tools\progreso_enriquecimiento.py   # % por campo
 .\.venv\Scripts\python.exe tools\huecos_restantes.py     # huecos: basura vs recuperable
 
-# Tests — test_ui requiere display; corre OK en el PC del usuario (200 tests).
+# Tests — test_ui requiere display; corre OK en el PC del usuario (217 tests).
 # pytest vive en el python del sistema (el venv no lo tiene instalado).
+# Los roots Tk de test se crean con `_tkroot_reintentos()` (tests/test_ui.py):
+# encadenar muchos interpretes Tcl falla de vez en cuando en Windows
+# ('Can't find a usable tk.tcl', 'tcl_findLibrary' — transitorio, reintentar).
 python -m pytest tests/ -q
 
 # UI
@@ -99,7 +120,7 @@ python -m pytest tests/ -q
    Efecto neto benigno (idempotente), pero no te sorprendas en los logs.
 6. **A/B de modelos**: usar `tools/comparar_ia.py` (caché aislada + mismos jobs).
 
-## Estado de referencia (2026-10-25 noche)
+## Estado de referencia (2026-10-25 noche; re-verificado 2026-10-26)
 
 - Modelo local canónico: **Gemma 4 E2B QAT** (8k ctx, MTP draft, puerto 8081).
   Qwen 3.5 2B descartado: ~6.5x más lento y llena mucho menos (ver
