@@ -81,6 +81,36 @@ VRAM libres** (o CPU: corre, mucho más lento), **~5 GB de disco** y
 Python 3.11+ con `pip install -e .[ia]`. Tras instalar, arrancar con
 `ia-server.bat` (verifica, carga el modelo y espera health en el 8081).
 
+## Extraccion de perfil desde CV (capa IA, O6.2)
+
+`src/jobpulse_v15/cv_ia.py`: convierte el texto de un CV (PDF/DOCX/TXT via
+`read_cv_text`) en un perfil **harvard-ats-v1** usando el modelo del `.env`.
+El extractor de reglas (`candidate_profile.py`) queda para ofertas; para CVs
+solo sacaba idiomas/anios.
+
+Flujo completo probado (2026-10-25, 2 motores x 4 formatos):
+
+```
+read_cv_text -> extraer_cv_ia (IAClient del .env) -> sanea_harvard
+             -> facts_desde_perfil_dict (profile_model) -> dialogo revision UI
+             -> import_candidate_profile_facts (import revertible)
+```
+
+- **Agnostico al motor**: mismo codigo con Gemma local (`IA_PROVEEDOR=custom`,
+  puerto 8081) y Gemini (`IA_PROVEEDOR=google` + `GEMINI_API_KEY`, modelo
+  explicito porque `IA_MODEL` del .env es el local). Ambos extrajeron 39 facts
+  identicos en estructura (39 = 5 contact + 1 summary + 3 education + 7
+  experience + 19 skill + 2 certification + 2 language).
+- **El modelo no inventa**: prompt exige solo datos presentes (null si falta);
+  `sanea_harvard` normaliza tipos sin lanzar (la revision UI es la puerta final).
+- **Caché IA**: re-corridas del mismo CV responden instantaneo (0.0s) — no
+  confundir con lentitud/exito real en benchmarks.
+- Dedupe: los slugs dependen del idioma/nombre del CV (ES vs EN generan codes
+  distintos para el mismo hecho). El diff vs BD marca "nuevo" y el usuario
+  decide en el dialogo (dedupe conservador, sin automerge).
+- El import es **revertible**: probado import 26 nuevos + 13 updates y
+  `revert_last_candidate_profile_import` restauro la BD exactamente (48 facts).
+
 ## Modelo local: Gemma 4 E2B QAT (A/B 2026-10-25)
 
 **Canónico desde el 2026-10-25.** Qwen 3.5 2B quedó descartado como modelo de

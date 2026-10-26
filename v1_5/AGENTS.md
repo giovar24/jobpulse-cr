@@ -99,12 +99,18 @@ python -m pytest tests/ -q
    Efecto neto benigno (idempotente), pero no te sorprendas en los logs.
 6. **A/B de modelos**: usar `tools/comparar_ia.py` (caché aislada + mismos jobs).
 
-## Estado de referencia (2026-10-25, tras pase con Gemma)
+## Estado de referencia (2026-10-25 noche)
 
 - Modelo local canónico: **Gemma 4 E2B QAT** (8k ctx, MTP draft, puerto 8081).
   Qwen 3.5 2B descartado: ~6.5x más lento y llena mucho menos (ver
   `docs/IA_ENRIQUECIMIENTO.md`).
+- **Instalador IA para equipo nuevo**: `instalar-modelo-ia.bat` (modelo desde
+  Unsloth HF con SHA256 verificados + llama.cpp + deps; `--check` = verificar).
+- **Capa IA de CVs (`cv_ia.py`)**: CV PDF/DOCX/TXT → harvard-ats-v1; probada
+  E2E con Gemma local y Gemini (39 facts consistentes; import+revert OK).
+  Pendiente integrarla al botón "Importar CV" de la UI.
 - BD: 175 jobs. Huecos restantes: skills 0, languages 4, city 24, region 13,
   work_mode 'unknown' 23, salary sin texto en fuente 82 (no extraíble).
 - Perfil: 48 facts (editor CV en `ui_perfil.py`; datos personales y resumen
-  reales ya cargados; `value_code='portfolio'` reservado).
+  reales ya cargados; `value_code='portfolio'` reservado). Los 4 CVs en
+  `data/usuario/cv/` son material de pruebas (mismo CV en ES/EN).

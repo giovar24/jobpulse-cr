@@ -257,7 +257,15 @@ def facts_from_harvard_json(ruta: str | Path) -> tuple[str, list[dict[str, Any]]
     """
     ruta = Path(ruta)
     perfil = json.loads(ruta.read_text(encoding="utf-8"))
-    cv = perfil.get("cv", {})
+    return ruta.name, facts_desde_perfil_dict(perfil)
+
+
+def facts_desde_perfil_dict(perfil: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Convierte un dict harvard-ats-v1 (cv.* en memoria) en lista de facts.
+
+    Misma cobertura que facts_from_harvard_json; sirve tanto para el JSON
+    importado desde archivo como para el dict que devuelve la capa IA (cv_ia).
+    """
     facts: list[dict[str, Any]] = []
     vistos: set[tuple[str, str]] = set()
 
@@ -269,6 +277,8 @@ def facts_from_harvard_json(ruta: str | Path) -> tuple[str, list[dict[str, Any]]
             return
         vistos.add(clave)
         facts.append(fact)
+
+    cv = perfil.get("cv", {}) if isinstance(perfil, Mapping) else {}
 
     contacto = cv.get("contacto", {}) or {}
     if cv.get("nombre"):
@@ -338,7 +348,7 @@ def facts_from_harvard_json(ruta: str | Path) -> tuple[str, list[dict[str, Any]]
             "notes": "Declarado en busqueda.overrides del perfil original.",
         })
 
-    return ruta.name, facts
+    return facts
 
 
 # ─── Sugerencias del lector CV -> fact ──────────────────────────────────────
