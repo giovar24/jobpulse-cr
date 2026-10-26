@@ -30,10 +30,12 @@ BASE_URL = (os.getenv("IA_BASE_URL") or "http://127.0.0.1:8081/v1").rstrip("/")
 ES_LOCAL = "127.0.0.1" in BASE_URL or "localhost" in BASE_URL
 PUERTO = BASE_URL.split("/")[-2].split(":")[-1] if ":" in BASE_URL else "8081"
 
-# Comando real (replica el que usa el usuario). Editar aqui si cambia el
-# modelo o la ruta del build de llama.cpp.
-LLAMA_SERVER = r"D:\llama-b11662-bin-win-vulkan-x64\llama-server.exe"
-MODELO_DIR = r"D:\Models\gemma-4-E2B-it-qat-UD-Q4_K_XL"
+# Rutas compartidas con instalar_modelo_ia.py (fuente unica). Se pueden
+# sobrescribir en .env con IA_MODEL_DIR e IA_LLAMA_SERVER.
+from jobpulse_v15.instalacion_ia import modelo_dir, ruta_llama_server
+
+LLAMA_SERVER = ruta_llama_server()
+MODELO_DIR = modelo_dir()
 CMD = [
     LLAMA_SERVER,
     "-m", rf"{MODELO_DIR}\gemma-4-E2B-it-qat-UD-Q4_K_XL.gguf",

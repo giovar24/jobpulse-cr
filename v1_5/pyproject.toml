@@ -28,6 +28,7 @@ dev = [
 ]
 ia = [
     "openai>=1.30",  # compatible con OpenRouter, NVIDIA, Ollama, etc.
+    "huggingface_hub>=0.34",  # instalador del modelo local (instalar_modelo_ia.py)
 ]
 
 [project.scripts]

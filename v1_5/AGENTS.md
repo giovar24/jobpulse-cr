@@ -63,6 +63,9 @@ de recuperación). Reglas de oro que resumen todo el documento:
 # Servidor IA local (Gemma 4 E2B QAT, puerto 8081) — verificar/arrancar
 .\ia-server.bat                # o: .\.venv\Scripts\python.exe start_ia_server.py
 
+# Instalador IA para equipo nuevo (modelo Unsloth + llama.cpp; idempotente)
+.\instalar-modelo-ia.bat       # --check = solo verificar
+
 # Enriquecimiento (idempotente: solo procesa lo que falta)
 .\.venv\Scripts\python.exe run_enriquecimiento.py
 

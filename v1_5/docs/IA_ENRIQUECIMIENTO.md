@@ -48,6 +48,39 @@ IA_MODEL=gemma4-e2b-qat
 IA_API_KEY=...            # llama.cpp acepta cualquier valor
 ```
 
+Variables de rutas (compartidas por `start_ia_server.py` y el instalador):
+
+```
+IA_MODEL_DIR=D:\Models\gemma-4-E2B-it-qat-UD-Q4_K_XL
+IA_LLAMA_SERVER=D:\llama-b11662-bin-win-vulkan-x64\llama-server.exe
+IA_LLAMA_RELEASE=...       # opcional: URL del zip de otro build/etiqueta
+```
+
+## Instalación en equipo nuevo (requisitos mínimos)
+
+Un solo comando instala y verifica todo. Es idempotente: re-ejecutarlo
+reanuda descargas donde quedaron.
+
+```powershell
+instalar-modelo-ia.bat                 # instala lo que falte
+instalar-modelo-ia.bat --check         # solo verifica (modelo + llama-server)
+python instalar_modelo_ia.py --solo-modelo   # solo los 3 GGUF
+python instalar_modelo_ia.py --solo-llama    # solo llama.cpp
+```
+
+Qué instala, en orden:
+
+| Paso | Qué | Fuente |
+|---|---|---|
+| 1 | `huggingface_hub` (descarga con reanudación) | pip (`pip install -e .[ia]` lo declara) |
+| 2 | Modelo **Gemma 4 E2B QAT**: main (2.62 GB) + mmproj BF16 (987 MB) + MTP draft Q4_0 (59 MB) | **Unsloth** `unsloth/gemma-4-E2B-it-qat-GGUF` (hashes SHA256 fijados en `src/jobpulse_v15/instalacion_ia.py` y verificados con `--check`) |
+| 3 | `llama-server.exe` build Vulkan (solo si no existe) | release de `ggml-org/llama.cpp` |
+
+Requisitos mínimos para correr: Windows x64, GPU con Vulkan y **≥ 4 GB de
+VRAM libres** (o CPU: corre, mucho más lento), **~5 GB de disco** y
+Python 3.11+ con `pip install -e .[ia]`. Tras instalar, arrancar con
+`ia-server.bat` (verifica, carga el modelo y espera health en el 8081).
+
 ## Modelo local: Gemma 4 E2B QAT (A/B 2026-10-25)
 
 **Canónico desde el 2026-10-25.** Qwen 3.5 2B quedó descartado como modelo de
