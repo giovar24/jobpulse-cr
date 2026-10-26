@@ -270,6 +270,16 @@ class IAClient:
     def disponible(self) -> bool:
         return bool(self.base_url and (self.api_key or not PRESETS[self.proveedor].requiere_key))
 
+    @property
+    def es_local(self) -> bool:
+        """True si el endpoint corre en 127.0.0.1/localhost.
+
+        Los servidores locales (Gemma/llama.cpp, LM Studio) no sacan texto de
+        la maquina; un motor externo (google/nvidia/openrouter/ollama cloud)
+        si viaja el prompt completo -> la UI debe avisar privacidad.
+        """
+        return self._es_local
+
     def motivo_no_disponible(self) -> str:
         if not self.base_url:
             return "base_url no configurado"

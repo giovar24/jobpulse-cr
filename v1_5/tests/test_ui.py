@@ -4,6 +4,7 @@ import io
 import sqlite3
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import closing
 from unittest.mock import patch
@@ -14,6 +15,7 @@ import tkinter as tk
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from jobpulse_v15.ia_api import IAError
 from jobpulse_v15.profile_model import parse_experiencia_notes
 from jobpulse_v15.db import Database
 from jobpulse_v15.repository import Repository
@@ -1914,6 +1916,8 @@ class TestManualJobStateUI(unittest.TestCase):
             with patch(
                 "jobpulse_v15.ui_perfil.filedialog.askopenfilename",
                 return_value=str(path),
+            ), patch(
+                "jobpulse_v15.ui_perfil.messagebox.askyesno", return_value=False
             ):
                 window._importar_cv()
 
@@ -1930,6 +1934,138 @@ class TestManualJobStateUI(unittest.TestCase):
         finally:
             window.window.destroy()
             self.root.update()
+
+    def test_profile_import_cv_offers_ia_pass_and_opens_revision(self):
+        window = CandidateProfileWindowCV(self.root, self.repository)
+        path = Path(self.temp_dir.name) / "cv_ia.txt"
+        path.write_text("Technical skills: Python.", encoding="utf-8")
+
+        class _ClienteFake:
+            proveedor = "custom"
+            modelo = "fake-local"
+            es_local = True
+
+        async def _fake_extraer(texto, cliente=None):
+            assert "Python" in texto
+            return {
+                "cv": {
+                    "nombre": "Juan Perez",
+                    "habilidades": ["Python", "Windows Server"],
+                },
+                "busqueda": {"overrides": {"experiencia_anios": 11}},
+            }
+
+        try:
+            with patch(
+                "jobpulse_v15.ui_perfil.filedialog.askopenfilename",
+                return_value=str(path),
+            ), patch(
+                "jobpulse_v15.ui_perfil.messagebox.askyesno", return_value=True
+            ) as oferta, patch(
+                "jobpulse_v15.ui_perfil.IAClient", return_value=_ClienteFake()
+            ), patch(
+                "jobpulse_v15.ui_perfil.extraer_cv_ia", _fake_extraer
+            ):
+                window._importar_cv()
+                dialogo = self._esperar_dialogo_revision(window, "cv_ia.txt (IA)")
+
+            self.assertEqual(oferta.call_count, 1)
+            titulo = dialogo.title()
+            self.assertTrue(titulo.startswith("Revisar importación — cv_ia.txt (IA)"))
+            self.assertEqual(len(dialogo.filas), 4)
+            categorias = {fila["fact"]["category"] for fila in dialogo.filas}
+            self.assertEqual(categorias, {"contact", "skill", "experience"})
+            # Nada se guarda sin revision del usuario.
+            self.assertEqual(self.repository.list_candidate_profile_facts(), [])
+            dialogo.destroy()
+            self.root.update()
+        finally:
+            window.window.destroy()
+            self.root.update()
+
+    def test_profile_import_cv_declined_ia_pass_shows_rule_facts(self):
+        window = CandidateProfileWindowCV(self.root, self.repository)
+        path = Path(self.temp_dir.name) / "candidate.txt"
+        path.write_text("Technical skills: Python.", encoding="utf-8")
+        try:
+            with patch(
+                "jobpulse_v15.ui_perfil.filedialog.askopenfilename",
+                return_value=str(path),
+            ), patch(
+                "jobpulse_v15.ui_perfil.messagebox.askyesno", return_value=False
+            ):
+                window._importar_cv()
+
+            dialogo = self._dialogos_revision(window)[0]
+            self.assertEqual(dialogo.source_name, "candidate.txt")
+            self.assertEqual(len(dialogo.filas), 1)
+            self.assertEqual(dialogo.filas[0]["fact"]["value_code"], "python")
+            dialogo.destroy()
+            self.root.update()
+        finally:
+            window.window.destroy()
+            self.root.update()
+
+    def test_profile_import_cv_ia_pass_error_falls_back_to_rules(self):
+        window = CandidateProfileWindowCV(self.root, self.repository)
+        path = Path(self.temp_dir.name) / "candidate.txt"
+        path.write_text("Technical skills: Python.", encoding="utf-8")
+
+        class _ClienteFake:
+            proveedor = "custom"
+            modelo = "fake-local"
+            es_local = True
+
+        async def _fake_extraer(texto, cliente=None):
+            raise IAError("motor caido")
+
+        try:
+            with patch(
+                "jobpulse_v15.ui_perfil.filedialog.askopenfilename",
+                return_value=str(path),
+            ), patch(
+                "jobpulse_v15.ui_perfil.messagebox.askyesno", return_value=True
+            ), patch(
+                "jobpulse_v15.ui_perfil.messagebox.showerror"
+            ) as showerror, patch(
+                "jobpulse_v15.ui_perfil.IAClient", return_value=_ClienteFake()
+            ), patch(
+                "jobpulse_v15.ui_perfil.extraer_cv_ia", _fake_extraer
+            ):
+                window._importar_cv()
+                dialogo = self._esperar_dialogo_revision(window, "candidate.txt")
+
+            showerror.assert_called_once()
+            # Fallback: revision con los facts de reglas locales.
+            self.assertEqual(dialogo.source_name, "candidate.txt")
+            self.assertEqual(len(dialogo.filas), 1)
+            dialogo.destroy()
+            self.root.update()
+        finally:
+            window.window.destroy()
+            self.root.update()
+
+    @staticmethod
+    def _dialogos_revision(window: CandidateProfileWindowCV) -> list[tk.Toplevel]:
+        return [
+            child
+            for child in window.window.winfo_children()
+            if isinstance(child, tk.Toplevel)
+            and child.title().startswith("Revisar importación")
+        ]
+
+    def _esperar_dialogo_revision(
+        self, window: CandidateProfileWindowCV, fragmento_titulo: str
+    ) -> tk.Toplevel:
+        """Espera el dialogo de revision del pase IA (corre en un hilo)."""
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            self.root.update()
+            for dialogo in self._dialogos_revision(window):
+                if fragmento_titulo in dialogo.title():
+                    return dialogo
+            time.sleep(0.02)
+        self.fail(f"No aparecio el dialogo de revision con {fragmento_titulo!r}")
 
     def test_profile_import_replaces_existing_fact_and_revert_restores_it(self):
         self.repository.save_candidate_profile_fact("skill", "python", "Python 2")

@@ -147,7 +147,15 @@ python -m pytest tests/ -q
 
 ## 7. Datos de contexto que no hay que olvidar
 
-- **BD**: `data/jobpulse_v15.db` — 175 jobs; schema_version 7; perfil 48 facts
+> **Addendum 2026–10–26**: el pendiente inmediato #1 (integrar `extraer_cv_ia`
+> al asistente de import de la UI) quedó hecho en `ui_perfil.py`: reglas
+> primero; si sugieren < 5 facts se ofrece el pase IA (progreso no-modal en
+> hilo + marshaling por `after(60)` poll del main thread — Tcl rechaza
+> `after`/`createcommand` cross-thread si mainloop no corre, el patrón
+> `window.after(...)` desde el hilo worker de `configuration_window.py` NO
+> sirve para tests). Suite 217 tests: mis módulos OK; la clase flaky
+> `TestSourceManagerWindow` (hilos + `after` cross-thread en `ui.py`)
+> falla intermitente preexistente, pendiente de estabilizar.
   (skill 23, experience 9, certification 6, contact 5, education 2, language 2,
   summary 1). Tras las pruebas quedó EXACTA (revert verificado).
 - **CVs de prueba** (`data/usuario/cv/`): DOCX ES, PDF ES, PDF EN y TXT

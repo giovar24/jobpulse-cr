@@ -13,12 +13,16 @@ summary/project son inertes para el matching (ver profile_model.py).
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from typing import Any, Callable, Mapping
 
-from jobpulse_v15.candidate_profile import extract_candidate_profile
+from jobpulse_v15.candidate_profile import extract_candidate_profile, read_cv_text
+from jobpulse_v15.cv_ia import extraer_cv_ia
+from jobpulse_v15.ia_api import IAClient, IAError
 from jobpulse_v15.profile_model import (
     CONTACTO_CODIGOS,
     RESUMEN_CODE,
@@ -30,6 +34,7 @@ from jobpulse_v15.profile_model import (
     fact_proyecto,
     fact_resumen,
     fact_skill,
+    facts_desde_perfil_dict,
     facts_from_harvard_json,
     parse_certificacion_notes,
     parse_experiencia_notes,
@@ -56,6 +61,10 @@ ETIQUETAS_CATEGORIA = {
 NIVELES_CEFR = ("", "A1", "A2", "B1", "B2", "C1", "C2", "nativo")
 ESTADOS_EDUCACION = ("completed", "pursuing", "unspecified")
 CATEGORIAS_OTROS = ("license", "work_authorization", "schedule", "availability", "other")
+
+# Si el extractor de reglas sugiere MENOS facts que esto en un CV, se ofrece
+# el pase IA (las reglas son para ofertas: de CVs reales sacan casi nada).
+UMBRAL_REGLAS_PARA_IA = 5
 
 
 # ─── Componente reutilizable: lista + formulario por seccion ────────────────
@@ -394,6 +403,36 @@ class _DialogoRevision(tk.Toplevel):
 
 # ─── Ventana principal: editor con forma de CV ──────────────────────────────
 
+class _ProgresoIA(tk.Toplevel):
+    """Espera visual durante el pase IA (la extraccion tarda ~1-2 min).
+
+    No modal: se puede usar el resto de la UI mientras corre. Cerrarla solo
+    la oculta — el pase sigue en su hilo y la ventana de revision aparece
+    igual al terminar.
+    """
+
+    def __init__(self, parent: tk.Widget, source_name: str) -> None:
+        super().__init__(parent)
+        self.title("Importar CV con IA")
+        self.geometry("460x130")
+        self.resizable(False, False)
+        self.transient(parent)
+        ttk.Label(
+            self,
+            text=(
+                f"{source_name}: extrayendo datos con IA (motor del .env). "
+                "Con el motor local puede tardar 1-2 minutos; puedes seguir "
+                "usando la UI. La revision aparece al terminar."
+            ),
+            wraplength=420,
+            justify="left",
+        ).pack(anchor="w", padx=12, pady=(12, 6))
+        barra = ttk.Progressbar(self, mode="indeterminate", length=420)
+        barra.pack(padx=12, pady=(0, 12))
+        barra.start(14)
+        self.protocol("WM_DELETE_WINDOW", self.withdraw)
+
+
 class CandidateProfileWindowCV:
     """Editor del perfil con secciones en orden de CV Harvard/ATS."""
 
@@ -414,10 +453,14 @@ class CandidateProfileWindowCV:
     def _construir(self) -> None:
         barra = ttk.Frame(self.window, padding=(12, 10, 12, 0))
         barra.pack(fill="x")
-        ttk.Button(barra, text="Importar CV…", command=self._importar_cv).pack(side="left")
-        ttk.Button(barra, text="Importar profile.json…", command=self._importar_json).pack(
-            side="left", padx=(8, 0)
+        self.boton_importar_cv = ttk.Button(
+            barra, text="Importar CV…", command=self._importar_cv
         )
+        self.boton_importar_cv.pack(side="left")
+        self.boton_importar_json = ttk.Button(
+            barra, text="Importar profile.json…", command=self._importar_json
+        )
+        self.boton_importar_json.pack(side="left", padx=(8, 0))
         ttk.Button(barra, text="Revertir importación…", command=self._revertir).pack(
             side="left", padx=(8, 0)
         )
@@ -788,23 +831,147 @@ class CandidateProfileWindowCV:
         if not ruta:
             return
         try:
-            importado = extract_candidate_profile(ruta)
+            # Una sola lectura: las reglas y el pase IA comparten el texto.
+            texto = read_cv_text(ruta)
+            importado = extract_candidate_profile(ruta, texto=texto)
         except (OSError, ValueError) as exc:
             messagebox.showerror("No se pudo leer el CV", str(exc), parent=self.window)
             return
         facts = [suggestion_to_fact(s) for s in importado.suggestions]
         avisos = "\n".join(importado.warnings)
+        if len(facts) < UMBRAL_REGLAS_PARA_IA and messagebox.askyesno(
+            "Pase IA recomendado",
+            (
+                f"El extractor de reglas local detecta {len(facts)} dato(s) en "
+                f"{importado.source_name} — poco para un CV completo.\n\n"
+                "¿Ejecutar el pase IA? Lee el texto del CV y propone el perfil "
+                "completo (harvard-ats-v1). Con el motor local tarda 1-2 minutos."
+            ),
+            parent=self.window,
+        ):
+            self._iniciar_pase_ia(ruta, texto, facts, avisos, importado.source_name)
+            return
+        self._mostrar_sugerencias_reglas(importado.source_name, facts, avisos)
+
+    # ── pase IA del CV (cv_ia) ──
+    def _iniciar_pase_ia(
+        self,
+        ruta: str,
+        texto: str,
+        facts_reglas: list[dict[str, Any]],
+        avisos: str,
+        source_name: str,
+    ) -> None:
+        try:
+            cliente = IAClient()
+        except IAError as exc:
+            messagebox.showerror("IA no disponible", str(exc), parent=self.window)
+            self._mostrar_sugerencias_reglas(source_name, facts_reglas, avisos)
+            return
+        if not cliente.es_local:
+            texto_privacidad = (
+                f"El motor IA configurado es EXTERNO "
+                f"({cliente.proveedor}: {cliente.modelo}).\n\n"
+                "El texto del CV viajara a ese proveedor para extraer el perfil; "
+                "nada se guarda sin tu revision. ¿Continuar?"
+            )
+            if not messagebox.askyesno(
+                "Aviso de privacidad", texto_privacidad, parent=self.window
+            ):
+                self._mostrar_sugerencias_reglas(source_name, facts_reglas, avisos)
+                return
+
+        progreso = _ProgresoIA(self.window, source_name)
+        self._suspender_importaciones(True)
+        self._resultado_pase_ia: tuple[str, Any] | None = None
+
+        def _correr() -> None:
+            # SOLO toca atributos: Tcl con hilos rechaza llamadas Tk
+            # (createcommand/after) desde el worker; el marshaling a la UI
+            # lo hace el _poll, que corre en el main thread.
+            try:
+                perfil = asyncio.run(extraer_cv_ia(texto, cliente))
+                self._resultado_pase_ia = ("ok", facts_desde_perfil_dict(perfil))
+            except Exception as exc:  # IAError/httpx/JSON: la UI decide como mostrarlo
+                self._resultado_pase_ia = ("error", str(exc))
+
+        def _poll() -> None:
+            if not self.window.winfo_exists():
+                return
+            resultado = self._resultado_pase_ia
+            if resultado is None:
+                self.window.after(60, _poll)
+                return
+            self._resultado_pase_ia = None
+            self._terminar_pase_ia(resultado, progreso, source_name, facts_reglas, avisos)
+
+        threading.Thread(target=_correr, name="import-cv-ia", daemon=True).start()
+        self.window.after(60, _poll)
+
+        threading.Thread(target=_correr, name="import-cv-ia", daemon=True).start()
+
+    def _terminar_pase_ia(
+        self,
+        resultado: tuple[str, Any],
+        progreso: _ProgresoIA,
+        source_name: str,
+        facts_reglas: list[dict[str, Any]],
+        avisos: str,
+    ) -> None:
+        try:
+            if progreso.winfo_exists():
+                progreso.destroy()
+        except tk.TclError:  # ya cerrada
+            pass
+        self._suspender_importaciones(False)
+        if not self.window.winfo_exists():
+            return
+        estado, datos = resultado
+        if estado == "ok" and datos:
+            self._abrir_revision(
+                f"{source_name} (IA)",
+                datos,
+                (
+                    "Datos propuestos por IA: revisa cada uno y edita lo que "
+                    "haga falta. Se guardan como importacion revertible "
+                    "(snapshot automatico)."
+                ),
+            )
+            return
+        if estado == "ok":
+            messagebox.showinfo(
+                "IA sin datos",
+                f"La IA no propuso datos para {source_name}.",
+                parent=self.window,
+            )
+        else:
+            messagebox.showerror("El pase IA fallo", str(datos), parent=self.window)
+        self._mostrar_sugerencias_reglas(source_name, facts_reglas, avisos)
+
+    def _mostrar_sugerencias_reglas(
+        self, source_name: str, facts: list[dict[str, Any]], avisos: str
+    ) -> None:
         if not facts:
             messagebox.showinfo(
                 "Sin sugerencias",
-                f"No se detectaron datos en {importado.source_name}.\n\n{avisos}",
+                f"No se detectaron datos en {source_name}.\n\n{avisos}",
                 parent=self.window,
             )
             return
+        self._abrir_revision(source_name, facts, avisos)
+
+    def _abrir_revision(
+        self, source_name: str, facts: list[dict[str, Any]], aviso: str
+    ) -> None:
         _DialogoRevision(
-            self.window, self.repository, source_name=importado.source_name,
-            facts=facts, aviso=avisos, al_terminar=self.refresh,
+            self.window, self.repository, source_name=source_name,
+            facts=facts, aviso=aviso, al_terminar=self.refresh,
         )
+
+    def _suspender_importaciones(self, en_pase: bool) -> None:
+        estado = "disabled" if en_pase else "normal"
+        self.boton_importar_cv.configure(state=estado)
+        self.boton_importar_json.configure(state=estado)
 
     def _importar_json(self) -> None:
         ruta = filedialog.askopenfilename(

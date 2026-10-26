@@ -106,10 +106,16 @@ def read_cv_text(path: str | Path) -> str:
     return text
 
 
-def extract_candidate_profile(path: str | Path) -> CandidateProfileImport:
-    """Propone hechos detectables localmente; la UI debe solicitar confirmacion."""
+def extract_candidate_profile(
+    path: str | Path, *, texto: str | None = None
+) -> CandidateProfileImport:
+    """Propone hechos detectables localmente; la UI debe solicitar confirmacion.
+
+    `texto` permite pasar el texto ya leido (read_cv_text) para no re-parsear
+    el archivo cuando la UI encadena extraccion de reglas + pase IA.
+    """
     cv_path = Path(path)
-    text = read_cv_text(cv_path)
+    text = texto if texto is not None else read_cv_text(cv_path)
     extraction = RuleBasedExtractor().extract(text)
     suggestions: dict[tuple[str, str], CandidateProfileSuggestion] = {}
     experience_values: set[tuple[float, str, str]] = set()

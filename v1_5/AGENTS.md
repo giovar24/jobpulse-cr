@@ -108,7 +108,10 @@ python -m pytest tests/ -q
   Unsloth HF con SHA256 verificados + llama.cpp + deps; `--check` = verificar).
 - **Capa IA de CVs (`cv_ia.py`)**: CV PDF/DOCX/TXT → harvard-ats-v1; probada
   E2E con Gemma local y Gemini (39 facts consistentes; import+revert OK).
-  Pendiente integrarla al botón "Importar CV" de la UI.
+  **Integrada** al botón "Importar CV…" de la UI (`ui_perfil.py`): reglas
+  primero; si sugieren < 5 facts se ofrece el pase IA (aviso de privacidad
+  si el motor del `.env` es externo; progreso no-modal; datos llegan a
+  `_DialogoRevision` para revisión antes de guardar).
 - BD: 175 jobs. Huecos restantes: skills 0, languages 4, city 24, region 13,
   work_mode 'unknown' 23, salary sin texto en fuente 82 (no extraíble).
 - Perfil: 48 facts (editor CV en `ui_perfil.py`; datos personales y resumen
