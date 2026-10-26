@@ -66,10 +66,3 @@ informes/
 .streamlit/
 # Estado de la corrida en vivo (lo escribe core/progreso.py; volatil, sin datos)
 data/corrida_estado.json
-
-# Base local de desarrollo aislado para JobPulse v1.5.
-v1_5/data/*.db
-v1_5/data/*.db-*
-# Datos personales y credenciales del usuario en v1.5 (nunca versionar):
-v1_5/data/empresas/
-v1_5/data/usuario/

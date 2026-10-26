@@ -1,10 +1,10 @@
 # AGENTS.md — JobPulse CR
 
-> **⛔ NO MODIFICAR — CONGELADO.** El desarrollo activo vive en el fork
-> **`v1_5/`**, con su propio `AGENTS.md`, su venv y sus comandos (leer
-> `v1_5/AGENTS.md` antes de trabajar). El proyecto principal de la raíz no se
-> toca: ni su código, ni sus docs, ni este archivo. Todo lo que sigue aplica
-> SOLO al proyecto de la raíz; dentro de `v1_5/` NO vale.
+> **⛔ NO MODIFICAR — CONGELADO.** El desarrollo activo se mudó el 2026-10-26 a
+> un repo propio: **`giovar24/jobpulse-cr-v15`** (carpeta `D:\Proyectos\v1_5`,
+> con su propio `AGENTS.md`, venv y comandos). Este repo queda como el
+> proyecto principal v1.x, solo lectura: ni su código, ni sus docs, ni este
+> archivo. El historial del fork sigue accesible en la rama `fork-v15`.
 
 Proyecto **público** (`giovar24/jobpulse-cr`), 100% local y en **Windows**: scraper de
 vacantes de Costa Rica en Python 3.11+, embeddings en CPU, SQLite y UI Tkinter.

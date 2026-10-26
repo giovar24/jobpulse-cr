@@ -2831,3 +2831,21 @@ vemos manana").**
 2. (Menor) el Ranking de la UI podria ordenar las BANDERAS (apta primero,
    sin evaluar despues) en vez de solo filtrar descartadas — evaluar si
    conviene con datos reales.
+
+## 63. El fork v1_5 se muda a repositorio propio (2026-10-26)
+
+El desarrollo activo ya NO vive en este repo: la carpeta `v1_5/` se convirtio
+en el repositorio independiente **`giovar24/jobpulse-cr-v15`** (carpeta local
+`D:\Proyectos\v1_5`, con su propio `AGENTS.md`, venv y comandos).
+
+- **Historial preservado**: rama `fork-v15` en este repo (`git subtree split
+  -P v1_5`, 95 commits con `v1_5` reescrito como raiz). La rama `main` ya no
+  contiene `v1_5/` (commit afa2937) y `.gitignore` quedo sin sus reglas.
+- **Seguridad**: la contraseña de ANE que viajaba en el historial del fork
+  (`login_ane.py`, commit b447371) se PURGO antes de publicar
+  (`git filter-repo --replace-text`); el propio script ahora lee del almacen
+  (`credencial("ANE")`: keyring + credenciales.json, fallback .env
+  ANE_USER/ANE_PASSWORD). **Pendiente del usuario: rotar la contraseña en
+  ane.cr** (sigue expuesta en el historial PUBLICO de este repo).
+- Este repo queda **congelado** (ver nota en `AGENTS.md`); no se toca su
+  codigo ni sus docs salvo mantenimiento de esta bitacora.
