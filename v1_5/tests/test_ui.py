@@ -34,6 +34,27 @@ from jobpulse_v15.ui import (
 from jobpulse_v15.ui_perfil import CandidateProfileWindowCV, _DialogoRevision
 
 
+def _tkroot_reintentos(intentos: int = 5) -> tk.Tk:
+    """Crea el root Tk oculto; reintenta si la inicializacion falla.
+
+    Al encadenar muchos interpretes Tcl (un `tk.Tk()` + `destroy()` por
+    test), la creacion falla de vez en cuando en Windows con errores
+    transitorios de la libreria ("Can't find a usable tk.tcl",
+    `invalid command name "tcl_findLibrary"`): son de arranque, no del
+    codigo bajo prueba — un retraso breve los resuelve.
+    """
+    ultimo: tk.TclError | None = None
+    for _ in range(intentos):
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            return root
+        except tk.TclError as exc:
+            ultimo = exc
+            time.sleep(0.2)
+    raise ultimo if ultimo else RuntimeError("tk.Tk() fallo sin detalle")
+
+
 class TestFormatJobDetail(unittest.TestCase):
     def test_includes_location_sources_analysis_and_evidence(self):
         detail = format_job_detail(
@@ -288,8 +309,7 @@ class TestSourceManagerWindow(unittest.TestCase):
             company_name="Intel",
             country="CR",
         )
-        self.root = tk.Tk()
-        self.root.withdraw()
+        self.root = _tkroot_reintentos()
 
     def tearDown(self):
         self.root.update_idletasks()
@@ -1386,8 +1406,7 @@ class TestManualJobStateUI(unittest.TestCase):
             source_job_id="REQ-1",
             source_url="https://example.test/jobs/1",
         )
-        self.root = tk.Tk()
-        self.root.withdraw()
+        self.root = _tkroot_reintentos()
 
     def tearDown(self):
         self.root.update_idletasks()
